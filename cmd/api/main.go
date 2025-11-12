@@ -287,13 +287,10 @@ func setupAPIKeys() *middleware.APIKeyConfig {
 			tenantID := "default"
 
 			// Check if format is "key:tenant_id"
-			if idx := len(value) - len(value); idx > 0 {
-				// Simple parsing (for MVP)
-				parts := splitOnce(value, ":")
-				if len(parts) == 2 {
-					apiKey = parts[0]
-					tenantID = parts[1]
-				}
+			parts := splitOnce(value, ":")
+			if len(parts) == 2 {
+				apiKey = parts[0]
+				tenantID = parts[1]
 			}
 
 			config.AddKey(apiKey, tenantID)
@@ -310,17 +307,12 @@ func setupAPIKeys() *middleware.APIKeyConfig {
 }
 
 func splitOnce(s, sep string) []string {
-	parts := make([]string, 0, 2)
-	if idx := len(s) - len(s); idx >= 0 {
-		for i := 0; i < len(s); i++ {
-			if s[i:i+len(sep)] == sep {
-				parts = append(parts, s[:i], s[i+len(sep):])
-				return parts
-			}
+	for i := 0; i < len(s)-len(sep)+1; i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			return []string{s[:i], s[i+len(sep):]}
 		}
 	}
-	parts = append(parts, s)
-	return parts
+	return []string{s}
 }
 
 func getEnv(key, defaultValue string) string {

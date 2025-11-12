@@ -130,9 +130,9 @@ func generateWriteMethod(eventName string, event *Event) (string, error) {
 	builder.WriteString("\n")
 
 	// Build column names and placeholders
-	columns := []string{"tenant_id"}
-	placeholders := []string{"$1"}
-	paramIndex := 2
+	columns := []string{"tenant_id", "timestamp"}
+	placeholders := []string{"$1", "$2"}
+	paramIndex := 3
 
 	for _, fieldName := range fieldNames {
 		columns = append(columns, fieldName)
@@ -161,6 +161,7 @@ func generateWriteMethod(eventName string, event *Event) (string, error) {
 	// Execute query
 	builder.WriteString("\t_, err = w.db.Exec(query,\n")
 	builder.WriteString("\t\tevent.TenantID,\n")
+	builder.WriteString("\t\tevent.Timestamp,\n")
 
 	// Add parameters in order
 	for _, fieldName := range fieldNames {
@@ -220,7 +221,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 	builder.WriteString("\n")
 
 	// Build column names
-	columns := []string{"tenant_id"}
+	columns := []string{"tenant_id", "timestamp"}
 	for _, fieldName := range fieldNames {
 		columns = append(columns, fieldName)
 	}
@@ -260,6 +261,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 	// Append args for this row
 	builder.WriteString("\t\t// Append args for this row\n")
 	builder.WriteString("\t\targs = append(args, event.TenantID)\n")
+	builder.WriteString("\t\targs = append(args, event.Timestamp)\n")
 
 	for _, fieldName := range fieldNames {
 		field := event.Fields[fieldName]

@@ -190,13 +190,106 @@ test-integration: up ## Run integration tests
 	@echo "$(BLUE)Running integration tests...$(NC)"
 	@echo "$(YELLOW)Integration tests not implemented yet$(NC)"
 
-test-load: ## Run load tests
-	@echo "$(BLUE)Running load tests...$(NC)"
-	@echo "$(YELLOW)Load tests not implemented yet$(NC)"
+# =============================================================================
+# Load Testing (k6)
+# =============================================================================
+
+loadtest: loadtest-baseline ## Run default load test (baseline scenario)
+
+loadtest-quick: ## Quick validation test - 100 RPS for 10s
+	@echo "$(BLUE)Running quick load test with k6...$(NC)"
+	@if ! command -v k6 > /dev/null; then \
+		echo "$(RED)k6 not installed. Install with: brew install k6$(NC)"; \
+		exit 1; \
+	fi
+	k6 run loadtest/quick.js
+
+loadtest-baseline: ## Baseline test - 500 RPS for 30s
+	@echo "$(BLUE)Running baseline load test with k6...$(NC)"
+	@if ! command -v k6 > /dev/null; then \
+		echo "$(RED)k6 not installed. Install with: brew install k6$(NC)"; \
+		exit 1; \
+	fi
+	k6 run loadtest/baseline.js
+
+loadtest-production: ## Production simulation - 1000 RPS for 1 min
+	@echo "$(BLUE)Running production load test with k6...$(NC)"
+	@if ! command -v k6 > /dev/null; then \
+		echo "$(RED)k6 not installed. Install with: brew install k6$(NC)"; \
+		exit 1; \
+	fi
+	k6 run loadtest/production.js
+
+loadtest-batch: ## Batch test - 100 RPS with 10 events/batch
+	@echo "$(BLUE)Running batch load test with k6...$(NC)"
+	@if ! command -v k6 > /dev/null; then \
+		echo "$(RED)k6 not installed. Install with: brew install k6$(NC)"; \
+		exit 1; \
+	fi
+	k6 run loadtest/batch.js
+
+loadtest-high: ## High throughput - 5000 RPS for 30s (requires RATE_LIMIT_RPS=10000)
+	@echo "$(BLUE)Running high throughput load test with k6...$(NC)"
+	@echo "$(YELLOW)Note: Ensure RATE_LIMIT_RPS is set to 10000 or higher$(NC)"
+	@if ! command -v k6 > /dev/null; then \
+		echo "$(RED)k6 not installed. Install with: brew install k6$(NC)"; \
+		exit 1; \
+	fi
+	k6 run loadtest/high-throughput.js
+
+loadtest-custom: ## Custom load test - set API_URL, API_KEY env vars
+	@echo "$(BLUE)Running custom load test with k6...$(NC)"
+	@SCRIPT=$${SCRIPT:-loadtest/baseline.js}; \
+	echo "Using script: $$SCRIPT"; \
+	k6 run $$SCRIPT
 
 # =============================================================================
 # Utilities
 # =============================================================================
+
+metrics: ## Check consumer metrics endpoint
+	@echo "$(BLUE)Consumer Metrics:$(NC)"
+	@curl -s http://localhost:8081/metrics | grep -E "^(ingestkit_|# )" || echo "$(RED)Metrics endpoint not available$(NC)"
+
+metrics-health: ## Check consumer health endpoint
+	@echo "$(BLUE)Consumer Health:$(NC)"
+	@curl -s http://localhost:8081/health | jq . || echo "$(RED)Health endpoint not available$(NC)"
+
+metrics-watch: ## Watch consumer metrics in real-time (requires watch command)
+	@echo "$(BLUE)Watching consumer metrics (Ctrl+C to stop)...$(NC)"
+	@watch -n 2 'curl -s http://localhost:8081/metrics | grep -E "^ingestkit_" | grep -v "# "'
+
+db-stats: ## Show database statistics (table sizes, row counts)
+	@echo "$(BLUE)Database Statistics:$(NC)"
+	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+		SELECT \
+			schemaname, \
+			tablename, \
+			pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size, \
+			n_live_tup AS rows \
+		FROM pg_stat_user_tables \
+		WHERE schemaname NOT IN ('pg_catalog', 'information_schema') \
+		ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;"
+
+db-event-counts: ## Show event counts by type
+	@echo "$(BLUE)Event Counts:$(NC)"
+	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+		SELECT 'user_signup' as event_type, COUNT(*) as count FROM events_user_signup \
+		UNION ALL \
+		SELECT 'purchase', COUNT(*) FROM events_purchase \
+		UNION ALL \
+		SELECT 'page_view', COUNT(*) FROM events_page_view \
+		ORDER BY count DESC;"
+
+db-dlq-check: ## Check dead letter queue
+	@echo "$(BLUE)Dead Letter Queue:$(NC)"
+	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+		SELECT \
+			event_type, \
+			COUNT(*) as count, \
+			MAX(created_at) as latest_failure \
+		FROM ingestkit_meta.dead_letter_queue \
+		GROUP BY event_type;"
 
 clean: down ## Clean up containers, volumes, and build artifacts
 	@echo "$(BLUE)Cleaning up...$(NC)"
