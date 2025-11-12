@@ -1,0 +1,117 @@
+# IngestKit Event Schema Definition
+# This file defines all events tracked by the system
+# Run: ingestkit schema compile to generate SQL and Go code
+
+version: "1.0"
+
+events:
+  # User lifecycle events
+  user_signup:
+    description: "Fired when a new user signs up"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+        description: "Unique user identifier"
+
+      email:
+        type: string
+        required: true
+        description: "User email address"
+
+      signup_source:
+        type: string
+        required: false
+        values: [web, mobile, api]
+        description: "Where the signup originated"
+
+      utm_campaign:
+        type: string
+        required: false
+        description: "Marketing campaign identifier"
+
+      metadata:
+        type: jsonb
+        required: false
+        description: "Additional flexible metadata"
+
+  # E-commerce events
+  purchase:
+    description: "Fired when a user makes a purchase"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+        description: "User who made the purchase"
+
+      order_id:
+        type: string
+        required: true
+        indexed: true
+        description: "Unique order identifier"
+
+      amount:
+        type: decimal
+        required: true
+        description: "Purchase amount"
+
+      currency:
+        type: string
+        required: false
+        default: "USD"
+        values: [USD, EUR, GBP, INR]
+        description: "Currency code"
+
+      payment_method:
+        type: string
+        required: false
+        values: [card, paypal, stripe, razorpay]
+        description: "Payment method used"
+
+      items:
+        type: jsonb
+        required: false
+        description: "Array of purchased items"
+
+  # Product analytics events
+  page_view:
+    description: "Fired when a user views a page"
+    fields:
+      user_id:
+        type: string
+        required: false
+        indexed: true
+        description: "User ID (if logged in)"
+
+      session_id:
+        type: string
+        required: true
+        indexed: true
+        description: "Session identifier"
+
+      page_url:
+        type: string
+        required: true
+        description: "Full page URL"
+
+      page_title:
+        type: string
+        required: false
+        description: "Page title"
+
+      referrer:
+        type: string
+        required: false
+        description: "Referrer URL"
+
+      duration_ms:
+        type: integer
+        required: false
+        description: "Time spent on page (milliseconds)"
+
+      metadata:
+        type: jsonb
+        required: false
+        description: "Additional page metadata"

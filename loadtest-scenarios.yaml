@@ -1,0 +1,85 @@
+# IngestKit Load Test Scenarios
+#
+# Run with: make loadtest-<scenario>
+# Example: make loadtest-baseline
+
+scenarios:
+  # Baseline test - establish performance baseline
+  baseline:
+    description: "Baseline test at 500 RPS for 30 seconds"
+    target_rps: 500
+    duration: 30s
+    workers: 10
+    batch_size: 1
+    warmup: 5s
+
+  # Production simulation - realistic production traffic
+  production:
+    description: "Simulated production load - 1000 RPS for 1 minute"
+    target_rps: 1000
+    duration: 60s
+    workers: 20
+    batch_size: 1
+    warmup: 10s
+
+  # Batch test - test batch endpoints
+  batch:
+    description: "Batch endpoint test - 100 RPS with 10 events/batch"
+    target_rps: 100
+    duration: 30s
+    workers: 10
+    batch_size: 10
+    warmup: 5s
+
+  # High throughput - push the limits
+  high-throughput:
+    description: "High throughput test - 5000 RPS for 30 seconds"
+    target_rps: 5000
+    duration: 30s
+    workers: 50
+    batch_size: 1
+    warmup: 5s
+
+  # Extreme load - maximum stress test
+  extreme:
+    description: "Extreme load - 10,000 RPS for 1 minute"
+    target_rps: 10000
+    duration: 60s
+    workers: 100
+    batch_size: 1
+    warmup: 10s
+
+  # Sustained load - long duration test
+  sustained:
+    description: "Sustained load test - 2000 RPS for 5 minutes"
+    target_rps: 2000
+    duration: 300s
+    workers: 30
+    batch_size: 1
+    warmup: 10s
+
+  # Quick test - fast validation
+  quick:
+    description: "Quick validation test - 100 RPS for 10 seconds"
+    target_rps: 100
+    duration: 10s
+    workers: 5
+    batch_size: 1
+    warmup: 2s
+
+  # Batch heavy - large batches at lower RPS
+  batch-heavy:
+    description: "Heavy batching - 50 RPS with 100 events/batch = 5000 EPS"
+    target_rps: 50
+    duration: 30s
+    workers: 10
+    batch_size: 100
+    warmup: 5s
+
+# Notes:
+# - RPS = Requests Per Second
+# - EPS = Events Per Second (RPS * batch_size)
+# - For rate limit testing, you may need to increase RATE_LIMIT_RPS
+#   environment variable (default: 1000)
+# - Monitor consumer metrics at http://localhost:8081/metrics
+# - Check database performance with `make db-stats`
