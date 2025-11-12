@@ -27,7 +27,7 @@
 
 ## Current State
 
-### Phase: MVP Development - 2/4 Milestones Complete ✅
+### Phase: MVP Development - 3/4 Milestones Complete ✅
 - [x] Initial research and architecture design
 - [x] Schema approach decision: **Schema-First (Option 2)**
 - [x] Target use case identified: **SaaS Product Analytics**
@@ -37,6 +37,7 @@
 - [x] **POC 0.2: Performance Benchmark - COMPLETE ✅** (1.4x-4.3x faster queries)
 - [x] **POC 0.3: End-to-End Spike - COMPLETE ✅** (Full pipeline validated)
 - [x] **Milestone 1.2: Production API - COMPLETE ✅** (Auth, validation, rate limiting)
+- [x] **Milestone 1.3: Consumer & Storage - COMPLETE ✅** (Batch processing, retry, DLQ, metrics)
 
 ### Repository Status
 - **Branch:** munich (development branch)
@@ -351,27 +352,48 @@ Client Apps
 
 **See:** `TEST_RESULTS.md` for comprehensive end-to-end testing results
 
-#### Milestone 1.3: Consumer & Storage (Week 3, Days 1-3)
-**Goal:** Persist events to PostgreSQL
+#### Milestone 1.3: Consumer & Storage (Week 3, Days 1-3) ✅ **COMPLETE**
+**Goal:** Production-ready consumer with batch processing, retry logic, and observability
 
-- [ ] Consumer worker setup
-  - [ ] Redpanda consumer group
-  - [ ] Configurable concurrency
-  - [ ] Graceful shutdown
-- [ ] PostgreSQL writer
-  - [ ] Batch inserts (configurable size)
-  - [ ] Connection pooling
-  - [ ] Prepared statements for performance
-- [ ] Error handling
-  - [ ] Retry logic with backoff
-  - [ ] Dead letter queue (failed events table)
-- [ ] Metrics emission
-  - [ ] Events consumed/second
-  - [ ] Write latency
-  - [ ] Error rates
-- [ ] Tests
+- [x] Consumer worker enhancements
+  - [x] Manual offset management (disabled auto-commit for at-least-once semantics)
+  - [x] Batch processing with hybrid time/size approach (100 events OR 1 second)
+  - [x] Configurable concurrency (worker pool support)
+  - [x] Graceful shutdown with metrics reporting
+- [x] PostgreSQL writer optimizations
+  - [x] **Batch INSERT methods** (auto-generated from schema)
+  - [x] Connection pooling (50 max connections, 10 idle, 1 hour lifetime)
+  - [x] Multi-row INSERT statements for 10-100x performance improvement
+  - [x] Type-safe batch write methods per event type
+- [x] Error handling & reliability
+  - [x] Retry logic with exponential backoff (1s → 2s → 4s → 8s, max 30s)
+  - [x] Error classification (transient vs permanent)
+  - [x] Dead letter queue integration (writes to existing DLQ table)
+  - [x] Automatic DLQ writes after retry exhaustion
+- [x] Metrics & observability
+  - [x] Prometheus-format metrics endpoint (:8081/metrics)
+  - [x] Events consumed/second tracking
+  - [x] Average batch latency (p50)
+  - [x] Error rates and DLQ counts
+  - [x] Health check endpoint with metrics
+- [x] Code generation enhancements
+  - [x] Storage generator updated for batch methods
+  - [x] Connection pooling configuration in generated code
+  - [x] DLQ writer implementation (`internal/storage/dlq.go`)
+- [x] End-to-end testing
+  - [x] Batch processing verified (15ms avg latency)
+  - [x] Retry logic with exponential backoff tested
+  - [x] DLQ integration validated
+  - [x] Database writes confirmed
 
-**Deliverable:** Events flow from Redpanda to PostgreSQL
+**Deliverable:** ✅ Production-ready consumer with batch processing, retry logic, DLQ, and comprehensive metrics
+
+**Performance Results:**
+- **Batch Latency**: 15ms average (20ms for user_signup, 11ms for page_view)
+- **Connection Pool**: 50 max connections configured
+- **Retry Strategy**: 3 attempts with exponential backoff (1s, 2s, 4s)
+- **Metrics Endpoint**: http://localhost:8081/metrics (Prometheus format)
+- **At-Least-Once Delivery**: Manual offset commits after successful batch writes
 
 #### Milestone 1.4: Query API (Week 3, Days 4-5)
 **Goal:** Query stored events

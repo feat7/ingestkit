@@ -15,7 +15,9 @@ func GenerateStorage(schema *Schema) (string, error) {
 	builder.WriteString("import (\n")
 	builder.WriteString("\t\"database/sql\"\n")
 	builder.WriteString("\t\"encoding/json\"\n")
-	builder.WriteString("\t\"fmt\"\n\n")
+	builder.WriteString("\t\"fmt\"\n")
+	builder.WriteString("\t\"strings\"\n")
+	builder.WriteString("\t\"time\"\n\n")
 	builder.WriteString("\t_ \"github.com/lib/pq\"\n")
 	builder.WriteString("\t\"github.com/yourusername/ingestkit/generated/models\"\n")
 	builder.WriteString(")\n\n")
@@ -26,26 +28,61 @@ func GenerateStorage(schema *Schema) (string, error) {
 	builder.WriteString("\tdb *sql.DB\n")
 	builder.WriteString("}\n\n")
 
+	// Config struct
+	builder.WriteString("// Config holds database connection pool configuration\n")
+	builder.WriteString("type Config struct {\n")
+	builder.WriteString("\tMaxOpenConns    int           // Maximum number of open connections (default: 50)\n")
+	builder.WriteString("\tMaxIdleConns    int           // Maximum number of idle connections (default: 10)\n")
+	builder.WriteString("\tConnMaxLifetime time.Duration // Maximum connection lifetime (default: 1 hour)\n")
+	builder.WriteString("}\n\n")
+
+	builder.WriteString("// DefaultConfig returns the default database configuration\n")
+	builder.WriteString("func DefaultConfig() *Config {\n")
+	builder.WriteString("\treturn &Config{\n")
+	builder.WriteString("\t\tMaxOpenConns:    50,\n")
+	builder.WriteString("\t\tMaxIdleConns:    10,\n")
+	builder.WriteString("\t\tConnMaxLifetime: time.Hour,\n")
+	builder.WriteString("\t}\n")
+	builder.WriteString("}\n\n")
+
 	// NewWriter function
-	builder.WriteString("// NewWriter creates a new PostgreSQL writer\n")
+	builder.WriteString("// NewWriter creates a new PostgreSQL writer with default configuration\n")
 	builder.WriteString("func NewWriter(connStr string) (*Writer, error) {\n")
+	builder.WriteString("\treturn NewWriterWithConfig(connStr, DefaultConfig())\n")
+	builder.WriteString("}\n\n")
+
+	builder.WriteString("// NewWriterWithConfig creates a new PostgreSQL writer with custom configuration\n")
+	builder.WriteString("func NewWriterWithConfig(connStr string, config *Config) (*Writer, error) {\n")
 	builder.WriteString("\tdb, err := sql.Open(\"postgres\", connStr)\n")
 	builder.WriteString("\tif err != nil {\n")
 	builder.WriteString("\t\treturn nil, fmt.Errorf(\"failed to open database: %w\", err)\n")
 	builder.WriteString("\t}\n\n")
+	builder.WriteString("\t// Configure connection pool\n")
+	builder.WriteString("\tdb.SetMaxOpenConns(config.MaxOpenConns)\n")
+	builder.WriteString("\tdb.SetMaxIdleConns(config.MaxIdleConns)\n")
+	builder.WriteString("\tdb.SetConnMaxLifetime(config.ConnMaxLifetime)\n\n")
 	builder.WriteString("\tif err := db.Ping(); err != nil {\n")
 	builder.WriteString("\t\treturn nil, fmt.Errorf(\"failed to ping database: %w\", err)\n")
 	builder.WriteString("\t}\n\n")
 	builder.WriteString("\treturn &Writer{db: db}, nil\n")
 	builder.WriteString("}\n\n")
 
-	// Generate write method for each event
+	// Generate write methods for each event
 	for eventName, event := range schema.Events {
+		// Single write method
 		method, err := generateWriteMethod(eventName, event)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate write method for '%s': %w", eventName, err)
 		}
 		builder.WriteString(method)
+		builder.WriteString("\n\n")
+
+		// Batch write method
+		batchMethod, err := generateBatchWriteMethod(eventName, event)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate batch write method for '%s': %w", eventName, err)
+		}
+		builder.WriteString(batchMethod)
 		builder.WriteString("\n\n")
 	}
 
@@ -145,6 +182,106 @@ func generateWriteMethod(eventName string, event *Event) (string, error) {
 	// Error handling
 	builder.WriteString("\tif err != nil {\n")
 	builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"failed to insert %s: %%w\", err)\n", eventName))
+	builder.WriteString("\t}\n\n")
+	builder.WriteString("\treturn nil\n")
+	builder.WriteString("}")
+
+	return builder.String(), nil
+}
+
+func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
+	var builder strings.Builder
+
+	structName := toPascalCase(eventName)
+	tableName := fmt.Sprintf("events_%s", eventName)
+
+	// Method comment
+	builder.WriteString(fmt.Sprintf("// Write%sBatch writes multiple %s events to the database in a single transaction\n", structName, eventName))
+	builder.WriteString(fmt.Sprintf("func (w *Writer) Write%sBatch(events []*models.%s) error {\n", structName, structName))
+	builder.WriteString("\tif len(events) == 0 {\n")
+	builder.WriteString("\t\treturn nil\n")
+	builder.WriteString("\t}\n\n")
+
+	// Collect field names for INSERT
+	fieldNames := make([]string, 0, len(event.Fields))
+	for fieldName := range event.Fields {
+		fieldNames = append(fieldNames, fieldName)
+	}
+
+	// Handle JSONB fields
+	jsonbFields := make([]string, 0)
+	for fieldName, field := range event.Fields {
+		if field.Type == "jsonb" {
+			jsonbFields = append(jsonbFields, fieldName)
+		}
+	}
+
+	builder.WriteString("\tvar err error\n")
+	builder.WriteString("\n")
+
+	// Build column names
+	columns := []string{"tenant_id"}
+	for _, fieldName := range fieldNames {
+		columns = append(columns, fieldName)
+	}
+
+	// Start building multi-row INSERT
+	builder.WriteString("\t// Build multi-row INSERT query\n")
+	builder.WriteString(fmt.Sprintf("\tquery := `INSERT INTO %s (%s) VALUES `\n\n", tableName, strings.Join(columns, ", ")))
+
+	// Build values and args
+	builder.WriteString(fmt.Sprintf("\targs := make([]interface{}, 0, len(events)*%d)\n", len(columns)))
+	builder.WriteString("\tvaluePlaceholders := make([]string, 0, len(events))\n\n")
+
+	builder.WriteString("\tfor i, event := range events {\n")
+
+	// Marshal JSONB fields for each event
+	if len(jsonbFields) > 0 {
+		for _, fieldName := range jsonbFields {
+			goFieldName := toPascalCase(fieldName)
+			varName := fmt.Sprintf("%sJSON", fieldName)
+			builder.WriteString(fmt.Sprintf("\t\tvar %s []byte\n", varName))
+			builder.WriteString(fmt.Sprintf("\t\t%s, err = json.Marshal(event.%s)\n", varName, goFieldName))
+			builder.WriteString("\t\tif err != nil {\n")
+			builder.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"failed to marshal %s for event %%d: %%w\", i, err)\n", fieldName))
+			builder.WriteString("\t\t}\n\n")
+		}
+	}
+
+	// Build placeholders for this row
+	builder.WriteString("\t\t// Build placeholders for this row\n")
+	builder.WriteString(fmt.Sprintf("\t\trowPlaceholders := make([]string, %d)\n", len(columns)))
+	builder.WriteString(fmt.Sprintf("\t\tbaseIndex := i * %d\n", len(columns)))
+	builder.WriteString(fmt.Sprintf("\t\tfor j := 0; j < %d; j++ {\n", len(columns)))
+	builder.WriteString("\t\t\trowPlaceholders[j] = fmt.Sprintf(\"$%d\", baseIndex+j+1)\n")
+	builder.WriteString("\t\t}\n")
+	builder.WriteString("\t\tvaluePlaceholders = append(valuePlaceholders, fmt.Sprintf(\"(%s)\", strings.Join(rowPlaceholders, \", \")))\n\n")
+
+	// Append args for this row
+	builder.WriteString("\t\t// Append args for this row\n")
+	builder.WriteString("\t\targs = append(args, event.TenantID)\n")
+
+	for _, fieldName := range fieldNames {
+		field := event.Fields[fieldName]
+		goFieldName := toPascalCase(fieldName)
+
+		if field.Type == "jsonb" {
+			varName := fmt.Sprintf("%sJSON", fieldName)
+			builder.WriteString(fmt.Sprintf("\t\targs = append(args, %s)\n", varName))
+		} else {
+			builder.WriteString(fmt.Sprintf("\t\targs = append(args, event.%s)\n", goFieldName))
+		}
+	}
+
+	builder.WriteString("\t}\n\n")
+
+	// Complete query
+	builder.WriteString("\tquery += strings.Join(valuePlaceholders, \", \")\n\n")
+
+	// Execute batch insert
+	builder.WriteString("\t_, err = w.db.Exec(query, args...)\n")
+	builder.WriteString("\tif err != nil {\n")
+	builder.WriteString(fmt.Sprintf("\t\treturn fmt.Errorf(\"failed to batch insert %s (%%d events): %%w\", len(events), err)\n", eventName))
 	builder.WriteString("\t}\n\n")
 	builder.WriteString("\treturn nil\n")
 	builder.WriteString("}")
