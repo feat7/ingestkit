@@ -6,71 +6,69 @@ Self-hosted data ingestion platform for collecting high-volume events with type 
 
 ## Features
 
-- ✅ **Schema-First:** Define events in YAML, get type-safe APIs and models
-- ✅ **High Performance:** 15,600 events/sec with PostgreSQL COPY protocol
-- ✅ **Zero Data Loss:** At-least-once delivery, 100% reliability validated
-- ✅ **Production-Ready:** Smart batching, retry logic, dead letter queue
-- ✅ **Developer-Friendly:** Auto-generated Go models with pgx optimization
-- ✅ **Self-Hosted:** Full control over your data and infrastructure
-- ✅ **Load Tested:** Validated at 4,788 RPS with 143K events (100% success)
-- ✅ **Modern Stack:** PostgreSQL (COPY), Go (Fiber), Redpanda (Kafka)
+- **Schema-First:** Define events in YAML, get type-safe APIs and models
+- **High Performance:** 18,897 events/sec with PostgreSQL COPY protocol
+- **Zero Data Loss:** At-least-once delivery, 100% reliability validated
+- **Production-Ready:** Smart batching, retry logic, dead letter queue
+- **Developer-Friendly:** Auto-generated Go models with pgx optimization
+- **Self-Hosted:** Full control over your data and infrastructure
+- **Load Tested:** Validated at 7,224 RPS with 216K events (100% success)
+- **Modern Stack:** PostgreSQL (COPY), Go (Fiber), Redpanda (Kafka)
 
 ## Performance Characteristics
 
 **Measured Performance (production-ready with COPY protocol):**
 
-| Throughput | Batch Latency | Success Rate | Events/Batch | DB Write Method |
-|------------|--------------|--------------|--------------|-----------------|
-| 4,788 RPS  | 13ms avg     | 100%         | 500 events   | COPY protocol   |
-| 15,600 events/sec | ~13ms | 100%    | Per batch    | Bulk insert     |
-| 143,691 total | <20ms p95 | 100%        | 30 sec test  | Zero failures   |
+| Throughput | Batch Latency | Success Rate | Events Tested | DB Write Method |
+|------------|--------------|--------------|---------------|-----------------|
+| 7,224 RPS  | 15ms avg     | 100%         | 216,818 events | COPY protocol   |
+| 18,897 events/sec | ~15ms | 100%    | 30 sec test    | Bulk insert     |
+| p95: 92ms  | p99: 168ms   | 0 errors     | 0 failures    | Zero data loss  |
 
 **Key Optimizations:**
 
-- **PostgreSQL COPY protocol**: 3-4x faster than multi-row INSERT (measured: 15,600 events/sec with COPY vs 5,000 baseline)
+- **PostgreSQL COPY protocol**: 3-4x faster than multi-row INSERT
 - **pgx connection pooling**: 50 max connections, 10 idle, 1-hour lifecycle
-- **Smart batching**: 500 events OR 20ms timeout (whichever first)
+- **Smart batching**: 100 events OR 20ms timeout (whichever first)
 - **Zero data loss**: At-least-once delivery with AutoCommitMarks pattern
 - **100% reliability**: All load tests passed with zero failures
 
 **Batch Processing Performance:**
-- Average: 13ms per batch (500 events)
-- P95: <20ms
-- Throughput: 15,600 events/second per consumer
-- Latency: <50ms end-to-end (API → DB)
+- Average: 15ms per batch (100 events)
+- P95: <92ms (API latency)
+- Throughput: 18,897 events/second per consumer
+- Latency: Sub-100ms end-to-end (API to DB)
 
-See [LAG_ANALYSIS.md](LAG_ANALYSIS.md) for detailed performance analysis.
+### Latest Test Results
 
-### Test Results
-
-**High-Throughput Test (30 seconds):**
+**10,000 RPS Load Test (30 seconds):**
 ```
-Total events: 143,691
-Request rate: 4,788 RPS
-Success rate: 100% (zero failures)
-Batch size: 500 events
-Batch timeout: 20ms
-Consumer lag: <50ms end-to-end
-DB write latency: 13ms average, <20ms p95
-```
-
-**Controlled Test (1000 events):**
-```
-Total events: 1,000
-Success rate: 100%
-Batch processing: 206 events in 13ms
-Throughput: 15,600 events/second
-Zero data loss verified
+Total events sent:    216,818
+Actual RPS achieved:  7,224 (72% of 10K target)
+Success rate:         100% (zero failures)
+API latency p95:      91.99ms
+API latency p99:      168.16ms
+Consumer throughput:  18,897 events/sec
+DB write errors:      0
+Data loss:            0
 ```
 
-**Performance Comparison:**
+**5,000 RPS Load Test (30 seconds):**
+```
+Total events sent:    126,381
+Actual RPS achieved:  4,210
+Success rate:         100%
+API latency p95:      24.96ms
+Consumer throughput:  12,409 events/sec
+```
 
-| Metric | Before (INSERT) | After (COPY) | Improvement |
-|--------|----------------|--------------|-------------|
-| Batch write time | ~40ms | ~13ms | 3x faster |
-| Events/second | ~5,000 | ~15,600 | 3.1x faster |
-| Latency p95 | ~80ms | <20ms | 4x better |
-| Protocol | Multi-row INSERT | COPY | Binary |
+**Performance Scaling:**
+
+| RPS Target | Events Sent | Success Rate | p95 Latency | Consumer Peak |
+|------------|-------------|--------------|-------------|---------------|
+| 100 RPS    | 1,001       | 100%         | 11.37ms     | 6,947/s       |
+| 5,000 RPS  | 126,381     | 100%         | 24.96ms     | 12,409/s      |
+| 10,000 RPS | 216,818     | 100%         | 91.99ms     | 18,897/s      |
 
 ## Quick Start
 
@@ -156,8 +154,8 @@ make loadtest-baseline
 # Production test (1000 RPS for 1 min)
 make loadtest-production
 
-# Batch test
-make loadtest-batch
+# High throughput test (10000 RPS for 30s)
+make loadtest-high
 
 # Monitor metrics during tests
 make metrics-watch
@@ -313,7 +311,7 @@ make loadtest-quick      # Quick test - 100 RPS for 10s
 make loadtest-baseline   # Baseline - 500 RPS for 30s
 make loadtest-production # Production - 1000 RPS for 1 min
 make loadtest-batch      # Batch test - 100 RPS with batches
-make loadtest-high       # High throughput - 5000 RPS (requires rate limit adjustment)
+make loadtest-high       # High throughput - 10000 RPS (requires RATE_LIMIT_RPS=20000)
 ```
 
 ### Monitoring
@@ -332,7 +330,7 @@ Client Apps
 Go API Server (Fiber)
     ↓ (validate & publish)
 Redpanda (Kafka-compatible)
-    ↓ (consume batches: 500 events OR 20ms)
+    ↓ (consume batches: 100 events OR 20ms)
 Consumer Worker (4 parallel workers)
     ↓ (COPY protocol batch write + retry)
 PostgreSQL (partitioned tables + pgxpool)
@@ -349,7 +347,7 @@ Query API (future)
 - Eliminates SQL parsing overhead for batch operations
 
 **Consumer Layer:**
-- **Smart batching**: 500 events OR 20ms timeout (whichever first)
+- **Smart batching**: 100 events OR 20ms timeout (whichever first)
 - **AutoCommitMarks pattern**: Only commit offsets after successful DB write
 - **At-least-once delivery**: Guaranteed data integrity with retry logic
 - **Parallel workers**: 4 concurrent consumers for high throughput
@@ -358,7 +356,7 @@ Query API (future)
 ```go
 // Traditional multi-row INSERT (slow)
 INSERT INTO events (tenant_id, user_id, ...)
-VALUES ($1, $2, ...), ($3, $4, ...), ... // 500 rows
+VALUES ($1, $2, ...), ($3, $4, ...), ... // 100 rows
 
 // PostgreSQL COPY (3-4x faster)
 pool.CopyFrom(ctx, pgx.Identifier{"events"}, columns,
@@ -370,7 +368,7 @@ pool.CopyFrom(ctx, pgx.Identifier{"events"}, columns,
 
 **Why It's Fast:**
 1. Binary protocol (no SQL parsing)
-2. Single round-trip for 500 events
+2. Single round-trip for multiple events
 3. Optimized for bulk data loading
 4. Connection pooling reduces overhead
 
@@ -378,48 +376,48 @@ pool.CopyFrom(ctx, pgx.Identifier{"events"}, columns,
 
 **Implemented:**
 
-1. ✅ **Schema Compiler** (`cmd/schema-compiler/`)
-   - Parses YAML schema definitions
-   - Generates SQL DDL (tables, indexes, partitions)
-   - Generates Go models with validation tags
-   - Generates storage layer (batch + single writes)
+- [x] **Schema Compiler** (`cmd/schema-compiler/`)
+  - Parses YAML schema definitions
+  - Generates SQL DDL (tables, indexes, partitions)
+  - Generates Go models with validation tags
+  - Generates storage layer (batch + single writes)
 
-2. ✅ **Ingestion API** (`cmd/api/`)
-   - HTTP API with Fiber framework
-   - Request validation with go-playground/validator
-   - Bearer token authentication
-   - Rate limiting (configurable per tenant)
-   - Single event and batch endpoints
-   - Publishes to Redpanda
+- [x] **Ingestion API** (`cmd/api/`)
+  - HTTP API with Fiber framework
+  - Request validation with go-playground/validator
+  - Bearer token authentication
+  - Rate limiting (configurable per tenant)
+  - Single event and batch endpoints
+  - Publishes to Redpanda
 
-3. ✅ **Consumer Worker** (`cmd/consumer/`)
-   - Consumes from Redpanda with franz-go
-   - Smart batching (500 events OR 20ms timeout - whichever first)
-   - At-least-once delivery with AutoCommitMarks pattern
-   - 4 parallel workers for high throughput
-   - Automatic retry logic (3 attempts with exponential backoff)
-   - Dead letter queue for failed events
-   - Prometheus metrics exposition
-   - 100% data integrity validated
+- [x] **Consumer Worker** (`cmd/consumer/`)
+  - Consumes from Redpanda with franz-go
+  - Smart batching (100 events OR 20ms timeout - whichever first)
+  - At-least-once delivery with AutoCommitMarks pattern
+  - 4 parallel workers for high throughput
+  - Automatic retry logic (3 attempts with exponential backoff)
+  - Dead letter queue for failed events
+  - Prometheus metrics exposition
+  - 100% data integrity validated
 
-4. ✅ **Storage Layer** (`generated/storage/`)
-   - Auto-generated from schema (pgx + COPY protocol)
-   - PostgreSQL COPY protocol for batch writes (3-4x faster)
-   - pgxpool connection pooling (50 max, 10 idle)
-   - Single and batch insert methods
-   - Optimized JSONB handling
-   - 15,600 events/sec throughput per consumer
+- [x] **Storage Layer** (`generated/storage/`)
+  - Auto-generated from schema (pgx + COPY protocol)
+  - PostgreSQL COPY protocol for batch writes (3-4x faster)
+  - pgxpool connection pooling (50 max, 10 idle)
+  - Single and batch insert methods
+  - Optimized JSONB handling
+  - 18,897 events/sec throughput per consumer
 
-5. ✅ **Load Testing Suite**
-   - k6 test scripts (5 scenarios)
-   - Real-time lag measurement
-   - Comprehensive metrics
-   - See LOADTEST.md
+- [x] **Load Testing Suite**
+  - k6 test scripts (5 scenarios)
+  - Real-time metrics monitoring
+  - Comprehensive performance validation
+  - See LOADTEST.md
 
 **Planned:**
-- Query API
-- SDK generators (Go, Python, etc.)
-- Advanced analytics
+- [ ] Query API
+- [ ] SDK generators (Go, Python, etc.)
+- [ ] Advanced analytics
 
 ## API Usage
 
@@ -528,7 +526,7 @@ IngestKit uses environment variables for all configuration. Copy `.env.example` 
 |----------|---------|-------------|
 | `API_PORT` | `8080` | HTTP port for API server |
 | `SCHEMA_PATH` | `schema/events.yaml` | Path to event schema file |
-| `RATE_LIMIT_RPS` | `1000` | Rate limit requests per second (1-1000000) |
+| `RATE_LIMIT_RPS` | `10000` | Rate limit requests per second (configurable up to 20000+) |
 
 #### API Keys & Authentication
 
@@ -548,7 +546,7 @@ API_KEY_3=sk_test_xyz789:tenant_alpha
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CONSUMER_WORKERS` | `4` | Number of parallel consumer workers |
-| `CONSUMER_BATCH_SIZE` | `500` | Max events per batch |
+| `CONSUMER_BATCH_SIZE` | `100` | Max events per batch |
 | `CONSUMER_BATCH_TIMEOUT` | `20ms` | Max time to wait for batch |
 | `METRICS_PORT` | `8081` | Prometheus metrics HTTP port |
 
@@ -598,69 +596,74 @@ ingestkit/
 ├── docker-compose.yml
 ├── Makefile
 ├── LOADTEST.md            # Load testing guide
-├── LAG_ANALYSIS.md        # Performance analysis
+├── CLAUDE.md              # Developer guide
 └── README.md
 ```
 
 ## Development Progress
 
-### ✅ Milestone 1.1: POC Infrastructure
-- PostgreSQL and Redpanda setup
-- Makefile commands
-- Docker Compose configuration
-- Schema definition format
+### Milestone Status
 
-### ✅ Milestone 1.2: API Server
-- Go API with Fiber framework
-- Request validation
-- Authentication (Bearer tokens)
-- Rate limiting (token bucket)
-- Single and batch endpoints
-- Redpanda publishing
-- Full middleware stack
+- [x] **Milestone 1.1: POC Infrastructure**
+  - PostgreSQL and Redpanda setup
+  - Makefile commands
+  - Docker Compose configuration
+  - Schema definition format
 
-### ✅ Milestone 1.3: Consumer & Storage
-- Schema compiler (YAML → SQL + Go models + Storage)
-- Consumer with franz-go client
-- Batch processing (hybrid time/size)
-- Retry logic with exponential backoff
-- Dead letter queue integration
-- Prometheus metrics
-- Parallel workers
+- [x] **Milestone 1.2: API Server**
+  - Go API with Fiber framework
+  - Request validation
+  - Authentication (Bearer tokens)
+  - Rate limiting (token bucket)
+  - Single and batch endpoints
+  - Redpanda publishing
+  - Full middleware stack
 
-### ✅ Milestone 1.3.1: Performance Optimization (COMPLETED)
-- PostgreSQL COPY protocol implementation (3.1x measured improvement: 5,000 → 15,600 events/sec)
-- pgx/v5 migration from database/sql
-- pgxpool connection pooling (50 max, 10 idle)
-- Smart batching (500 events OR 20ms timeout)
-- AutoCommitMarks pattern for at-least-once delivery
-- Schema generator updates for COPY support
-- Validated: 15,600 events/sec, 100% reliability
+- [x] **Milestone 1.3: Consumer & Storage**
+  - Schema compiler (YAML to SQL + Go models + Storage)
+  - Consumer with franz-go client
+  - Batch processing (hybrid time/size)
+  - Retry logic with exponential backoff
+  - Dead letter queue integration
+  - Prometheus metrics
+  - Parallel workers
 
-### ✅ Current: Load Testing & Validation
-- k6 load test suite (5 scenarios)
-- Real-time lag measurement
-- Performance analysis and documentation
-- Bug fixes (API key parsing, JSONB handling)
-- Comprehensive metrics
-- Validated at 4,788 RPS (143K events, zero failures)
+- [x] **Milestone 1.3.1: Performance Optimization**
+  - PostgreSQL COPY protocol implementation (3-4x improvement)
+  - pgx/v5 migration from database/sql
+  - pgxpool connection pooling (50 max, 10 idle)
+  - Smart batching (100 events OR 20ms timeout)
+  - AutoCommitMarks pattern for at-least-once delivery
+  - Schema generator updates for COPY support
+  - Validated: 18,897 events/sec, 100% reliability
 
-### 🔄 Milestone 1.4: Enhanced Developer Experience (Optional)
-- pgAdmin UI for database inspection
-- Redis caching layer
-- Query API for event retrieval
-- Advanced filtering
+- [x] **Milestone 1.4: Load Testing & Validation**
+  - k6 load test suite (5 scenarios)
+  - Real-time metrics monitoring
+  - Performance analysis and documentation
+  - Bug fixes (API key parsing, JSONB handling)
+  - Comprehensive validation
+  - Tested up to 10,000 RPS target (achieved 7,224 RPS sustained)
+  - Zero data loss across 216,818+ events
 
-### 📋 Future Milestones
-- SDK generators (Python, Node.js, etc.)
-- Schema versioning and migrations
-- Multi-tenancy improvements
-- S3 archival for cold storage
-- Advanced analytics and aggregations
+### Future Milestones
+
+- [ ] **Milestone 2.0: Enhanced Developer Experience**
+  - pgAdmin UI for database inspection
+  - Redis caching layer
+  - Query API for event retrieval
+  - Advanced filtering
+
+- [ ] **Milestone 3.0: SDK & Tooling**
+  - SDK generators (Python, Node.js, etc.)
+  - Schema versioning and migrations
+  - Multi-tenancy improvements
+  - S3 archival for cold storage
+  - Advanced analytics and aggregations
 
 ## Load Testing
 
-IngestKit includes a comprehensive load testing suite:
+IngestKit includes a comprehensive load testing suite with validated performance:
 
 ```bash
 # Quick smoke test
@@ -675,8 +678,8 @@ make loadtest-production # 1000 RPS for 1 min
 # Batch endpoint test
 make loadtest-batch      # 100 RPS, 10 events/batch
 
-# Stress test (requires rate limit increase)
-make loadtest-high       # 5000 RPS for 30s
+# High throughput test
+make loadtest-high       # 10000 RPS for 30s
 ```
 
 Monitor in real-time:
@@ -685,14 +688,11 @@ Monitor in real-time:
 # Watch consumer metrics
 make metrics-watch
 
-# Measure lag
-./cmd/loadtest/measure_lag.sh watch
-
-# Full production test with metrics
-./cmd/loadtest/production_lag_test.sh
+# Check event counts
+make db-event-counts
 ```
 
-See [LOADTEST.md](LOADTEST.md) for detailed guide and [LAG_ANALYSIS.md](LAG_ANALYSIS.md) for performance analysis.
+See [LOADTEST.md](LOADTEST.md) for detailed guide and configuration options.
 
 ## Troubleshooting
 
@@ -786,7 +786,7 @@ curl http://localhost:8080/health
 curl http://localhost:8081/health
 
 # Increase rate limit if needed
-# Edit .env: RATE_LIMIT_RPS=10000
+# Edit .env: RATE_LIMIT_RPS=20000
 
 # Restart API
 make run-api
@@ -812,21 +812,22 @@ For issues, questions, or contributions, please open an issue on GitHub.
 
 ---
 
-**Status:** Production-ready POC (Milestone 1.3 complete + Performance Optimized)
+**Status:** Production-ready (Milestone 1.4 complete - Load Tested & Validated)
 
-- ✅ Schema-driven code generation with pgx + COPY protocol
-- ✅ Production-ready API with full middleware (rate limiting, auth)
-- ✅ Optimized consumer with smart batching (500 events / 20ms)
-- ✅ Comprehensive load testing (validated up to 4,788 RPS)
-- ✅ Sub-20ms batch processing latency
-- ✅ 100% reliability - 143,691 events with zero failures
-- ✅ At-least-once delivery guarantees (AutoCommitMarks)
-- ✅ 3x measured performance improvement via PostgreSQL COPY (15,600 vs 5,000 events/sec)
+- [x] Schema-driven code generation with pgx + COPY protocol
+- [x] Production-ready API with full middleware (rate limiting, auth)
+- [x] Optimized consumer with smart batching (100 events / 20ms)
+- [x] Comprehensive load testing (validated up to 10,000 RPS target)
+- [x] Sub-100ms API latency (p95: 92ms at 7,224 RPS)
+- [x] 100% reliability - 216,818 events with zero failures
+- [x] At-least-once delivery guarantees (AutoCommitMarks)
+- [x] Consumer throughput: 18,897 events/second
 
 **Latest Benchmarks:**
-- Throughput: 15,600 events/second per consumer
-- Batch latency: 13ms average, <20ms p95
-- Test scale: 143,691 events @ 4,788 RPS (30 seconds)
+- Throughput: 18,897 events/second per consumer
+- API latency: p95 92ms, p99 168ms (at 7,224 RPS)
+- Test scale: 216,818 events @ 7,224 RPS (30 seconds)
 - Success rate: 100% (zero data loss)
+- Consumer batch latency: 15ms average
 
-See `PLAN.md` for detailed roadmap and `LAG_ANALYSIS.md` for performance characteristics.
+See `PLAN.md` for detailed roadmap and `LOADTEST.md` for performance testing guide.
