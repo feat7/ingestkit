@@ -115,3 +115,309 @@ events:
         type: jsonb
         required: false
         description: "Additional page metadata"
+
+  # Blog/Content events (for blog-flask example)
+  article_viewed:
+    description: "Fired when a user views a blog article"
+    fields:
+      user_id:
+        type: string
+        required: false
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      article_id:
+        type: string
+        required: true
+        indexed: true
+      article_title:
+        type: string
+        required: true
+      author:
+        type: string
+        required: true
+        indexed: true
+      category:
+        type: string
+        required: true
+        indexed: true
+      tags:
+        type: jsonb
+        required: false
+      read_time_seconds:
+        type: integer
+        required: false
+      source:
+        type: string
+        required: false
+        indexed: true
+      referrer:
+        type: string
+        required: false
+      metadata:
+        type: jsonb
+        required: false
+
+  article_shared:
+    description: "Fired when a user shares an article"
+    fields:
+      user_id:
+        type: string
+        required: false
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      article_id:
+        type: string
+        required: true
+        indexed: true
+      article_title:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+        indexed: true
+      metadata:
+        type: jsonb
+        required: false
+
+  comment_posted:
+    description: "Fired when a user posts a comment"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      article_id:
+        type: string
+        required: true
+        indexed: true
+      comment_id:
+        type: string
+        required: true
+        indexed: true
+      parent_comment_id:
+        type: string
+        required: false
+        indexed: true
+      comment_length:
+        type: integer
+        required: true
+      metadata:
+        type: jsonb
+        required: false
+
+  newsletter_subscribed:
+    description: "Fired when a user subscribes to newsletter"
+    fields:
+      user_id:
+        type: string
+        required: false
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      email:
+        type: string
+        required: true
+        indexed: true
+      subscription_type:
+        type: string
+        required: true
+        indexed: true
+      source:
+        type: string
+        required: false
+        indexed: true
+      metadata:
+        type: jsonb
+        required: false
+
+  search_performed:
+    description: "Fired when a user searches for content"
+    fields:
+      user_id:
+        type: string
+        required: false
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      query:
+        type: string
+        required: true
+        indexed: true
+      results_count:
+        type: integer
+        required: true
+      clicked_result_id:
+        type: string
+        required: false
+        indexed: true
+      metadata:
+        type: jsonb
+        required: false
+
+  # E-Commerce events (for ecommerce-express example)
+  product_viewed:
+    description: "Fired when a user views a product page"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      product_id:
+        type: string
+        required: true
+        indexed: true
+      product_name:
+        type: string
+        required: true
+      product_category:
+        type: string
+        required: true
+        indexed: true
+      price:
+        type: decimal
+        required: true
+      currency:
+        type: string
+        required: true
+        default: "USD"
+      source:
+        type: string
+        required: false
+        indexed: true
+      metadata:
+        type: jsonb
+        required: false
+
+  added_to_cart:
+    description: "Fired when a user adds an item to cart"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      product_id:
+        type: string
+        required: true
+        indexed: true
+      product_name:
+        type: string
+        required: true
+      quantity:
+        type: integer
+        required: true
+      price:
+        type: decimal
+        required: true
+      currency:
+        type: string
+        required: true
+        default: "USD"
+      cart_total:
+        type: decimal
+        required: false
+      metadata:
+        type: jsonb
+        required: false
+
+  checkout_started:
+    description: "Fired when a user begins checkout process"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      cart_id:
+        type: string
+        required: true
+        indexed: true
+      num_items:
+        type: integer
+        required: true
+      cart_total:
+        type: decimal
+        required: true
+      currency:
+        type: string
+        required: true
+        default: "USD"
+      items:
+        type: jsonb
+        required: true
+      metadata:
+        type: jsonb
+        required: false
+
+  order_completed:
+    description: "Fired when an order is successfully placed"
+    fields:
+      user_id:
+        type: string
+        required: true
+        indexed: true
+      session_id:
+        type: string
+        required: true
+        indexed: true
+      order_id:
+        type: string
+        required: true
+        indexed: true
+      cart_id:
+        type: string
+        required: false
+        indexed: true
+      total_amount:
+        type: decimal
+        required: true
+      currency:
+        type: string
+        required: true
+        default: "USD"
+      payment_method:
+        type: string
+        required: true
+      num_items:
+        type: integer
+        required: true
+      shipping_address:
+        type: jsonb
+        required: true
+      items:
+        type: jsonb
+        required: true
+      discount_code:
+        type: string
+        required: false
+      discount_amount:
+        type: decimal
+        required: false
+      metadata:
+        type: jsonb
+        required: false

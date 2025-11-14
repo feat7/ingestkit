@@ -1,0 +1,18 @@
+/**
+ * IngestKit TypeScript SDK - Event Models
+ * Auto-generated from schema version {{.SchemaVersion}}
+ * DO NOT EDIT MANUALLY
+ */
+
+{{range .Events}}
+/**
+ * {{if .Description}}{{.Description}}{{else}}{{.EventName}} event{{end}}
+ */
+export interface {{.ClassName}} {
+  tenant_id: string;
+  event_id?: number;
+  timestamp?: Date;
+{{range .Fields}}  {{.Name}}{{if not .Required}}?{{end}}: {{.Type}};{{if .Description}}  // {{.Description}}{{end}}
+{{end}}}
+
+{{end}}

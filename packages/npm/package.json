@@ -1,0 +1,41 @@
+{
+  "name": "ingestkit",
+  "version": "1.0.0",
+  "description": "High-performance event ingestion with type-safe SDKs",
+  "main": "index.js",
+  "bin": {
+    "ingestkit": "bin/ingestkit.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/download-binary.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "events",
+    "analytics",
+    "tracking",
+    "ingestion",
+    "observability",
+    "typescript",
+    "nodejs"
+  ],
+  "author": "IngestKit Team <hello@ingestkit.dev>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/feat7/ingestkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/feat7/ingestkit/issues"
+  },
+  "homepage": "https://github.com/feat7/ingestkit#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "index.js",
+    "README.md"
+  ]
+}

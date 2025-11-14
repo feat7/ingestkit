@@ -1,0 +1,19 @@
+"""
+IngestKit Python SDK
+Auto-generated from schema version {{.SchemaVersion}}
+"""
+
+from .client import IngestKitClient
+from .models import (
+{{range .Events}}    {{.ClassName}},
+{{end}})
+
+# Convenience alias
+Client = IngestKitClient
+
+__version__ = "{{.SchemaVersion}}"
+__all__ = [
+    "IngestKitClient",
+    "Client",
+{{range .Events}}    "{{.ClassName}}",
+{{end}}]

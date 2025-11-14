@@ -1,0 +1,14 @@
+/**
+ * IngestKit TypeScript SDK
+ * Auto-generated from schema version {{.SchemaVersion}}
+ */
+
+export { IngestKitClient } from './client';
+export type { IngestKitClientConfig, APIResponse } from './client';
+export * as Models from './models';
+export type {
+{{range .Events}}  {{.ClassName}},
+{{end}}} from './models';
+
+// Convenience alias
+export { IngestKitClient as Client } from './client';
