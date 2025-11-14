@@ -27,7 +27,7 @@ Self-hosted data ingestion platform for collecting high-volume events with type 
 
 **Key Optimizations:**
 
-- **PostgreSQL COPY protocol**: 3-4x faster than multi-row INSERT (15,600 events/sec vs ~5,000)
+- **PostgreSQL COPY protocol**: 3-4x faster than multi-row INSERT (measured: 15,600 events/sec with COPY vs 5,000 baseline)
 - **pgx connection pooling**: 50 max connections, 10 idle, 1-hour lifecycle
 - **Smart batching**: 500 events OR 20ms timeout (whichever first)
 - **Zero data loss**: At-least-once delivery with AutoCommitMarks pattern
@@ -78,7 +78,7 @@ Zero data loss verified
 
 - Docker & Docker Compose
 - Make
-- Go 1.21+
+- Go 1.25+ (required for latest dependencies)
 - k6 (optional, for load testing: `brew install k6`)
 
 ### 1. Clone and Setup
@@ -172,7 +172,9 @@ See [LOADTEST.md](LOADTEST.md) for comprehensive load testing guide.
 - **Consumer Metrics:** http://localhost:8081/metrics
   - Health: http://localhost:8081/health
 - **Redpanda Console:** http://localhost:8090
-- **PostgreSQL:** `localhost:5432` (use `make db-connect`)
+- **PostgreSQL:** `localhost:5433` (use `make db-connect`)
+  - Note: Uses port 5433 by default to avoid conflicts with existing PostgreSQL installations
+  - Can be changed via `POSTGRES_PORT` environment variable
 
 ## Schema Definition
 
@@ -494,33 +496,79 @@ func main() {
 
 ## Configuration
 
-Environment variables (`.env` file):
+### Environment Variables Reference
 
+IngestKit uses environment variables for all configuration. Copy `.env.example` to `.env` and customize as needed.
+
+#### PostgreSQL Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_DB` | `ingestkit` | PostgreSQL database name |
+| `POSTGRES_USER` | `ingestkit` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | `ingestkit_dev` | PostgreSQL password |
+| `POSTGRES_PORT` | `5433` | PostgreSQL port (5433 avoids conflicts with existing installs) |
+| `DB_HOST` | `localhost` | PostgreSQL host for API/Consumer |
+| `DB_PORT` | `5433` | PostgreSQL port for API/Consumer |
+| `DB_NAME` | `ingestkit` | Database name for API/Consumer |
+| `DB_USER` | `ingestkit` | Database user for API/Consumer |
+| `DB_PASSWORD` | `ingestkit_dev` | Database password for API/Consumer |
+
+#### Redpanda (Kafka) Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDPANDA_ADDR` | `localhost:19092` | Redpanda broker address |
+| `REDPANDA_TOPIC` | `ingestkit.events` | Kafka topic for events |
+| `CONSUMER_GROUP_ID` | `ingestkit-consumer` | Kafka consumer group ID |
+
+#### API Server Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_PORT` | `8080` | HTTP port for API server |
+| `SCHEMA_PATH` | `schema/events.yaml` | Path to event schema file |
+| `RATE_LIMIT_RPS` | `1000` | Rate limit requests per second (1-1000000) |
+
+#### API Keys & Authentication
+
+| Variable | Format | Description |
+|----------|--------|-------------|
+| `API_KEY_1` to `API_KEY_10` | `key:tenant_id` | API keys (e.g., `dev_key_123:default`) |
+
+**Example**:
 ```bash
-# PostgreSQL
-POSTGRES_DB=ingestkit
-POSTGRES_USER=ingestkit
-POSTGRES_PASSWORD=ingestkit_dev
-DATABASE_URL=postgres://ingestkit:ingestkit_dev@localhost:5432/ingestkit?sslmode=disable
-
-# Redpanda (Kafka-compatible)
-KAFKA_BROKERS=localhost:19092
-KAFKA_TOPIC=ingestkit.events
-
-# API Server
-API_PORT=8080
-RATE_LIMIT_RPS=1000
-RATE_LIMIT_BURST=2000
-
-# API Keys (format: key or key:tenant_id)
-API_KEY_1=dev_key_1234567890:tenant_default
-
-# Consumer
-CONSUMER_WORKERS=4
-CONSUMER_BATCH_SIZE=500        # Smart batching: 500 events OR...
-CONSUMER_BATCH_TIMEOUT=20ms    # ...20ms timeout (whichever first)
-METRICS_PORT=8081
+API_KEY_1=dev_key_1234567890:default
+API_KEY_2=sk_prod_abc123:acme_corp
+API_KEY_3=sk_test_xyz789:tenant_alpha
 ```
+
+#### Consumer Worker Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONSUMER_WORKERS` | `4` | Number of parallel consumer workers |
+| `CONSUMER_BATCH_SIZE` | `500` | Max events per batch |
+| `CONSUMER_BATCH_TIMEOUT` | `20ms` | Max time to wait for batch |
+| `METRICS_PORT` | `8081` | Prometheus metrics HTTP port |
+
+#### Optional Services (--profile full)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_PORT` | `6379` | Redis port for caching |
+| `PGADMIN_EMAIL` | `admin@ingestkit.local` | pgAdmin login email |
+| `PGADMIN_PASSWORD` | `admin` | pgAdmin login password |
+
+### Configuration Validation
+
+Both API and Consumer validate configuration at startup. Invalid values will cause the service to fail fast with a clear error message.
+
+**Example validation errors**:
+- `RATE_LIMIT_RPS` must be between 1 and 1,000,000
+- `API_PORT` must be between 1 and 65535
+- `REDPANDA_ADDR` must include port (e.g., `localhost:19092`)
+- `SCHEMA_PATH` must point to an existing file
 
 ## Project Structure
 
@@ -581,7 +629,7 @@ ingestkit/
 - Parallel workers
 
 ### ✅ Milestone 1.3.1: Performance Optimization (COMPLETED)
-- PostgreSQL COPY protocol implementation (3-4x faster)
+- PostgreSQL COPY protocol implementation (3.1x measured improvement: 5,000 → 15,600 events/sec)
 - pgx/v5 migration from database/sql
 - pgxpool connection pooling (50 max, 10 idle)
 - Smart batching (500 events OR 20ms timeout)
@@ -648,11 +696,51 @@ See [LOADTEST.md](LOADTEST.md) for detailed guide and [LAG_ANALYSIS.md](LAG_ANAL
 
 ## Troubleshooting
 
+### Port Conflicts
+
+**PostgreSQL Port (Default: 5433)**
+
+IngestKit uses port 5433 by default to avoid conflicts with existing PostgreSQL installations that typically use 5432. If you need to change the port:
+
+```bash
+# Option 1: Set in .env file
+echo "POSTGRES_PORT=5434" >> .env
+
+# Option 2: Export environment variable
+export POSTGRES_PORT=5434
+
+# Then restart services
+make restart
+```
+
+**If port 5433 is also in use:**
+
+```bash
+# Check what's using the port
+lsof -i :5433
+
+# Kill the process or choose a different port
+export POSTGRES_PORT=5434
+make restart
+```
+
+**Note:** If you change the PostgreSQL port, you must also update:
+- `DATABASE_URL` in your `.env` file
+- `DB_PORT` environment variable for the consumer (if set)
+
+Example with custom port:
+```bash
+# .env
+POSTGRES_PORT=5434
+DATABASE_URL=postgres://ingestkit:ingestkit_dev@localhost:5434/ingestkit?sslmode=disable
+DB_PORT=5434
+```
+
 ### Services won't start
 
 ```bash
 # Check if ports are in use
-lsof -i :5432 -i :8080 -i :8081 -i :19092
+lsof -i :5433 -i :8080 -i :8081 -i :19092
 
 # Clean restart
 make clean
@@ -733,7 +821,7 @@ For issues, questions, or contributions, please open an issue on GitHub.
 - ✅ Sub-20ms batch processing latency
 - ✅ 100% reliability - 143,691 events with zero failures
 - ✅ At-least-once delivery guarantees (AutoCommitMarks)
-- ✅ 3-4x performance improvement via PostgreSQL COPY
+- ✅ 3x measured performance improvement via PostgreSQL COPY (15,600 vs 5,000 events/sec)
 
 **Latest Benchmarks:**
 - Throughput: 15,600 events/second per consumer

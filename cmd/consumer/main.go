@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
-	"github.com/feat7/ingestkit/generated/models"
+	"github.com/rs/zerolog/log"
+	"github.com/feat7/ingestkit/generated/consumer"
 	"github.com/feat7/ingestkit/generated/storage"
+	applogger "github.com/feat7/ingestkit/internal/logger"
 	"github.com/feat7/ingestkit/internal/messaging"
 	dlqstorage "github.com/feat7/ingestkit/internal/storage"
 )
@@ -29,105 +32,76 @@ const (
 )
 
 func main() {
-	log.Println("🔄 IngestKit Consumer Worker starting...")
+	applogger.Setup()
+	log.Info().Msg("🔄 IngestKit Consumer Worker starting...")
 
 	// Configuration
 	redpandaAddr := getEnv("REDPANDA_ADDR", defaultRedpandaAddr)
 	topic := getEnv("REDPANDA_TOPIC", defaultTopic)
 	groupID := getEnv("CONSUMER_GROUP_ID", defaultGroupID)
 
-	dbHost := getEnv("DB_HOST", defaultDBHost)
-	dbPort := getEnv("DB_PORT", defaultDBPort)
-	dbName := getEnv("DB_NAME", defaultDBName)
-	dbUser := getEnv("DB_USER", defaultDBUser)
-	dbPassword := getEnv("DB_PASSWORD", defaultDBPassword)
+	// Validate messaging configuration (always validate, regardless of DB connection method)
+	if err := validateMessagingConfig(redpandaAddr, topic, groupID); err != nil {
+		log.Fatal().Err(err).Msg("Messaging configuration validation failed")
+	}
 
-	// Create database writer with connection pooling
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Get database connection string (support both DATABASE_URL and individual params)
+	var connStr string
+	var dbHost, dbPort string
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL != "" {
+		// Use DATABASE_URL if provided (12-factor app pattern)
+		connStr = databaseURL
+		log.Info().Msg("✓ Using DATABASE_URL for connection")
+	} else {
+		// Fallback to individual parameters
+		dbHost = getEnv("DB_HOST", defaultDBHost)
+		dbPort = getEnv("DB_PORT", defaultDBPort)
+		dbName := getEnv("DB_NAME", defaultDBName)
+		dbUser := getEnv("DB_USER", defaultDBUser)
+		dbPassword := getEnv("DB_PASSWORD", defaultDBPassword)
+
+		// Validate database configuration
+		if err := validateDatabaseConfig(dbHost, dbPort, dbName, dbUser); err != nil {
+			log.Fatal().Err(err).Msg("Database configuration validation failed")
+		}
+
+		// Create database writer with connection pooling
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	}
 
 	writer, err := storage.NewWriter(connStr)
 	if err != nil {
-		log.Fatalf("Failed to create writer: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create writer")
 	}
 	defer writer.Close()
 
-	log.Printf("✓ Connected to PostgreSQL at %s:%s (pool: 50 max conns)", dbHost, dbPort)
+	if dbHost != "" && dbPort != "" {
+		log.Info().Str("host", dbHost).Str("port", dbPort).Msg("✓ Connected to PostgreSQL (pool: 50 max conns)")
+	} else {
+		log.Info().Msg("✓ Connected to PostgreSQL (pool: 50 max conns)")
+	}
 
 	// Create DLQ writer
 	dlqWriter, err := dlqstorage.NewDLQWriter(connStr)
 	if err != nil {
-		log.Fatalf("Failed to create DLQ writer: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create DLQ writer")
 	}
 	defer dlqWriter.Close()
 
-	log.Printf("✓ DLQ writer initialized")
+	log.Info().Msg("✓ DLQ writer initialized")
 
-	// Batch event handler - processes events in batches
+	// Create generated batch handler (auto-generated from schema)
+	generatedHandler := consumer.NewBatchHandler(writer)
+
+	// Wrap generated handler with context
 	batchHandler := func(ctx context.Context, envelopes []*messaging.EventEnvelope) error {
-		log.Printf("📦 Processing batch: %d events", len(envelopes))
-
-		// Group events by type for batch insertion
-		userSignups := make([]*models.UserSignup, 0)
-		purchases := make([]*models.Purchase, 0)
-		pageViews := make([]*models.PageView, 0)
-
-		// Unmarshal and group events
-		for _, envelope := range envelopes {
-			switch envelope.EventType {
-			case "user_signup":
-				var event models.UserSignup
-				if err := unmarshalEvent(envelope, &event); err != nil {
-					return fmt.Errorf("failed to unmarshal user_signup: %w", err)
-				}
-				userSignups = append(userSignups, &event)
-
-			case "purchase":
-				var event models.Purchase
-				if err := unmarshalEvent(envelope, &event); err != nil {
-					return fmt.Errorf("failed to unmarshal purchase: %w", err)
-				}
-				purchases = append(purchases, &event)
-
-			case "page_view":
-				var event models.PageView
-				if err := unmarshalEvent(envelope, &event); err != nil {
-					return fmt.Errorf("failed to unmarshal page_view: %w", err)
-				}
-				pageViews = append(pageViews, &event)
-
-			default:
-				return fmt.Errorf("unknown event type: %s", envelope.EventType)
-			}
-		}
-
-		// Write batches to database
-		if len(userSignups) > 0 {
-			if err := writer.WriteUserSignupBatch(userSignups); err != nil {
-				return fmt.Errorf("failed to write user_signup batch: %w", err)
-			}
-			log.Printf("✅ Wrote %d user_signup events", len(userSignups))
-		}
-
-		if len(purchases) > 0 {
-			if err := writer.WritePurchaseBatch(purchases); err != nil {
-				return fmt.Errorf("failed to write purchase batch: %w", err)
-			}
-			log.Printf("✅ Wrote %d purchase events", len(purchases))
-		}
-
-		if len(pageViews) > 0 {
-			if err := writer.WritePageViewBatch(pageViews); err != nil {
-				return fmt.Errorf("failed to write page_view batch: %w", err)
-			}
-			log.Printf("✅ Wrote %d page_view events", len(pageViews))
-		}
-
-		return nil
+		return generatedHandler.ProcessBatch(ctx, envelopes)
 	}
 
 	// Create consumer with batch processing
-	consumer, err := messaging.NewBatchConsumer(
+	consumerWorker, err := messaging.NewBatchConsumer(
 		[]string{redpandaAddr},
 		topic,
 		groupID,
@@ -136,18 +110,18 @@ func main() {
 		dlqWriter,
 	)
 	if err != nil {
-		log.Fatalf("Failed to create consumer: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create consumer")
 	}
-	defer consumer.Close()
+	defer consumerWorker.Close()
 
-	log.Printf("✓ Connected to Redpanda at %s (topic: %s, group: %s)", redpandaAddr, topic, groupID)
+	log.Info().Str("address", redpandaAddr).Str("topic", topic).Str("group", groupID).Msg("✓ Connected to Redpanda")
 
 	// Start metrics HTTP server
 	metricsPort := getEnv("METRICS_PORT", "8081")
-	go startMetricsServer(metricsPort, consumer)
-	log.Printf("✓ Metrics server started on :%s (endpoint: /metrics)", metricsPort)
+	go startMetricsServer(metricsPort, consumerWorker)
+	log.Info().Str("port", metricsPort).Msg("✓ Metrics server started (endpoint: /metrics)")
 
-	log.Println("🚀 Consumer worker started with batch processing - waiting for events...")
+	log.Info().Msg("🚀 Consumer worker started with batch processing - waiting for events...")
 
 	// Graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -157,21 +131,90 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
-		log.Println("⏹️  Shutting down gracefully...")
+		log.Info().Msg("⏹️  Shutting down gracefully...")
 		cancel()
 	}()
 
 	// Start consuming
-	if err := consumer.Start(ctx); err != nil && err != context.Canceled {
-		log.Fatalf("Consumer error: %v", err)
+	if err := consumerWorker.Start(ctx); err != nil && err != context.Canceled {
+		log.Fatal().Err(err).Msg("Consumer error")
 	}
 
 	// Print final metrics
-	metrics := consumer.GetMetrics()
-	log.Printf("📊 Final metrics: processed=%d failed=%d dlq=%d batches=%d",
-		metrics.EventsProcessed, metrics.EventsFailed, metrics.EventsDLQ, metrics.BatchesProcessed)
+	metrics := consumerWorker.GetMetrics()
+	log.Info().
+		Int64("processed", metrics.EventsProcessed).
+		Int64("failed", metrics.EventsFailed).
+		Int64("dlq", metrics.EventsDLQ).
+		Int64("batches", metrics.BatchesProcessed).
+		Msg("📊 Final metrics")
 
-	log.Println("✅ Consumer stopped")
+	log.Info().Msg("✅ Consumer stopped")
+}
+
+// validateMessagingConfig validates Redpanda/Kafka configuration
+func validateMessagingConfig(redpandaAddr, topic, groupID string) error {
+	// Validate Redpanda address
+	if redpandaAddr == "" {
+		return fmt.Errorf("REDPANDA_ADDR cannot be empty")
+	}
+	if !strings.Contains(redpandaAddr, ":") {
+		return fmt.Errorf("REDPANDA_ADDR must include port (e.g., localhost:19092)")
+	}
+
+	// Validate topic
+	if topic == "" {
+		return fmt.Errorf("REDPANDA_TOPIC cannot be empty")
+	}
+
+	// Validate consumer group ID
+	if groupID == "" {
+		return fmt.Errorf("CONSUMER_GROUP_ID cannot be empty")
+	}
+
+	log.Info().
+		Str("redpanda", redpandaAddr).
+		Str("topic", topic).
+		Str("group", groupID).
+		Msg("✓ Messaging configuration validated")
+
+	return nil
+}
+
+// validateDatabaseConfig validates database connection parameters
+func validateDatabaseConfig(dbHost, dbPort, dbName, dbUser string) error {
+	// Validate database host
+	if dbHost == "" {
+		return fmt.Errorf("DB_HOST cannot be empty")
+	}
+
+	// Validate database port
+	if dbPort == "" {
+		return fmt.Errorf("DB_PORT cannot be empty")
+	}
+	port, err := strconv.Atoi(dbPort)
+	if err != nil {
+		return fmt.Errorf("DB_PORT must be a valid port number: %w", err)
+	}
+	if port < 1 || port > 65535 {
+		return fmt.Errorf("DB_PORT must be between 1 and 65535, got %d", port)
+	}
+
+	// Validate database name
+	if dbName == "" {
+		return fmt.Errorf("DB_NAME cannot be empty")
+	}
+
+	// Validate database user
+	if dbUser == "" {
+		return fmt.Errorf("DB_USER cannot be empty")
+	}
+
+	log.Info().
+		Str("database", fmt.Sprintf("%s@%s:%s/%s", dbUser, dbHost, dbPort, dbName)).
+		Msg("✓ Database configuration validated")
+
+	return nil
 }
 
 func getEnv(key, defaultValue string) string {
@@ -181,36 +224,10 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// unmarshalEvent unmarshals the event envelope payload into a typed event struct
-func unmarshalEvent(envelope *messaging.EventEnvelope, event interface{}) error {
-	// Marshal the payload map back to JSON
-	payloadJSON, err := json.Marshal(envelope.Payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	// Unmarshal into the typed event struct
-	if err := json.Unmarshal(payloadJSON, event); err != nil {
-		return fmt.Errorf("failed to unmarshal event: %w", err)
-	}
-
-	// Set tenant_id from envelope
-	switch e := event.(type) {
-	case *models.UserSignup:
-		e.TenantID = envelope.TenantID
-	case *models.Purchase:
-		e.TenantID = envelope.TenantID
-	case *models.PageView:
-		e.TenantID = envelope.TenantID
-	}
-
-	return nil
-}
-
 // startMetricsServer starts an HTTP server for metrics exposition
 func startMetricsServer(port string, consumer *messaging.Consumer) {
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		metrics := consumer.GetMetrics()
+		metrics := consumer.GetMetrics() // Returns a copy, thread-safe
 
 		// Calculate average latency
 		avgLatency := int64(0)
@@ -266,6 +283,8 @@ func startMetricsServer(port string, consumer *messaging.Consumer) {
 		fmt.Fprintf(w, "ingestkit_events_per_second %.2f\n", eventsPerSecond)
 	})
 
+	// Health endpoint - intentionally unprotected for monitoring/orchestration
+	// (Kubernetes probes, load balancers, etc.)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -276,6 +295,6 @@ func startMetricsServer(port string, consumer *messaging.Consumer) {
 
 	server := &http.Server{Addr: ":" + port}
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Printf("⚠️  Metrics server error: %v", err)
+		log.Error().Err(err).Msg("Metrics server error")
 	}
 }

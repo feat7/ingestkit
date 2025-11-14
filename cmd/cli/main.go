@@ -128,12 +128,33 @@ func compileSchema() {
 	}
 	fmt.Printf("%s✓ Storage writer generated: %s%s\n\n", colorGreen, storagePath, colorReset)
 
+	// Generate consumer handler
+	fmt.Printf("%s→ Generating consumer handler...%s\n", colorYellow, colorReset)
+	consumerCode, err := schema.GenerateConsumer(parsedSchema)
+	if err != nil {
+		fmt.Printf("%s✗ Failed to generate consumer code: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+
+	// Write consumer code to file
+	consumerPath := "generated/consumer/handler.go"
+	if err := os.MkdirAll(filepath.Dir(consumerPath), 0755); err != nil {
+		fmt.Printf("%s✗ Failed to create consumer directory: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(consumerPath, []byte(consumerCode), 0644); err != nil {
+		fmt.Printf("%s✗ Failed to write consumer file: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+	fmt.Printf("%s✓ Consumer handler generated: %s%s\n\n", colorGreen, consumerPath, colorReset)
+
 	// Success summary
 	fmt.Printf("%s=== Compilation Complete ===%s\n", colorGreen, colorReset)
 	fmt.Printf("Generated files:\n")
 	fmt.Printf("  • %s\n", sqlPath)
 	fmt.Printf("  • %s\n", goPath)
 	fmt.Printf("  • %s\n", storagePath)
+	fmt.Printf("  • %s\n", consumerPath)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  1. Apply schema: make db-create\n")
 	fmt.Printf("  2. Build application: make build\n")

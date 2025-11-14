@@ -1,3 +1,13 @@
+// Package validation provides runtime validation of events against schemas.
+//
+// The Validator checks that incoming event payloads match the schema
+// definition before they are published to Redpanda. This prevents
+// invalid data from entering the system.
+//
+// Validation includes:
+//   - Required field presence
+//   - Field type correctness
+//   - Enum value constraints
 package validation
 
 import (
@@ -140,15 +150,18 @@ func (v *Validator) validateField(fieldName string, value interface{}, fieldDef 
 
 // EventTypeExists checks if an event type is defined in the schema
 func (v *Validator) EventTypeExists(eventType string) bool {
+	if v.schema == nil {
+		return false
+	}
 	_, exists := v.schema.Events[eventType]
 	return exists
 }
 
 // GetEventTypes returns all event types defined in the schema
 func (v *Validator) GetEventTypes() []string {
-	types := make([]string, 0, len(v.schema.Events))
-	for eventType := range v.schema.Events {
-		types = append(types, eventType)
+	if v.schema == nil {
+		return []string{}
 	}
-	return types
+	// Delegate to schema's GetEventNames to avoid duplication
+	return v.schema.GetEventNames()
 }

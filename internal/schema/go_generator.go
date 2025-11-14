@@ -132,8 +132,8 @@ func buildValidateTag(field *Field) string {
 	}
 
 	if len(field.Values) > 0 {
-		// Enum validation
-		enumValues := strings.Join(field.Values, "|")
+		// Enum validation - go-playground/validator expects space-separated values
+		enumValues := strings.Join(field.Values, " ")
 		validators = append(validators, fmt.Sprintf("oneof=%s", enumValues))
 	}
 

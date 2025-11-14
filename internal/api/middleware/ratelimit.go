@@ -72,13 +72,18 @@ func (rl *RateLimiter) allow(tenantID string) (bool, int, int) {
 func RateLimit(limiter *RateLimiter) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get tenant_id from context (set by auth middleware)
-		tenantID := c.Locals("tenant_id")
-		if tenantID == nil {
-			// If no tenant_id, use a default (this shouldn't happen if auth middleware is before rate limit)
-			tenantID = "default"
+		tenantIDRaw := c.Locals("tenant_id")
+		tenantID := "default" // Default value
+
+		if tenantIDRaw != nil {
+			// Try to convert to string
+			if tid, ok := tenantIDRaw.(string); ok {
+				tenantID = tid
+			}
+			// If not a string, use default (shouldn't happen if middleware is configured correctly)
 		}
 
-		allowed, limit, remaining := limiter.allow(tenantID.(string))
+		allowed, limit, remaining := limiter.allow(tenantID)
 
 		// Set rate limit headers
 		c.Set("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
@@ -86,7 +91,7 @@ func RateLimit(limiter *RateLimiter) fiber.Handler {
 
 		if !allowed {
 			return SendError(c, fiber.StatusTooManyRequests, ErrCodeRateLimit,
-				"Rate limit exceeded. Please try again later.")
+				"rate limit exceeded, please try again later")
 		}
 
 		return c.Next()

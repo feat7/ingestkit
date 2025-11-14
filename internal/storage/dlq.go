@@ -1,32 +1,44 @@
+// Package storage provides dead letter queue (DLQ) implementation.
+//
+// The DLQ stores events that failed processing after maximum retry attempts.
+// Failed events are written to a PostgreSQL table with error details for
+// later analysis and manual recovery.
+//
+// DLQ schema includes:
+//   - Original event envelope (JSON)
+//   - Error message and type
+//   - Timestamp of failure
+//   - Tenant ID for isolation
 package storage
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/feat7/ingestkit/internal/messaging"
 )
 
 // DLQWriter handles writing failed events to the dead letter queue
 type DLQWriter struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-// NewDLQWriter creates a new DLQ writer
+// NewDLQWriter creates a new DLQ writer with connection pooling
 func NewDLQWriter(connStr string) (*DLQWriter, error) {
-	db, err := sql.Open("postgres", connStr)
+	pool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	// Verify connection
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &DLQWriter{db: db}, nil
+	return &DLQWriter{pool: pool}, nil
 }
 
 // WriteBatch writes a batch of failed events to the DLQ
@@ -51,7 +63,7 @@ func (d *DLQWriter) WriteBatch(ctx context.Context, envelopes []*messaging.Event
 		}
 
 		// Insert into DLQ
-		_, execErr := d.db.ExecContext(ctx, query,
+		_, execErr := d.pool.Exec(ctx, query,
 			envelope.EventType,
 			envelope.TenantID,
 			payloadJSON,
@@ -72,7 +84,7 @@ func (d *DLQWriter) Write(ctx context.Context, envelope *messaging.EventEnvelope
 	return d.WriteBatch(ctx, []*messaging.EventEnvelope{envelope}, err)
 }
 
-// Close closes the DLQ writer
-func (d *DLQWriter) Close() error {
-	return d.db.Close()
+// Close closes the DLQ writer connection pool
+func (d *DLQWriter) Close() {
+	d.pool.Close()
 }

@@ -3,11 +3,27 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/twmb/franz-go/pkg/kgo"
+)
+
+const (
+	// Kafka fetch configuration for high throughput
+	maxFetchBytes          = 100 * 1024 * 1024 // 100MB - max total fetch size
+	maxFetchBytesPerPart   = 50 * 1024 * 1024  // 50MB - max fetch per partition
+	minFetchBytes          = 1                 // Start fetch immediately, don't wait
+	maxConcurrentFetches   = 10                // Number of concurrent fetch requests
+
+	// Logging configuration
+	logPollInterval        = 100               // Log poll stats every N polls
 )
 
 // DLQWriter interface for writing failed events
@@ -17,11 +33,12 @@ type DLQWriter interface {
 
 // Consumer handles consuming events from Redpanda
 type Consumer struct {
-	client    *kgo.Client
-	handler   BatchEventHandler
-	config    *ConsumerConfig
-	metrics   *ConsumerMetrics
-	dlqWriter DLQWriter
+	client      *kgo.Client
+	handler     BatchEventHandler
+	config      *ConsumerConfig
+	metrics     *ConsumerMetrics
+	metricsMu   sync.RWMutex // Protects metrics access
+	dlqWriter   DLQWriter
 }
 
 // ConsumerConfig holds consumer configuration
@@ -114,10 +131,10 @@ func NewBatchConsumer(brokers []string, topic string, groupID string, handler Ba
 		// Handle partition revocation gracefully
 		kgo.OnPartitionsRevoked(onRevoked),
 		// Fetch configuration for high throughput
-		kgo.FetchMaxBytes(100*1024*1024),             // 100MB max fetch size
-		kgo.FetchMaxPartitionBytes(50*1024*1024),     // 50MB per partition
-		kgo.FetchMinBytes(1),                         // Start fetch immediately
-		kgo.MaxConcurrentFetches(10),                 // Allow more concurrent fetches
+		kgo.FetchMaxBytes(maxFetchBytes),
+		kgo.FetchMaxPartitionBytes(maxFetchBytesPerPart),
+		kgo.FetchMinBytes(minFetchBytes),
+		kgo.MaxConcurrentFetches(maxConcurrentFetches),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kafka client: %w", err)
@@ -131,6 +148,8 @@ func NewBatchConsumer(brokers []string, topic string, groupID string, handler Ba
 func (c *Consumer) Start(ctx context.Context) error {
 	log.Printf("🚀 Starting consumer with batch_size=%d batch_timeout=%v workers=%d",
 		c.config.BatchSize, c.config.BatchTimeout, c.config.Workers)
+
+	pollCounter := 0 // Track polls for periodic logging
 
 	for {
 		select {
@@ -176,8 +195,10 @@ func (c *Consumer) Start(ctx context.Context) error {
 					log.Printf("❌ Unmarshal failed (offset=%d partition=%d): %v",
 						record.Offset, record.Partition, err)
 					unmarshalFailures++
+					c.metricsMu.Lock()
 					c.metrics.UnmarshalErrors++
 					c.metrics.EventsFailed++
+					c.metricsMu.Unlock()
 					// Do NOT add to batch - these records will not be marked for commit
 					// and will be re-consumed on restart (at-least-once semantics)
 					continue
@@ -185,14 +206,37 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 				batch.Records = append(batch.Records, record)
 				batch.Envelopes = append(batch.Envelopes, &envelope)
+
+				// Enforce batch size limit to prevent unbounded memory growth
+				if len(batch.Records) >= c.config.BatchSize {
+					// Process current batch before continuing
+					if err := c.processBatch(ctx, batch); err != nil {
+						log.Printf("❌ Failed to process batch: %v", err)
+						c.metricsMu.Lock()
+						c.metrics.BatchesFailed++
+						c.metricsMu.Unlock()
+						// Continue processing remaining records
+					}
+					// Reset batch for next chunk
+					batch = &RecordBatch{
+						Records:   make([]*kgo.Record, 0, c.config.BatchSize),
+						Envelopes: make([]*EventEnvelope, 0, c.config.BatchSize),
+					}
+				}
 			}
 
-			// Log fetch statistics
+			// Log fetch statistics (only on errors or periodically to avoid log flooding)
 			if recordsInFetches > 0 {
-				log.Printf("📥 Poll returned %d records -> iterated %d -> processed %d (unmarshal_failures=%d)",
-					recordsInFetches, totalFetched, len(batch.Records), unmarshalFailures)
+				pollCounter++
+				hasError := unmarshalFailures > 0 || (recordsInFetches != totalFetched)
+				shouldLog := hasError || (pollCounter%logPollInterval == 0)
 
-				// CRITICAL: Check for discrepancy
+				if shouldLog {
+					log.Printf("📥 Poll #%d returned %d records -> iterated %d -> processed %d (unmarshal_failures=%d)",
+						pollCounter, recordsInFetches, totalFetched, len(batch.Records), unmarshalFailures)
+				}
+
+				// CRITICAL: Always check for discrepancy
 				if recordsInFetches != totalFetched {
 					log.Printf("⚠️  DISCREPANCY: PollFetches returned %d but RecordIter only gave us %d! (missing: %d)",
 						recordsInFetches, totalFetched, recordsInFetches-totalFetched)
@@ -203,7 +247,9 @@ func (c *Consumer) Start(ctx context.Context) error {
 			if len(batch.Records) > 0 {
 				if err := c.processBatch(ctx, batch); err != nil {
 					log.Printf("❌ Failed to process batch: %v", err)
+					c.metricsMu.Lock()
 					c.metrics.BatchesFailed++
+					c.metricsMu.Unlock()
 					// Continue processing next batch
 				}
 			}
@@ -242,20 +288,25 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 			}
 
 			// Update metrics
+			duration := time.Since(startTime)
+			c.metricsMu.Lock()
 			c.metrics.BatchesProcessed++
 			c.metrics.EventsProcessed += int64(len(batch.Envelopes))
-			c.metrics.TotalLatencyMs += time.Since(startTime).Milliseconds()
+			c.metrics.TotalLatencyMs += duration.Milliseconds()
 			c.metrics.LastProcessedTime = time.Now()
+			c.metricsMu.Unlock()
 
 			log.Printf("✅ Batch processed successfully: %d events in %v",
-				len(batch.Envelopes), time.Since(startTime))
+				len(batch.Envelopes), duration)
 			return nil
 		}
 
 		// DB write failed - log detailed error
 		log.Printf("❌ DB write error (attempt %d/%d): %v | Batch size: %d events",
 			attempt+1, c.config.MaxRetries+1, err, len(batch.Envelopes))
+		c.metricsMu.Lock()
 		c.metrics.DBWriteErrors++
+		c.metricsMu.Unlock()
 
 		// Classify error
 		if !isRetriableError(err) {
@@ -267,9 +318,7 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 		lastErr = err
 	}
 
-	// All retries exhausted - send to DLQ
-	log.Printf("💀 Sending batch to DLQ after %d retries: %v | Batch size: %d events",
-		c.config.MaxRetries, lastErr, len(batch.Envelopes))
+	// All retries exhausted - send to DLQ (logging happens in sendToDLQ)
 	c.sendToDLQ(ctx, batch, lastErr)
 
 	// Mark offsets for commit to avoid re-processing forever
@@ -282,8 +331,10 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 			batch.Records[len(batch.Records)-1].Offset)
 	}
 
+	c.metricsMu.Lock()
 	c.metrics.EventsFailed += int64(len(batch.Envelopes))
 	c.metrics.EventsDLQ += int64(len(batch.Envelopes))
+	c.metricsMu.Unlock()
 
 	return lastErr
 }
@@ -298,33 +349,68 @@ func (c *Consumer) calculateBackoff(attempt int) time.Duration {
 }
 
 func isRetriableError(err error) bool {
-	// Classify errors as retriable or permanent
-	errStr := err.Error()
+	// Check for PostgreSQL error codes (using pgx error types)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		// Permanent errors - don't retry
+		case "23505": // unique_violation (duplicate key)
+			return false
+		case "23503": // foreign_key_violation
+			return false
+		case "23502": // not_null_violation
+			return false
+		case "23514": // check_violation
+			return false
+		case "22P02": // invalid_text_representation (bad data format)
+			return false
+		case "42P01": // undefined_table
+			return false
+		case "42703": // undefined_column
+			return false
 
-	// Transient errors - retry
-	if containsAny(errStr, []string{
-		"connection refused",
-		"connection reset",
-		"timeout",
-		"temporary failure",
-		"deadlock",
-		"too many connections",
-	}) {
-		return true
+		// Transient errors - retry
+		case "40001": // serialization_failure (deadlock)
+			return true
+		case "40P01": // deadlock_detected
+			return true
+		case "53300": // too_many_connections
+			return true
+		case "53400": // configuration_limit_exceeded
+			return true
+
+		// Default for other PostgreSQL errors: retry
+		default:
+			return true
+		}
 	}
 
-	// Permanent errors - don't retry
+	// Check for network errors (transient - should retry)
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() || netErr.Temporary() {
+			return true
+		}
+	}
+
+	// Check for context errors (don't retry - deliberate cancellation)
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	// Fallback to string matching for application-level errors
+	errStr := strings.ToLower(err.Error())
+
+	// Permanent application errors
 	if containsAny(errStr, []string{
 		"unknown event type",
 		"validation failed",
 		"invalid data",
-		"constraint violation",
-		"duplicate key",
 	}) {
 		return false
 	}
 
-	// Default: retry for unknown errors
+	// Default: retry for unknown errors (safer to retry than lose data)
 	return true
 }
 
@@ -338,10 +424,8 @@ func containsAny(str string, substrs []string) bool {
 }
 
 func containsString(str, substr string) bool {
-	// Simple case-insensitive contains check
-	return len(str) >= len(substr) && (str == substr ||
-		(len(str) > len(substr) &&
-			(containsString(str[1:], substr) || str[:len(substr)] == substr)))
+	// Case-insensitive contains check
+	return strings.Contains(strings.ToLower(str), strings.ToLower(substr))
 }
 
 func (c *Consumer) sendToDLQ(ctx context.Context, batch *RecordBatch, err error) {
@@ -362,13 +446,17 @@ func (c *Consumer) sendToDLQ(ctx context.Context, batch *RecordBatch, err error)
 				envelope.EventType, envelope.TenantID, err, dlqErr)
 		}
 	} else {
-		log.Printf("💀 Wrote %d events to DLQ: %v", len(batch.Envelopes), err)
+		log.Printf("💀 Sent %d events to DLQ after %d retries: %v",
+			len(batch.Envelopes), c.config.MaxRetries, err)
 	}
 }
 
 // GetMetrics returns current consumer metrics
-func (c *Consumer) GetMetrics() *ConsumerMetrics {
-	return c.metrics
+func (c *Consumer) GetMetrics() ConsumerMetrics {
+	c.metricsMu.RLock()
+	defer c.metricsMu.RUnlock()
+	// Return a copy to prevent race conditions
+	return *c.metrics
 }
 
 // Close closes the consumer
