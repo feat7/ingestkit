@@ -469,8 +469,8 @@ curl -X POST http://localhost:8080/v1/events/user_signup/batch \
 package main
 
 import (
-    "github.com/yourusername/ingestkit/generated/models"
-    "github.com/yourusername/ingestkit/pkg/client"
+    "github.com/feat7/ingestkit/generated/models"
+    "github.com/feat7/ingestkit/pkg/client"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yourusername/ingestkit/internal/schema"
+	"github.com/feat7/ingestkit/internal/schema"
 )
 
 const (

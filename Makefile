@@ -330,7 +330,7 @@ lint: ## Lint Go code
 init-go: setup ## Initialize Go project
 	@echo "$(BLUE)Initializing Go project...$(NC)"
 	@if [ ! -f go.mod ]; then \
-		go mod init github.com/yourusername/ingestkit; \
+		go mod init github.com/feat7/ingestkit; \
 		go get github.com/gofiber/fiber/v2; \
 		go get github.com/twmb/franz-go/pkg/kgo; \
 		go get github.com/lib/pq; \

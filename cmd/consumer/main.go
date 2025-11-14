@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/yourusername/ingestkit/generated/models"
-	"github.com/yourusername/ingestkit/generated/storage"
-	"github.com/yourusername/ingestkit/internal/messaging"
-	dlqstorage "github.com/yourusername/ingestkit/internal/storage"
+	"github.com/feat7/ingestkit/generated/models"
+	"github.com/feat7/ingestkit/generated/storage"
+	"github.com/feat7/ingestkit/internal/messaging"
+	dlqstorage "github.com/feat7/ingestkit/internal/storage"
 )
 
 const (

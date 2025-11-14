@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yourusername/ingestkit/internal/schema"
+	"github.com/feat7/ingestkit/internal/schema"
 )
 
 // Create a test schema file for testing

@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq"
-	"github.com/yourusername/ingestkit/internal/messaging"
+	"github.com/feat7/ingestkit/internal/messaging"
 )
 
 // DLQWriter handles writing failed events to the dead letter queue
