@@ -8,11 +8,11 @@ export const options = {
   scenarios: {
     high_throughput: {
       executor: 'constant-arrival-rate',
-      rate: 5000,             // 5000 RPS - requires RATE_LIMIT_RPS=10000
+      rate: 10000,            // 10000 RPS - requires RATE_LIMIT_RPS=20000
       timeUnit: '1s',
       duration: '30s',
-      preAllocatedVUs: 50,
-      maxVUs: 200,
+      preAllocatedVUs: 200,
+      maxVUs: 800,
     },
   },
   thresholds: {
