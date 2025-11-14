@@ -1,0 +1,11 @@
+{{if .Description}}-- {{.Description}}
+{{end}}CREATE TABLE IF NOT EXISTS {{.TableName}} (
+    tenant_id VARCHAR(255) NOT NULL,
+    event_id BIGSERIAL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+{{range $index, $field := .Fields}}    {{$field.Name}} {{$field.SQLType}} {{if $field.Required}}NOT NULL{{else}}NULL{{end}}{{if $field.Default}} DEFAULT {{$field.DefaultFormatted}}{{end}}{{if $field.Description}},  -- {{$field.Description}}{{else}},{{end}}
+{{end}}    PRIMARY KEY (tenant_id, event_id)
+) PARTITION BY LIST (tenant_id);
+
+{{range .IndexedFields}}CREATE INDEX IF NOT EXISTS idx_{{$.EventName}}_{{.Name}} ON {{$.TableName}}({{.Name}});
+{{end}}CREATE INDEX IF NOT EXISTS idx_{{.EventName}}_timestamp ON {{.TableName}}(timestamp);

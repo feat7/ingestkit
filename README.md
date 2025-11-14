@@ -163,6 +163,183 @@ make metrics-watch
 
 See [LOADTEST.md](LOADTEST.md) for comprehensive load testing guide.
 
+## Using IngestKit in Your Projects
+
+IngestKit can be easily integrated into your existing applications. After starting the IngestKit server (above), you can track events from your Python or TypeScript applications.
+
+### Quick Integration Guide
+
+**1. Start IngestKit Server (one-time setup):**
+
+```bash
+# Clone this repository
+git clone https://github.com/feat7/ingestkit
+cd ingestkit
+
+# Start infrastructure
+make quickstart
+make init-go
+make generate
+make build
+make db-create
+
+# Start services
+make run-api       # Terminal 1: API on :8080
+make run-consumer  # Terminal 2: Consumer on :8081
+```
+
+**2. Generate SDK for Your Project:**
+
+```bash
+# In the IngestKit directory, generate Python SDK
+./bin/ingestkit sdk generate --lang python --api-url http://localhost:8080
+
+# Or TypeScript SDK
+./bin/ingestkit sdk generate --lang typescript --api-url http://localhost:8080
+
+# Copy to your project
+cp -r generated/sdk/python ~/my-project/ingestkit
+# or
+cp -r generated/sdk/typescript ~/my-project/ingestkit
+```
+
+**3. Use in Your Application:**
+
+**Python (Flask/Django example):**
+
+```python
+from flask import Flask, request
+from ingestkit import Client
+
+app = Flask(__name__)
+
+# Initialize IngestKit (reads from environment or use defaults)
+analytics = Client(
+    api_url="http://localhost:8080",
+    api_key="dev_key_1234567890"
+)
+
+@app.route('/articles/<article_id>')
+def view_article(article_id):
+    # Track article view
+    analytics.send_article_viewed({
+        "user_id": request.headers.get('X-User-Id'),
+        "session_id": request.cookies.get('session_id'),
+        "article_id": article_id,
+        "article_title": article['title'],
+        "category": article['category'],
+        "author": article['author']
+    })
+
+    return render_template('article.html', article=article)
+```
+
+**TypeScript (Express/Next.js example):**
+
+```typescript
+import { Client } from './ingestkit';
+
+const analytics = new Client({
+  apiUrl: 'http://localhost:8080',
+  apiKey: 'dev_key_1234567890'
+});
+
+app.post('/api/checkout', async (req, res) => {
+  const order = await processOrder(req.body);
+
+  // Track order completion
+  await analytics.sendOrderCompleted({
+    userId: req.user.id,
+    orderId: order.id,
+    totalAmount: order.total,
+    paymentMethod: req.body.paymentMethod,
+    items: order.items
+  });
+
+  res.json(order);
+});
+```
+
+### Working Examples
+
+The `examples/` directory contains complete, working applications:
+
+#### Blog Analytics Example (Python/Flask)
+
+A complete blog application demonstrating article tracking, search analytics, social sharing, comments, and newsletter subscriptions.
+
+```bash
+# Navigate to example
+cd examples/blog-flask
+
+# Run the example (auto-installs dependencies)
+./run.sh
+
+# In another terminal, test the user journey
+./test-flow-simple.sh
+```
+
+**What it tracks:**
+- Article views with read time and referrer
+- Search queries and results
+- Social sharing (Twitter, LinkedIn, etc.)
+- Comment posting
+- Newsletter subscriptions
+
+**Features demonstrated:**
+- Auto-configured client (reads from `ingestkit.config.json`)
+- Accepts both dictionaries and Pydantic models
+- Environment variable substitution
+- Type-safe event tracking
+
+**View the data:**
+```bash
+# Connect to database
+make db-connect
+
+# Query article views
+SELECT article_title, author, category, COUNT(*) as views
+FROM events_article_viewed
+GROUP BY article_title, author, category
+ORDER BY views DESC;
+
+# Analyze search behavior
+SELECT query, results_count, COUNT(*) as searches
+FROM events_search_performed
+GROUP BY query, results_count
+ORDER BY searches DESC;
+```
+
+#### E-commerce Example (TypeScript/Express)
+
+Coming soon: Product views, cart operations, checkout funnel tracking.
+
+### SDK Features
+
+**Auto-Generated SDKs provide:**
+- Type-safe event tracking
+- IDE autocomplete for all event fields
+- Built-in validation (Pydantic for Python)
+- Automatic retries and error handling
+- Support for both single events and batches
+- Clean API: `client.send_event_name(data)`
+
+**Configuration Options:**
+
+Create `ingestkit.config.json` in your project:
+```json
+{
+  "apiUrl": "http://localhost:8080",
+  "apiKey": "${INGESTKIT_API_KEY}",
+  "tenantId": "my-app"
+}
+```
+
+The SDK will:
+1. Read from `ingestkit.config.json` (with `${VAR}` substitution)
+2. Fall back to environment variables
+3. Use sensible defaults for development
+
 ## Access Services
 
 - **API Server:** http://localhost:8080

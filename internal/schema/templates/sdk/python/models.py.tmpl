@@ -1,0 +1,27 @@
+"""
+IngestKit Python SDK - Event Models
+Auto-generated from schema version {{.SchemaVersion}}
+DO NOT EDIT MANUALLY
+"""
+
+from typing import Optional, Any
+from datetime import datetime
+from decimal import Decimal
+from pydantic import BaseModel, Field
+
+{{range .Events}}
+class {{.ClassName}}(BaseModel):
+    """{{if .Description}}{{.Description}}{{else}}{{.EventName}} event{{end}}"""
+
+    tenant_id: str = Field(..., description="Tenant identifier")
+    event_id: Optional[int] = Field(None, description="Event ID (auto-generated)")
+    timestamp: Optional[datetime] = Field(None, description="Event timestamp (auto-generated)")
+
+{{range .Fields}}    {{.Name}}: {{if not .Required}}Optional[{{.Type}}]{{else}}{{.Type}}{{end}}{{if .Required}} = Field(...){{else}} = None{{end}}{{if .Description}}  # {{.Description}}{{end}}
+{{end}}
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: lambda v: float(v)
+        }
+{{end}}

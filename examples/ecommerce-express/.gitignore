@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# IngestKit generated files
+ingestkit/client.ts
+ingestkit/models.ts
+ingestkit/index.ts
+ingestkit/*.js
+ingestkit/*.d.ts
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store

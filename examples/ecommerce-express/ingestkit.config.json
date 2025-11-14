@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "apiUrl": "http://localhost:8080",
+  "apiKey": "${INGESTKIT_API_KEY}",
+  "tenantId": "ecommerce-demo",
+  "generator": {
+    "language": "typescript",
+    "output": "./ingestkit"
+  }
+}

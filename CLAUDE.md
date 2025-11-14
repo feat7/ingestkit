@@ -414,6 +414,33 @@ make db-dlq-check
 make db-reset
 ```
 
+**IMPORTANT: Partition Creation**
+
+IngestKit uses PostgreSQL partitioned tables by tenant. When you add new event types, you must create partitions for each tenant:
+
+```bash
+# For the "default" tenant (used in development and examples)
+docker exec ingestkit-postgres psql -U ingestkit ingestkit -c \
+  "CREATE TABLE IF NOT EXISTS events_article_viewed_default PARTITION OF events_article_viewed FOR VALUES IN ('default');"
+
+# For production tenants
+docker exec ingestkit-postgres psql -U ingestkit ingestkit -c \
+  "CREATE TABLE IF NOT EXISTS events_article_viewed_tenant1 PARTITION OF events_article_viewed FOR VALUES IN ('tenant1');"
+```
+
+**Batch creation for all new events:**
+```bash
+for table in article_viewed article_shared comment_posted newsletter_subscribed search_performed; do
+  docker exec ingestkit-postgres psql -U ingestkit ingestkit -c \
+    "CREATE TABLE IF NOT EXISTS events_${table}_default PARTITION OF events_${table} FOR VALUES IN ('default');"
+done
+```
+
+Without partitions, you'll see errors like:
+```
+ERROR: no partition of relation "events_article_viewed" found for row (SQLSTATE 23514)
+```
+
 ---
 
 ## Testing Strategy
@@ -514,7 +541,14 @@ make build
 make db-create
 ```
 
-5. **Regenerate consumer handler**:
+5. **Create partition for default tenant**:
+```bash
+# IMPORTANT: Must create partition for each tenant
+docker exec ingestkit-postgres psql -U ingestkit ingestkit -c \
+  "CREATE TABLE IF NOT EXISTS events_order_placed_default PARTITION OF events_order_placed FOR VALUES IN ('default');"
+```
+
+6. **Regenerate consumer handler**:
 ```bash
 # The schema compiler auto-generates the consumer handler
 make generate
@@ -534,7 +568,59 @@ case "order_placed":
 
 **Note:** The consumer handler is now fully code-generated. No manual updates needed!
 
-6. **Restart services**
+7. **Restart services**
+
+### Working Examples
+
+IngestKit includes complete working examples in the `examples/` directory:
+
+**Blog Analytics (Python/Flask)** - `examples/blog-flask/`
+
+A fully functional blog application demonstrating:
+- Article view tracking with read time and referrer
+- Search analytics with query and results tracking
+- Social sharing events (Twitter, LinkedIn)
+- Comment posting with threading support
+- Newsletter subscription tracking
+
+Run the example:
+```bash
+cd examples/blog-flask
+./run.sh  # Starts Flask app on :5002
+
+# In another terminal, test the user journey
+./test-flow-simple.sh
+```
+
+Features demonstrated:
+- Auto-configured client reading from `ingestkit.config.json`
+- Environment variable substitution (`${INGESTKIT_API_KEY}`)
+- Accepts both dictionaries and Pydantic models
+- Clean imports: `from ingestkit import Client`
+
+Query the tracked data:
+```sql
+-- Article views by category
+SELECT category, COUNT(*) as views
+FROM events_article_viewed
+GROUP BY category
+ORDER BY views DESC;
+
+-- Search analytics
+SELECT query, AVG(results_count) as avg_results, COUNT(*) as searches
+FROM events_search_performed
+GROUP BY query
+ORDER BY searches DESC;
+
+-- Social sharing by platform
+SELECT platform, COUNT(*) as shares
+FROM events_article_shared
+GROUP BY platform;
+```
+
+**E-commerce (TypeScript/Express)** - `examples/ecommerce-express/`
+
+Coming soon: Product views, cart operations, checkout funnel tracking.
 
 ### Adding a New Middleware
 

@@ -1,0 +1,9 @@
+{{if .Description}}// {{.StructName}} represents: {{.Description}}{{else}}// {{.StructName}} event{{end}}
+type {{.StructName}} struct {
+	TenantID  string    `json:"tenant_id" validate:"required"`
+	EventID   int64     `json:"event_id,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
+
+{{range .Fields}}{{if .Description}}	// {{.Description}}
+{{end}}	{{.GoName}} {{.GoType}} `json:"{{.JSONName}}"{{if .ValidateTag}} validate:"{{.ValidateTag}}"{{end}}`
+{{end}}}
