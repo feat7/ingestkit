@@ -241,9 +241,21 @@ func startMetricsServer(port string, consumer *messaging.Consumer) {
 		fmt.Fprintf(w, "# TYPE ingestkit_events_dlq_total counter\n")
 		fmt.Fprintf(w, "ingestkit_events_dlq_total %d\n", metrics.EventsDLQ)
 
+		fmt.Fprintf(w, "# HELP ingestkit_db_write_errors_total Total number of DB write errors\n")
+		fmt.Fprintf(w, "# TYPE ingestkit_db_write_errors_total counter\n")
+		fmt.Fprintf(w, "ingestkit_db_write_errors_total %d\n", metrics.DBWriteErrors)
+
+		fmt.Fprintf(w, "# HELP ingestkit_unmarshal_errors_total Total number of unmarshal errors\n")
+		fmt.Fprintf(w, "# TYPE ingestkit_unmarshal_errors_total counter\n")
+		fmt.Fprintf(w, "ingestkit_unmarshal_errors_total %d\n", metrics.UnmarshalErrors)
+
 		fmt.Fprintf(w, "# HELP ingestkit_batches_processed_total Total number of batches processed\n")
 		fmt.Fprintf(w, "# TYPE ingestkit_batches_processed_total counter\n")
 		fmt.Fprintf(w, "ingestkit_batches_processed_total %d\n", metrics.BatchesProcessed)
+
+		fmt.Fprintf(w, "# HELP ingestkit_batches_failed_total Total number of batches that failed processing\n")
+		fmt.Fprintf(w, "# TYPE ingestkit_batches_failed_total counter\n")
+		fmt.Fprintf(w, "ingestkit_batches_failed_total %d\n", metrics.BatchesFailed)
 
 		fmt.Fprintf(w, "# HELP ingestkit_batch_latency_ms_avg Average batch processing latency in milliseconds\n")
 		fmt.Fprintf(w, "# TYPE ingestkit_batch_latency_ms_avg gauge\n")

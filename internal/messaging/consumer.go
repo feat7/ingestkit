@@ -37,8 +37,8 @@ type ConsumerConfig struct {
 // DefaultConsumerConfig returns the default consumer configuration
 func DefaultConsumerConfig() *ConsumerConfig {
 	return &ConsumerConfig{
-		BatchSize:       100,
-		BatchTimeout:    time.Second,
+		BatchSize:       500,                   // Larger batch size for better throughput
+		BatchTimeout:    20 * time.Millisecond, // Short timeout - flush quickly
 		MaxRetries:      3,
 		RetryBackoffMin: time.Second,
 		RetryBackoffMax: 30 * time.Second,
@@ -51,7 +51,10 @@ type ConsumerMetrics struct {
 	EventsProcessed   int64
 	EventsFailed      int64
 	EventsDLQ         int64
+	DBWriteErrors     int64 // Track DB write failures
+	UnmarshalErrors   int64 // Track unmarshal failures separately
 	BatchesProcessed  int64
+	BatchesFailed     int64 // Track batch failures
 	TotalLatencyMs    int64
 	LastProcessedTime time.Time
 }
@@ -85,24 +88,43 @@ func NewConsumer(brokers []string, topic string, groupID string, handler EventHa
 
 // NewBatchConsumer creates a new consumer with custom batch handler and configuration
 func NewBatchConsumer(brokers []string, topic string, groupID string, handler BatchEventHandler, config *ConsumerConfig, dlqWriter DLQWriter) (*Consumer, error) {
+	consumer := &Consumer{
+		handler:   handler,
+		config:    config,
+		metrics:   &ConsumerMetrics{},
+		dlqWriter: dlqWriter,
+	}
+
+	// OnPartitionsRevoked handler - ensure we commit before losing partitions
+	onRevoked := func(ctx context.Context, c *kgo.Client, revoked map[string][]int32) {
+		log.Printf("⚠️  Partitions revoked: %v - committing marked offsets before rebalance", revoked)
+		if err := c.CommitMarkedOffsets(ctx); err != nil {
+			log.Printf("❌ Failed to commit on revoke: %v", err)
+		}
+	}
+
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumerGroup(groupID),
 		kgo.ConsumeTopics(topic),
-		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
-		kgo.DisableAutoCommit(), // Disable auto-commit for manual offset management
+		// Use AutoCommitMarks - only commit explicitly marked records
+		kgo.AutoCommitMarks(),
+		// Block rebalancing during poll/process cycle
+		kgo.BlockRebalanceOnPoll(),
+		// Handle partition revocation gracefully
+		kgo.OnPartitionsRevoked(onRevoked),
+		// Fetch configuration for high throughput
+		kgo.FetchMaxBytes(100*1024*1024),             // 100MB max fetch size
+		kgo.FetchMaxPartitionBytes(50*1024*1024),     // 50MB per partition
+		kgo.FetchMinBytes(1),                         // Start fetch immediately
+		kgo.MaxConcurrentFetches(10),                 // Allow more concurrent fetches
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kafka client: %w", err)
 	}
 
-	return &Consumer{
-		client:    client,
-		handler:   handler,
-		config:    config,
-		metrics:   &ConsumerMetrics{},
-		dlqWriter: dlqWriter,
-	}, nil
+	consumer.client = client
+	return consumer, nil
 }
 
 // Start begins consuming messages with batch processing
@@ -129,31 +151,66 @@ func (c *Consumer) Start(ctx context.Context) error {
 				continue
 			}
 
+			// Count total records in fetches BEFORE iteration
+			recordsInFetches := fetches.NumRecords()
+
 			// Collect records into batch
 			batch := &RecordBatch{
 				Records:   make([]*kgo.Record, 0, c.config.BatchSize),
 				Envelopes: make([]*EventEnvelope, 0, c.config.BatchSize),
 			}
 
-			fetches.EachRecord(func(record *kgo.Record) {
+			// Track unmarshal failures and total fetched
+			unmarshalFailures := 0
+			totalFetched := 0
+
+			// Use Records() to get all records as an iterator
+			iter := fetches.RecordIter()
+			for !iter.Done() {
+				record := iter.Next()
+				totalFetched++
+
 				// Unmarshal envelope
 				var envelope EventEnvelope
 				if err := json.Unmarshal(record.Value, &envelope); err != nil {
-					log.Printf("❌ Failed to unmarshal event: %v", err)
-					return
+					log.Printf("❌ Unmarshal failed (offset=%d partition=%d): %v",
+						record.Offset, record.Partition, err)
+					unmarshalFailures++
+					c.metrics.UnmarshalErrors++
+					c.metrics.EventsFailed++
+					// Do NOT add to batch - these records will not be marked for commit
+					// and will be re-consumed on restart (at-least-once semantics)
+					continue
 				}
 
 				batch.Records = append(batch.Records, record)
 				batch.Envelopes = append(batch.Envelopes, &envelope)
-			})
+			}
+
+			// Log fetch statistics
+			if recordsInFetches > 0 {
+				log.Printf("📥 Poll returned %d records -> iterated %d -> processed %d (unmarshal_failures=%d)",
+					recordsInFetches, totalFetched, len(batch.Records), unmarshalFailures)
+
+				// CRITICAL: Check for discrepancy
+				if recordsInFetches != totalFetched {
+					log.Printf("⚠️  DISCREPANCY: PollFetches returned %d but RecordIter only gave us %d! (missing: %d)",
+						recordsInFetches, totalFetched, recordsInFetches-totalFetched)
+				}
+			}
 
 			// Process batch if we have records
 			if len(batch.Records) > 0 {
 				if err := c.processBatch(ctx, batch); err != nil {
 					log.Printf("❌ Failed to process batch: %v", err)
+					c.metrics.BatchesFailed++
 					// Continue processing next batch
 				}
 			}
+
+			// Allow rebalancing after processing this poll cycle
+			// This is safe because we've already marked records for commit
+			c.client.AllowRebalance()
 		}
 	}
 }
@@ -171,13 +228,17 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 			time.Sleep(backoff)
 		}
 
-		// Call batch handler
+		// Call batch handler (DB write happens here)
 		err := c.handler(ctx, batch.Envelopes)
 		if err == nil {
-			// Success - commit offsets
-			if err := c.client.CommitUncommittedOffsets(ctx); err != nil {
-				log.Printf("⚠️  Failed to commit offsets: %v", err)
-				// Don't fail the batch - offsets will be re-consumed (at-least-once semantics)
+			// Success - MARK records for auto-commit (only after successful DB write!)
+			// AutoCommitMarks will handle the actual commit in background
+			if len(batch.Records) > 0 {
+				c.client.MarkCommitRecords(batch.Records...)
+				log.Printf("✅ Marked %d records for commit (offsets: %d-%d)",
+					len(batch.Records),
+					batch.Records[0].Offset,
+					batch.Records[len(batch.Records)-1].Offset)
 			}
 
 			// Update metrics
@@ -191,6 +252,11 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 			return nil
 		}
 
+		// DB write failed - log detailed error
+		log.Printf("❌ DB write error (attempt %d/%d): %v | Batch size: %d events",
+			attempt+1, c.config.MaxRetries+1, err, len(batch.Envelopes))
+		c.metrics.DBWriteErrors++
+
 		// Classify error
 		if !isRetriableError(err) {
 			log.Printf("❌ Non-retriable error: %v", err)
@@ -202,12 +268,18 @@ func (c *Consumer) processBatch(ctx context.Context, batch *RecordBatch) error {
 	}
 
 	// All retries exhausted - send to DLQ
-	log.Printf("💀 Sending batch to DLQ after %d retries: %v", c.config.MaxRetries, lastErr)
+	log.Printf("💀 Sending batch to DLQ after %d retries: %v | Batch size: %d events",
+		c.config.MaxRetries, lastErr, len(batch.Envelopes))
 	c.sendToDLQ(ctx, batch, lastErr)
 
-	// Still commit offsets to avoid re-processing forever
-	if err := c.client.CommitUncommittedOffsets(ctx); err != nil {
-		log.Printf("⚠️  Failed to commit offsets after DLQ: %v", err)
+	// Mark offsets for commit to avoid re-processing forever
+	// DLQ records are safely stored and can be replayed manually later
+	if len(batch.Records) > 0 {
+		c.client.MarkCommitRecords(batch.Records...)
+		log.Printf("💀 Marked %d DLQ records for commit (offsets: %d-%d)",
+			len(batch.Records),
+			batch.Records[0].Offset,
+			batch.Records[len(batch.Records)-1].Offset)
 	}
 
 	c.metrics.EventsFailed += int64(len(batch.Envelopes))
