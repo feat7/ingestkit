@@ -431,7 +431,7 @@ Error: json: cannot unmarshal array into Go struct field Purchase.items of type 
 === RUN   TestAPIKeyConfig_AddAndValidateKey
 --- PASS: TestAPIKeyConfig_AddAndValidateKey (0.00s)
 PASS
-ok  	github.com/yourusername/ingestkit/internal/api/middleware	0.380s
+ok  	github.com/feat7/ingestkit/internal/api/middleware	0.380s
 ```
 
 ### Schema Validator
@@ -461,7 +461,7 @@ ok  	github.com/yourusername/ingestkit/internal/api/middleware	0.380s
 === RUN   TestValidator_GetEventTypes
 --- PASS: TestValidator_GetEventTypes (0.00s)
 PASS
-ok  	github.com/yourusername/ingestkit/internal/validation	0.431s
+ok  	github.com/feat7/ingestkit/internal/validation	0.431s
 ```
 
 **Total:** 18/18 tests passing

@@ -13,9 +13,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/yourusername/ingestkit/internal/api/middleware"
-	"github.com/yourusername/ingestkit/internal/messaging"
-	"github.com/yourusername/ingestkit/internal/validation"
+	"github.com/feat7/ingestkit/internal/api/middleware"
+	"github.com/feat7/ingestkit/internal/messaging"
+	"github.com/feat7/ingestkit/internal/validation"
 )
 
 const (

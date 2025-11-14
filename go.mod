@@ -1,4 +1,4 @@
-module github.com/yourusername/ingestkit
+module github.com/feat7/ingestkit
 
 go 1.24.0
 

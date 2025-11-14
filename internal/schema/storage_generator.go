@@ -19,7 +19,7 @@ func GenerateStorage(schema *Schema) (string, error) {
 	builder.WriteString("\t\"time\"\n\n")
 	builder.WriteString("\t\"github.com/jackc/pgx/v5\"\n")
 	builder.WriteString("\t\"github.com/jackc/pgx/v5/pgxpool\"\n")
-	builder.WriteString("\t\"github.com/yourusername/ingestkit/generated/models\"\n")
+	builder.WriteString("\t\"github.com/feat7/ingestkit/generated/models\"\n")
 	builder.WriteString(")\n\n")
 
 	// Writer struct

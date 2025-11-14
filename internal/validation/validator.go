@@ -3,7 +3,7 @@ package validation
 import (
 	"fmt"
 
-	"github.com/yourusername/ingestkit/internal/schema"
+	"github.com/feat7/ingestkit/internal/schema"
 )
 
 // Validator validates events against a schema
