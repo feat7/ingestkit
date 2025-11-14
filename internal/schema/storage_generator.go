@@ -154,8 +154,12 @@ func generateWriteMethod(eventName string, event *Event) (string, error) {
 		}
 	}
 
-	// Execute query
-	builder.WriteString("\t_, err := w.pool.Exec(ctx, query,\n")
+	// Execute query (use = if err already declared from JSONB marshaling, := otherwise)
+	if len(jsonbFields) > 0 {
+		builder.WriteString("\t_, err = w.pool.Exec(ctx, query,\n")
+	} else {
+		builder.WriteString("\t_, err := w.pool.Exec(ctx, query,\n")
+	}
 	builder.WriteString("\t\tevent.TenantID,\n")
 	builder.WriteString("\t\tevent.Timestamp,\n")
 
@@ -232,7 +236,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 	}
 	builder.WriteString("}\n\n")
 
-	// Use CopyFrom
+	// Use CopyFrom (always use := because JSONB marshaling is inside the closure)
 	builder.WriteString("\t// Use CopyFrom for maximum performance (uses PostgreSQL COPY protocol)\n")
 	builder.WriteString("\t_, err := w.pool.CopyFrom(\n")
 	builder.WriteString("\t\tctx,\n")

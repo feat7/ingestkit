@@ -2,18 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/feat7/ingestkit/internal/api/middleware"
+	applogger "github.com/feat7/ingestkit/internal/logger"
 	"github.com/feat7/ingestkit/internal/messaging"
 	"github.com/feat7/ingestkit/internal/validation"
 )
@@ -24,6 +28,13 @@ const (
 	defaultTopic        = "ingestkit.events"
 	defaultRateLimit    = 1000 // requests per second
 	defaultSchemaPath   = "schema/events.yaml"
+
+	// asyncPublishTimeout is the max time to wait for immediate publish errors
+	// This allows fast failure detection while keeping request latency low
+	asyncPublishTimeout = 10 * time.Millisecond
+
+	// maxBatchSize is the maximum number of events allowed in a batch request
+	maxBatchSize = 1000
 )
 
 var (
@@ -32,39 +43,50 @@ var (
 )
 
 func main() {
-	log.Println("🚀 IngestKit API starting...")
+	// Initialize structured logging
+	applogger.Setup()
+	log.Info().Msg("🚀 IngestKit API starting...")
 
 	// Configuration
 	port := getEnv("API_PORT", defaultPort)
 	redpandaAddr := getEnv("REDPANDA_ADDR", defaultRedpandaAddr)
 	topic := getEnv("REDPANDA_TOPIC", defaultTopic)
 	schemaPath := getEnv("SCHEMA_PATH", defaultSchemaPath)
-	rateLimitRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", fmt.Sprintf("%d", defaultRateLimit)))
+
+	rateLimitRPSStr := getEnv("RATE_LIMIT_RPS", fmt.Sprintf("%d", defaultRateLimit))
+	rateLimitRPS, err := strconv.Atoi(rateLimitRPSStr)
+	if err != nil {
+		log.Fatal().Str("value", rateLimitRPSStr).Msg("Invalid RATE_LIMIT_RPS value: must be an integer")
+	}
+
+	// Validate configuration
+	if err = validateConfig(port, redpandaAddr, topic, schemaPath, rateLimitRPS); err != nil {
+		log.Fatal().Err(err).Msg("Configuration validation failed")
+	}
 
 	// Create producer
-	var err error
 	producer, err = messaging.NewProducer([]string{redpandaAddr}, topic)
 	if err != nil {
-		log.Fatalf("Failed to create producer: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create producer")
 	}
 	defer producer.Close()
-	log.Printf("✓ Connected to Redpanda at %s", redpandaAddr)
+	log.Info().Str("address", redpandaAddr).Msg("✓ Connected to Redpanda")
 
 	// Create validator
 	validator, err = validation.NewValidator(schemaPath)
 	if err != nil {
-		log.Fatalf("Failed to load schema: %v", err)
+		log.Fatal().Err(err).Msg("Failed to load schema")
 	}
-	log.Printf("✓ Loaded schema from %s", schemaPath)
-	log.Printf("  Available event types: %v", validator.GetEventTypes())
+	log.Info().Str("path", schemaPath).Msg("✓ Loaded schema")
+	log.Info().Interface("event_types", validator.GetEventTypes()).Msg("Available event types")
 
 	// Setup API keys (from environment for MVP)
 	apiKeyConfig := setupAPIKeys()
-	log.Printf("✓ Configured %d API key(s)", len(apiKeyConfig.Keys))
+	log.Info().Int("count", len(apiKeyConfig.Keys)).Msg("✓ Configured API keys")
 
 	// Setup rate limiter
 	rateLimiter := middleware.NewRateLimiter(rateLimitRPS)
-	log.Printf("✓ Rate limiting enabled: %d requests/second", rateLimitRPS)
+	log.Info().Int("rps", rateLimitRPS).Msg("✓ Rate limiting enabled")
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -80,7 +102,12 @@ func main() {
 		Format: "[${time}] ${locals:request_id} ${status} - ${latency} ${method} ${path}\n",
 	}))
 
-	// Public routes (no auth required)
+	// Public routes (no auth or rate limit required)
+	// Health endpoint is intentionally unprotected for:
+	// - Load balancer health checks
+	// - Kubernetes liveness/readiness probes
+	// - Monitoring systems (Prometheus, Datadog, etc.)
+	// DDoS protection should be handled at infrastructure layer (reverse proxy, CDN)
 	app.Get("/health", healthHandler)
 
 	// Protected routes (require auth + rate limiting)
@@ -97,7 +124,7 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
-		log.Println("\n⏳ Shutting down gracefully...")
+		log.Info().Msg("⏳ Shutting down gracefully...")
 
 		// Flush any pending messages
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -108,13 +135,12 @@ func main() {
 	}()
 
 	// Start server
-	log.Printf("🎯 IngestKit API ready on port %s", port)
-	log.Printf("   POST /v1/events/:type       - Ingest single event")
-	log.Printf("   POST /v1/events/:type/batch - Ingest batch events")
-	log.Printf("   GET  /health                - Health check")
-	log.Println()
+	log.Info().Str("port", port).Msg("🎯 IngestKit API ready")
+	log.Info().Msg("   POST /v1/events/:type       - Ingest single event")
+	log.Info().Msg("   POST /v1/events/:type/batch - Ingest batch events")
+	log.Info().Msg("   GET  /health                - Health check")
 	if err := app.Listen(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatal().Err(err).Msg("Failed to start server")
 	}
 }
 
@@ -133,14 +159,14 @@ func ingestHandler(c *fiber.Ctx) error {
 	// Check if event type exists
 	if !validator.EventTypeExists(eventType) {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeUnknownEvent,
-			fmt.Sprintf("Unknown event type: %s", eventType))
+			fmt.Sprintf("unknown event type: %s", eventType))
 	}
 
 	// Parse request body
 	var payload map[string]interface{}
 	if err := c.BodyParser(&payload); err != nil {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeBadRequest,
-			"Invalid JSON payload")
+			"invalid JSON payload")
 	}
 
 	// Validate event against schema
@@ -150,17 +176,32 @@ func ingestHandler(c *fiber.Ctx) error {
 	}
 
 	// Get tenant_id from auth middleware
-	tenantID := c.Locals("tenant_id").(string)
+	tenantID, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+			"missing tenant context")
+	}
+
+	// Marshal payload to JSON for envelope (avoids re-marshaling in consumer)
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+			"failed to marshal payload")
+	}
 
 	// Create envelope
-	requestID := c.Locals("request_id").(string)
+	requestID, ok := c.Locals("request_id").(string)
+	if !ok {
+		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+			"missing request ID")
+	}
 	envelope := &messaging.EventEnvelope{
 		SchemaVersion: "v1",
 		EventType:     eventType,
 		TenantID:      tenantID,
-		EventID:       fmt.Sprintf("evt_%d", time.Now().UnixNano()),
+		EventID:       uuid.Must(uuid.NewV7()).String(), // UUID v7 - time-ordered, sortable UUIDs
 		Timestamp:     time.Now(),
-		Payload:       payload,
+		Payload:       payloadJSON,
 	}
 
 	// Publish asynchronously
@@ -170,10 +211,14 @@ func ingestHandler(c *fiber.Ctx) error {
 	// Check for immediate errors (non-blocking)
 	select {
 	case err := <-errChan:
-		log.Printf("Failed to publish event %s: %v", envelope.EventID, err)
+		log.Error().
+			Str("event_id", envelope.EventID).
+			Str("event_type", eventType).
+			Err(err).
+			Msg("Failed to publish event")
 		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
 			"Failed to publish event")
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(asyncPublishTimeout):
 		// Message queued successfully, return immediately
 	}
 
@@ -193,7 +238,7 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 	// Check if event type exists
 	if !validator.EventTypeExists(eventType) {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeUnknownEvent,
-			fmt.Sprintf("Unknown event type: %s", eventType))
+			fmt.Sprintf("unknown event type: %s", eventType))
 	}
 
 	// Parse request body (array of events)
@@ -203,29 +248,37 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&request); err != nil {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeBadRequest,
-			"Invalid JSON payload: expected {\"events\": [...]}")
+			"invalid JSON payload: expected {\"events\": [...]}")
 	}
 
 	// Validate batch size
 	if len(request.Events) == 0 {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeBadRequest,
-			"Batch is empty")
+			"batch is empty")
 	}
 
-	if len(request.Events) > 1000 {
+	if len(request.Events) > maxBatchSize {
 		return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeBadRequest,
-			"Batch too large (max 1000 events)")
+			fmt.Sprintf("batch too large (max %d events)", maxBatchSize))
 	}
 
 	// Get tenant_id from auth middleware
-	tenantID := c.Locals("tenant_id").(string)
-	requestID := c.Locals("request_id").(string)
+	tenantID, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+			"missing tenant context")
+	}
+	requestID, ok := c.Locals("request_id").(string)
+	if !ok {
+		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+			"missing request ID")
+	}
 
 	// Validate all events first (fail fast)
 	for i, payload := range request.Events {
 		if err := validator.ValidateEvent(eventType, payload); err != nil {
 			return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeValidation,
-				fmt.Sprintf("Event %d validation failed: %v", i, err))
+				fmt.Sprintf("event %d validation failed: %v", i, err))
 		}
 	}
 
@@ -234,8 +287,15 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 	eventIDs := make([]string, len(request.Events))
 
 	for i, payload := range request.Events {
-		eventID := fmt.Sprintf("evt_%d_%d", time.Now().UnixNano(), i)
+		eventID := uuid.Must(uuid.NewV7()).String() // UUID v7 - time-ordered, sortable UUIDs
 		eventIDs[i] = eventID
+
+		// Marshal payload to JSON (avoids re-marshaling in consumer)
+		payloadJSON, err := json.Marshal(payload)
+		if err != nil {
+			return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+				fmt.Sprintf("failed to marshal event %d payload", i))
+		}
 
 		envelopes[i] = &messaging.EventEnvelope{
 			SchemaVersion: "v1",
@@ -243,7 +303,7 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 			TenantID:      tenantID,
 			EventID:       eventID,
 			Timestamp:     time.Now(),
-			Payload:       payload,
+			Payload:       payloadJSON,
 		}
 	}
 
@@ -254,10 +314,14 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 	// Check for immediate errors (non-blocking)
 	select {
 	case err := <-errChan:
-		log.Printf("Failed to publish batch: %v", err)
+		log.Error().
+			Str("event_type", eventType).
+			Int("batch_size", len(envelopes)).
+			Err(err).
+			Msg("Failed to publish batch")
 		return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
 			"Failed to publish some events")
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(asyncPublishTimeout):
 		// Batch queued successfully
 	}
 
@@ -287,7 +351,7 @@ func setupAPIKeys() *middleware.APIKeyConfig {
 			tenantID := "default"
 
 			// Check if format is "key:tenant_id"
-			parts := splitOnce(value, ":")
+			parts := strings.SplitN(value, ":", 2)
 			if len(parts) == 2 {
 				apiKey = parts[0]
 				tenantID = parts[1]
@@ -299,20 +363,65 @@ func setupAPIKeys() *middleware.APIKeyConfig {
 
 	// Add default dev key if no keys configured
 	if len(config.Keys) == 0 {
-		log.Println("⚠️  No API keys configured, adding default dev key")
+		log.Warn().Msg("⚠️  No API keys configured, adding default dev key")
 		config.AddKey("dev_key_1234567890", "default")
 	}
 
 	return config
 }
 
-func splitOnce(s, sep string) []string {
-	for i := 0; i < len(s)-len(sep)+1; i++ {
-		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
-			return []string{s[:i], s[i+len(sep):]}
-		}
+// validateConfig validates API server configuration
+func validateConfig(port, redpandaAddr, topic, schemaPath string, rateLimitRPS int) error {
+	// Validate port
+	if port == "" {
+		return fmt.Errorf("API_PORT cannot be empty")
 	}
-	return []string{s}
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("API_PORT must be a valid port number: %w", err)
+	}
+	if portNum < 1 || portNum > 65535 {
+		return fmt.Errorf("API_PORT must be between 1 and 65535, got %d", portNum)
+	}
+
+	// Validate Redpanda address
+	if redpandaAddr == "" {
+		return fmt.Errorf("REDPANDA_ADDR cannot be empty")
+	}
+	if !strings.Contains(redpandaAddr, ":") {
+		return fmt.Errorf("REDPANDA_ADDR must include port (e.g., localhost:19092)")
+	}
+
+	// Validate topic
+	if topic == "" {
+		return fmt.Errorf("REDPANDA_TOPIC cannot be empty")
+	}
+
+	// Validate schema path
+	if schemaPath == "" {
+		return fmt.Errorf("SCHEMA_PATH cannot be empty")
+	}
+	if _, err := os.Stat(schemaPath); os.IsNotExist(err) {
+		return fmt.Errorf("schema file does not exist: %s", schemaPath)
+	}
+
+	// Validate rate limit
+	if rateLimitRPS < 1 {
+		return fmt.Errorf("RATE_LIMIT_RPS must be positive, got %d", rateLimitRPS)
+	}
+	if rateLimitRPS > 1000000 {
+		return fmt.Errorf("RATE_LIMIT_RPS is unrealistically high (max 1000000), got %d", rateLimitRPS)
+	}
+
+	log.Info().
+		Str("port", port).
+		Str("redpanda", redpandaAddr).
+		Str("topic", topic).
+		Str("schema", schemaPath).
+		Int("rate_limit_rps", rateLimitRPS).
+		Msg("✓ Configuration validated successfully")
+
+	return nil
 }
 
 func getEnv(key, defaultValue string) string {

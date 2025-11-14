@@ -1,3 +1,13 @@
+// Package middleware provides HTTP middleware for the IngestKit API.
+//
+// Middleware components:
+//   - API Key Authentication: Maps API keys to tenant IDs
+//   - Rate Limiting: Token bucket algorithm per tenant
+//   - CORS: Cross-origin resource sharing configuration
+//   - Request ID: Unique ID tracking for each request
+//   - Error Handling: Standardized JSON error responses
+//
+// All middleware is designed to work with Fiber v2 framework.
 package middleware
 
 import (
@@ -37,7 +47,7 @@ func APIKeyAuth(config *APIKeyConfig) fiber.Handler {
 		authHeader := c.Get("Authorization")
 
 		if authHeader == "" {
-			return SendError(c, fiber.StatusUnauthorized, ErrCodeAuth, "Missing Authorization header")
+			return SendError(c, fiber.StatusUnauthorized, ErrCodeAuth, "missing authorization header")
 		}
 
 		// Extract the key (handle both "Bearer <key>" and plain "<key>")
@@ -51,7 +61,7 @@ func APIKeyAuth(config *APIKeyConfig) fiber.Handler {
 		// Validate the API key
 		tenantID, valid := config.ValidateKey(apiKey)
 		if !valid {
-			return SendError(c, fiber.StatusUnauthorized, ErrCodeAuth, "Invalid API key")
+			return SendError(c, fiber.StatusUnauthorized, ErrCodeAuth, "invalid API key")
 		}
 
 		// Store tenant_id in context for use by handlers

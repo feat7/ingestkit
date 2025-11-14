@@ -22,6 +22,13 @@ import (
 const (
 	defaultAPIURL = "http://localhost:8080"
 	defaultAPIKey = "dev_key_1234567890"
+
+	// HTTP client configuration
+	httpClientTimeout = 10 * time.Second
+
+	// Default test parameters
+	defaultRPS           = 1000
+	defaultLatencyBuffer = 100000 // Pre-allocate for ~100k latency measurements
 )
 
 // Test scenario types
@@ -107,7 +114,7 @@ func main() {
 	apiURL := flag.String("url", defaultAPIURL, "API URL")
 	apiKey := flag.String("key", defaultAPIKey, "API Key")
 	scenario := flag.String("scenario", "constant", "Test scenario: constant, ramp, spike, burst")
-	targetRPS := flag.Int("rps", 1000, "Target requests per second")
+	targetRPS := flag.Int("rps", defaultRPS, "Target requests per second")
 	duration := flag.Duration("duration", 30*time.Second, "Test duration")
 	workers := flag.Int("workers", 10, "Number of concurrent workers")
 	batchSize := flag.Int("batch", 1, "Events per batch (1 = single events)")
@@ -140,7 +147,7 @@ func main() {
 
 	// Initialize stats
 	stats := &Stats{
-		latencies: make([]time.Duration, 0, 100000),
+		latencies: make([]time.Duration, 0, defaultLatencyBuffer),
 		errors:    make(map[string]int64),
 		startTime: time.Now(),
 	}
@@ -182,7 +189,7 @@ func main() {
 	// Start workers
 	for i := 0; i < config.Workers; i++ {
 		wg.Add(1)
-		go worker(i, config, stats, rateLimiter, stopChan, &wg)
+		go worker(i, ctx, config, stats, rateLimiter, stopChan, &wg)
 	}
 
 	// Progress reporter
@@ -215,15 +222,17 @@ func main() {
 	printFinalReport(config, stats)
 }
 
-func worker(id int, config *Config, stats *Stats, rateLimiter <-chan time.Time, stop <-chan struct{}, wg *sync.WaitGroup) {
+func worker(id int, ctx context.Context, config *Config, stats *Stats, rateLimiter <-chan time.Time, stop <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: httpClientTimeout,
 	}
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-stop:
 			return
 		case <-rateLimiter:
@@ -260,21 +269,24 @@ func sendRequest(client *http.Client, config *Config) error {
 	var err error
 	var endpoint string
 
+	// Select a random event type for this request
+	eventType := config.EventTypes[rand.Intn(len(config.EventTypes))]
+
 	if config.BatchSize > 1 {
-		// Batch request
+		// Batch request - all events in batch must be same type
 		batch := BatchRequest{
 			Events: make([]EventRequest, config.BatchSize),
 		}
 		for i := 0; i < config.BatchSize; i++ {
-			batch.Events[i] = generateEvent(config.EventTypes)
+			batch.Events[i] = generateEvent([]string{eventType})
 		}
 		reqBody, err = json.Marshal(batch)
-		endpoint = "/v1/events/batch"
+		endpoint = fmt.Sprintf("/v1/events/%s/batch", eventType)
 	} else {
 		// Single event
-		event := generateEvent(config.EventTypes)
+		event := generateEvent([]string{eventType})
 		reqBody, err = json.Marshal(event)
-		endpoint = "/v1/events"
+		endpoint = fmt.Sprintf("/v1/events/%s", eventType)
 	}
 
 	if err != nil {

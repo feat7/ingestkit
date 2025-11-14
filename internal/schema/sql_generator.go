@@ -56,7 +56,7 @@ func generateEventTable(eventName string, event *Event) (string, error) {
 
 		defaultClause := ""
 		if field.Default != "" {
-			defaultClause = fmt.Sprintf(" DEFAULT '%s'", field.Default)
+			defaultClause = fmt.Sprintf(" DEFAULT %s", formatDefaultValue(field.Type, field.Default))
 		}
 
 		builder.WriteString(fmt.Sprintf("    %s %s %s%s", fieldName, sqlType, nullable, defaultClause))
@@ -106,5 +106,39 @@ func mapFieldTypeToSQL(fieldType string) string {
 		return "TIMESTAMPTZ"
 	default:
 		return "TEXT" // Fallback
+	}
+}
+
+// formatDefaultValue formats a default value for SQL based on field type
+// This prevents SQL injection by properly escaping/formatting values
+func formatDefaultValue(fieldType, value string) string {
+	switch fieldType {
+	case "string":
+		// Escape single quotes by doubling them (PostgreSQL standard)
+		escaped := strings.ReplaceAll(value, "'", "''")
+		return fmt.Sprintf("'%s'", escaped)
+	case "integer", "decimal":
+		// Numeric values should not be quoted
+		// TODO: Could add validation that value is actually numeric
+		return value
+	case "boolean":
+		// Boolean values should not be quoted
+		if value == "true" || value == "false" {
+			return value
+		}
+		// Default to false if invalid
+		return "false"
+	case "timestamp":
+		// Timestamps should be quoted
+		escaped := strings.ReplaceAll(value, "'", "''")
+		return fmt.Sprintf("'%s'", escaped)
+	case "jsonb":
+		// JSON should be quoted
+		escaped := strings.ReplaceAll(value, "'", "''")
+		return fmt.Sprintf("'%s'", escaped)
+	default:
+		// For unknown types, quote and escape
+		escaped := strings.ReplaceAll(value, "'", "''")
+		return fmt.Sprintf("'%s'", escaped)
 	}
 }

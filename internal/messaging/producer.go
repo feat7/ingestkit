@@ -1,3 +1,13 @@
+// Package messaging provides Redpanda/Kafka producer and consumer implementations.
+//
+// Producer: Async publishing with error channels for low-latency event ingestion
+// Consumer: Batch processing with smart batching (500 events OR 20ms timeout)
+//
+// Key features:
+//   - At-least-once delivery guarantees
+//   - Automatic retry with exponential backoff
+//   - Dead letter queue for failed events
+//   - Thread-safe metrics with RWMutex
 package messaging
 
 import (
@@ -17,12 +27,12 @@ type Producer struct {
 
 // EventEnvelope wraps an event for Redpanda
 type EventEnvelope struct {
-	SchemaVersion string                 `json:"schema_version"`
-	EventType     string                 `json:"event_type"`
-	TenantID      string                 `json:"tenant_id"`
-	EventID       string                 `json:"event_id"`
-	Timestamp     time.Time              `json:"timestamp"`
-	Payload       map[string]interface{} `json:"payload"`
+	SchemaVersion string          `json:"schema_version"`
+	EventType     string          `json:"event_type"`
+	TenantID      string          `json:"tenant_id"`
+	EventID       string          `json:"event_id"`
+	Timestamp     time.Time       `json:"timestamp"`
+	Payload       json.RawMessage `json:"payload"` // Raw JSON for efficient marshaling
 }
 
 // NewProducer creates a new Redpanda producer
