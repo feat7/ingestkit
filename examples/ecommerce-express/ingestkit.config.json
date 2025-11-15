@@ -5,6 +5,7 @@
   "tenantId": "ecommerce-demo",
   "generator": {
     "language": "typescript",
+    "schemaPath": "../../schema/events.yaml",
     "output": "./ingestkit"
   }
 }
