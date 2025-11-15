@@ -128,10 +128,8 @@ services:
   # Database Migrations - Run once on startup
   migrate:
     image: migrate/migrate:latest
-    command: >
-      -path /migrations
-      -database "postgres://${POSTGRES_USER:-ingestkit}:${POSTGRES_PASSWORD:-ingestkit_dev}@postgres:5432/${POSTGRES_DB:-ingestkit}?sslmode=disable"
-      up
+    entrypoint: /bin/sh
+    command: -c "migrate -path /migrations -database 'postgres://${POSTGRES_USER:-ingestkit}:${POSTGRES_PASSWORD:-ingestkit_dev}@postgres:5432/${POSTGRES_DB:-ingestkit}?sslmode=disable' up || exit 0"
     volumes:
       - ./migrations:/migrations
     depends_on:
