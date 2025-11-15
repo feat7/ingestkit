@@ -7,9 +7,11 @@ Self-hosted event tracking with type safety, auto-generated SDKs, and zero data 
 ## Features
 
 - **Schema-First**: YAML → SQL DDL, Go models, Python/TypeScript SDKs
+- **Auto-Migrations**: Prisma-style automated migration generation with Atlas
 - **High Performance**: 15,600 events/sec with PostgreSQL COPY protocol
 - **Zero Data Loss**: At-least-once delivery, 100% reliability validated
 - **Auto-Partitions**: Tables auto-create per tenant on first event
+- **Zero-Downtime Deploys**: Docker-based rolling updates with health checks
 - **Production-Ready**: Smart batching, retry logic, dead letter queue
 - **Developer-Friendly**: Auto-generated SDKs with type safety
 
@@ -20,7 +22,7 @@ Self-hosted event tracking with type safety, auto-generated SDKs, and zero data 
 ### Prerequisites
 - Docker & Docker Compose
 - Make
-- Go 1.22+
+- Go 1.24+
 
 ### Setup (5 minutes)
 
@@ -122,11 +124,21 @@ make build           # Build binaries
 make run-api         # Run API (:8080)
 make run-consumer    # Run consumer (:8081)
 
+# Migrations (Automated)
+make migrate-auto NAME=description  # Auto-generate migration SQL
+make db-migrate-up                  # Apply migrations
+make db-migrate-down                # Rollback migration
+make db-migrate-version             # Show current version
+
 # Database
 make db-connect      # Connect with psql
-make db-create       # Create schema
 make db-stats        # Show statistics
 make db-event-counts # Count events by type
+
+# Docker Deployment
+make docker-build    # Build Docker images
+make docker-up       # Start full stack
+make docker-reload   # Zero-downtime rolling update
 
 # Testing
 make loadtest-quick  # 100 RPS smoke test
@@ -179,10 +191,32 @@ events:
         type: jsonb
 ```
 
-After modifying schema:
+### Schema Changes (Prisma-Style)
+
+**Automated migration generation:**
+```bash
+# 1. Edit schema
+vim schema/events.yaml
+
+# 2. Auto-generate migration (SQL written automatically!)
+make migrate-auto NAME=add_user_country
+
+# 3. Review generated SQL
+cat migrations/*add_user_country.up.sql
+
+# 4. Apply migration
+make db-migrate-up
+
+# 5. Deploy with zero-downtime
+make docker-reload
+```
+
+**Manual workflow (if needed):**
 ```bash
 make generate && make build && make db-create
 ```
+
+See [docs/automated-migrations.md](docs/automated-migrations.md) for details.
 
 ## Services
 
@@ -198,7 +232,11 @@ make generate && make build && make db-create
 ## Documentation
 
 - **[CLAUDE.md](CLAUDE.md)** - Quick reference for developers
-- **[docs/](docs/)** - Detailed guides (development, SDKs, deployment)
+- **[docs/automated-migrations.md](docs/automated-migrations.md)** - Prisma-style automated migrations
+- **[docs/migrations.md](docs/migrations.md)** - Migration system guide
+- **[docs/docker-deployment.md](docs/docker-deployment.md)** - Zero-downtime deployment
+- **[docs/development.md](docs/development.md)** - Development workflow
+- **[docs/sdk-generation.md](docs/sdk-generation.md)** - SDK generation guide
 - **[LOADTEST.md](LOADTEST.md)** - Performance testing guide
 - **[ISSUES.md](ISSUES.md)** - Known issues and improvements
 
@@ -219,6 +257,8 @@ make generate && make build && make db-create
 **Production-Ready** ✅
 
 - [x] Schema-driven code generation (SQL, Go, Python, TypeScript)
+- [x] Automated migration generation (Prisma-style with Atlas)
+- [x] Zero-downtime Docker deployments with rolling updates
 - [x] High-performance API (15,600 events/sec validated)
 - [x] Auto-partition creation per tenant
 - [x] Zero data loss guarantees

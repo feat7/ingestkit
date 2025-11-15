@@ -21,6 +21,11 @@ bin/
 *.so
 *.dylib
 
+# Root-level compiled binaries
+/api
+/consumer
+/ingestkit
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -142,3 +147,9 @@ load-test-results/
 # Monitoring data
 prometheus-data/
 grafana-data/
+
+# Example application artifacts
+examples/*/venv/
+examples/*/__pycache__/
+examples/*/node_modules/
+examples/*/ingestkit/

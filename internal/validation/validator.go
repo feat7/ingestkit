@@ -32,6 +32,17 @@ func NewValidator(schemaPath string) (*Validator, error) {
 	return &Validator{schema: s}, nil
 }
 
+// NewValidatorFromBytes creates a validator from schema YAML bytes
+func NewValidatorFromBytes(schemaData []byte) (*Validator, error) {
+	// Parse schema data (includes validation)
+	s, err := schema.ParseSchema(schemaData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse schema: %w", err)
+	}
+
+	return &Validator{schema: s}, nil
+}
+
 // ValidateEvent validates an event payload against the schema
 func (v *Validator) ValidateEvent(eventType string, payload map[string]interface{}) error {
 	// Check if event type exists

@@ -227,7 +227,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 	}
 
 	// Build column names for COPY
-	columns := []string{"tenant_id"}
+	columns := []string{"tenant_id", "timestamp"}
 	for _, fieldName := range fieldNames {
 		columns = append(columns, fieldName)
 	}
@@ -272,6 +272,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 	// Return row data
 	builder.WriteString("\t\t\treturn []interface{}{\n")
 	builder.WriteString("\t\t\t\tevent.TenantID,\n")
+	builder.WriteString("\t\t\t\tevent.Timestamp,\n")
 	for _, fieldName := range fieldNames {
 		field := event.Fields[fieldName]
 		goFieldName := toPascalCase(fieldName)

@@ -1,0 +1,65 @@
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts (will be built in Docker)
+bin/
+api
+consumer
+ingestkit
+
+# Generated code (will be generated in Docker if needed)
+# Note: We actually need generated code, so comment this out
+# generated/
+
+# Test files
+*_test.go
+test/
+testdata/
+
+# Examples
+examples/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Dependencies (will be downloaded in Docker)
+vendor/
+
+# Load test results
+load-test-results/
+loadtest/
+
+# Monitoring data
+prometheus-data/
+grafana-data/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

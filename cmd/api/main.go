@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/feat7/ingestkit/generated/models"
 	"github.com/feat7/ingestkit/internal/api/middleware"
 	applogger "github.com/feat7/ingestkit/internal/logger"
 	"github.com/feat7/ingestkit/internal/messaging"
@@ -122,6 +125,9 @@ func main() {
 	api.Post("/events/:type", ingestHandler)
 	api.Post("/events/:type/batch", ingestBatchHandler)
 
+	// Schema management endpoint (admin - requires auth)
+	api.Post("/schema/push", schemaPushHandler(getEnv("SCHEMA_PATH", "schema/events.yaml")))
+
 	// Graceful shutdown
 	go func() {
 		sigChan := make(chan os.Signal, 1)
@@ -141,8 +147,9 @@ func main() {
 	log.Info().Str("port", port).Msg("🎯 IngestKit API ready")
 	log.Info().Msg("   POST /v1/events/:type             - Ingest single event")
 	log.Info().Msg("   POST /v1/events/:type/batch       - Ingest batch events")
+	log.Info().Msg("   POST /v1/schema/push              - Push schema updates (requires auth)")
 	log.Info().Msg("   GET  /health                      - Health check")
-	log.Info().Msg("   GET  /schema                      - Get event schema (YAML)")
+	log.Info().Msg("   GET  /schema                      - Get event schema (YAML, ETag support)")
 	log.Info().Msg("")
 	log.Info().Msg("   Query parameters:")
 	log.Info().Msg("   ?sync=true                        - Wait for Kafka ACK (default: false)")
@@ -162,7 +169,7 @@ func healthHandler(c *fiber.Ctx) error {
 	})
 }
 
-// schemaHandler returns a handler that serves the schema YAML file
+// schemaHandler returns a handler that serves the schema YAML file with ETag support
 func schemaHandler(schemaPath string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Read schema file
@@ -173,9 +180,111 @@ func schemaHandler(schemaPath string) fiber.Handler {
 				"Failed to load schema")
 		}
 
-		// Return schema as YAML
+		// Generate ETag (SHA256 hash of content)
+		hash := sha256.Sum256(schemaData)
+		etag := hex.EncodeToString(hash[:])
+
+		// Check If-None-Match header for caching
+		ifNoneMatch := c.Get("If-None-Match")
+		if ifNoneMatch == etag {
+			return c.SendStatus(fiber.StatusNotModified)
+		}
+
+		// Set caching headers
 		c.Set("Content-Type", "application/x-yaml")
+		c.Set("ETag", etag)
+		c.Set("Cache-Control", "public, max-age=300") // Cache for 5 minutes
+
 		return c.Send(schemaData)
+	}
+}
+
+// schemaPushHandler handles schema updates (admin endpoint)
+func schemaPushHandler(schemaPath string) fiber.Handler {
+	// Load admin key at handler creation time
+	adminKey := getEnv("ADMIN_SCHEMA_KEY", "")
+
+	return func(c *fiber.Ctx) error {
+		// ADMIN CHECK: Require dedicated admin key
+		if adminKey == "" {
+			log.Error().Msg("Schema push attempted but ADMIN_SCHEMA_KEY not configured")
+			return middleware.SendError(c, fiber.StatusForbidden, middleware.ErrCodeAuth,
+				"Schema push is disabled. Set ADMIN_SCHEMA_KEY environment variable to enable.")
+		}
+
+		// Get API key from Authorization header
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return middleware.SendError(c, fiber.StatusUnauthorized, middleware.ErrCodeAuth,
+				"Missing Authorization header")
+		}
+
+		// Extract bearer token
+		apiKey := strings.TrimPrefix(authHeader, "Bearer ")
+		apiKey = strings.TrimSpace(apiKey)
+
+		// Verify it matches admin key
+		if apiKey != adminKey {
+			log.Warn().Str("key", apiKey[:min(4, len(apiKey))]).Msg("Unauthorized schema push attempt")
+			return middleware.SendError(c, fiber.StatusForbidden, middleware.ErrCodeAuth,
+				"Unauthorized. Schema push requires admin key.")
+		}
+
+		// Get tenant_id from context if available (not strictly required for admin)
+		tenantIDRaw := c.Locals("tenant_id")
+		tenantID := "admin"
+		if tid, ok := tenantIDRaw.(string); ok {
+			tenantID = tid
+		}
+
+		// Read new schema from request body
+		newSchemaData := c.Body()
+		if len(newSchemaData) == 0 {
+			return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeBadRequest,
+				"Empty schema content")
+		}
+
+		// TODO: Add schema validation here
+		// For now, we'll just validate it's valid YAML by trying to parse it
+		tempValidator, err := validation.NewValidatorFromBytes(newSchemaData)
+		if err != nil {
+			log.Error().Err(err).Str("tenant", tenantID).Msg("Invalid schema submitted")
+			return middleware.SendError(c, fiber.StatusBadRequest, middleware.ErrCodeValidation,
+				fmt.Sprintf("Invalid schema: %v", err))
+		}
+
+		// Backup current schema
+		backupPath := fmt.Sprintf("%s.backup.%d", schemaPath, time.Now().Unix())
+		currentSchema, err := os.ReadFile(schemaPath)
+		if err == nil {
+			if err := os.WriteFile(backupPath, currentSchema, 0644); err != nil {
+				log.Warn().Err(err).Str("backup_path", backupPath).Msg("Failed to create schema backup")
+			} else {
+				log.Info().Str("backup_path", backupPath).Msg("Created schema backup")
+			}
+		}
+
+		// Write new schema
+		if err := os.WriteFile(schemaPath, newSchemaData, 0644); err != nil {
+			log.Error().Err(err).Str("path", schemaPath).Msg("Failed to write schema file")
+			return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+				"Failed to save schema")
+		}
+
+		log.Info().
+			Str("tenant", tenantID).
+			Int("event_types", len(tempValidator.GetEventTypes())).
+			Str("path", schemaPath).
+			Msg("Schema updated successfully - server restart required: run 'make generate && make build' and restart API/consumer services")
+
+		return c.JSON(fiber.Map{
+			"success":     true,
+			"message":     "Schema updated successfully",
+			"warning":     "⚠️  Server restart required: run 'make generate && make build' and restart API/consumer services for changes to take effect",
+			"event_types": tempValidator.GetEventTypes(),
+			"backup":      backupPath,
+			"timestamp":   time.Now().Unix(),
+		})
 	}
 }
 
@@ -222,7 +331,7 @@ func ingestHandler(c *fiber.Ctx) error {
 			"missing request ID")
 	}
 	envelope := &messaging.EventEnvelope{
-		SchemaVersion: "v1",
+		SchemaVersion: models.SchemaVersion,
 		EventType:     eventType,
 		TenantID:      tenantID,
 		EventID:       uuid.Must(uuid.NewV7()).String(), // UUID v7 - time-ordered, sortable UUIDs
@@ -349,7 +458,7 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 		}
 
 		envelopes[i] = &messaging.EventEnvelope{
-			SchemaVersion: "v1",
+			SchemaVersion: models.SchemaVersion,
 			EventType:     eventType,
 			TenantID:      tenantID,
 			EventID:       eventID,
