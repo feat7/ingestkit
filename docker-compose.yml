@@ -9,6 +9,21 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ingestkit}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ingestkit_dev}
       POSTGRES_HOST_AUTH_METHOD: trust
+    command: >
+      postgres
+      -c shared_buffers=4GB
+      -c effective_cache_size=12GB
+      -c max_connections=300
+      -c work_mem=20MB
+      -c maintenance_work_mem=1GB
+      -c synchronous_commit=off
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+      -c max_wal_size=16GB
+      -c max_worker_processes=8
+      -c max_parallel_workers=8
+      -c effective_io_concurrency=200
+      -c random_page_cost=1.1
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -21,6 +36,16 @@ services:
       retries: 5
     networks:
       - ingestkit
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 8G
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+    shm_size: 4g
 
   # Redpanda - Message broker (Kafka-compatible)
   redpanda:
@@ -37,10 +62,11 @@ services:
       - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
       - --rpc-addr redpanda:33145
       - --advertise-rpc-addr redpanda:33145
-      - --smp 1
-      - --memory 1G
-      - --mode dev-container
-      - --default-log-level=info
+      - --smp 4
+      - --memory 6G
+      - --reserve-memory 2G
+      - --overprovisioned
+      - --default-log-level=warn
     ports:
       - "18081:18081"  # Schema Registry
       - "18082:18082"  # HTTP Proxy
@@ -56,6 +82,15 @@ services:
       start_period: 5s
     networks:
       - ingestkit
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 7G
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
 
   # Redpanda Console - Web UI for Redpanda
   redpanda-console:
@@ -150,6 +185,9 @@ services:
       # API Configuration
       API_PORT: ${API_PORT:-8080}
       RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-20000}
+      GOMAXPROCS: ${GOMAXPROCS:-6}
+      GOMEMLIMIT: ${GOMEMLIMIT:-3GiB}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
 
       # API Keys (format: key:tenant_id)
       API_KEY_1: ${API_KEY_1:-dev_key_1234567890:default}
@@ -192,6 +230,14 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
+      resources:
+        limits:
+          cpus: '6'
+          memory: 4G
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
 
   # IngestKit Consumer Worker
   consumer:
@@ -205,6 +251,9 @@ services:
       CONSUMER_WORKERS: ${CONSUMER_WORKERS:-4}
       CONSUMER_BATCH_SIZE: ${CONSUMER_BATCH_SIZE:-500}
       CONSUMER_BATCH_TIMEOUT_MS: ${CONSUMER_BATCH_TIMEOUT_MS:-20}
+      GOMAXPROCS: ${GOMAXPROCS:-6}
+      GOMEMLIMIT: ${GOMEMLIMIT:-3GiB}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
 
       # Database (using DB_* prefix that consumer expects)
       DB_HOST: postgres
@@ -243,6 +292,14 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
+      resources:
+        limits:
+          cpus: '6'
+          memory: 6G
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
 
 volumes:
   postgres_data:

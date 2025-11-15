@@ -383,6 +383,101 @@ loadtest-custom: ## Custom load test - set API_URL, API_KEY env vars
 	k6 run $$SCRIPT
 
 # =============================================================================
+# Load Testing - Optimized Stack
+# =============================================================================
+
+tune-system: ## Run system tuning script for load testing
+	@echo "$(BLUE)Running system tuning...$(NC)"
+	@if [ -f scripts/tune-system.sh ]; then \
+		./scripts/tune-system.sh; \
+	else \
+		echo "$(RED)scripts/tune-system.sh not found$(NC)"; \
+		exit 1; \
+	fi
+
+loadtest-start: ## Start optimized stack for load testing
+	@echo "$(BLUE)Starting optimized IngestKit stack for load testing...$(NC)"
+	@echo ""
+	@if [ ! -f .env.loadtest ]; then \
+		echo "$(RED)Error: .env.loadtest not found$(NC)"; \
+		echo "Run: cp .env.loadtest.example .env.loadtest"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Step 1/3: Copying load test configuration...$(NC)"
+	@cp .env.loadtest .env
+	@echo "$(GREEN)✓ Using .env.loadtest configuration$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 2/3: Building optimized Docker images...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.loadtest.yml build api consumer
+	@echo "$(GREEN)✓ Images built$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 3/3: Starting full stack...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up -d
+	@echo "$(GREEN)✓ Stack started$(NC)"
+	@echo ""
+	@echo "$(BLUE)═══════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  Load Testing Stack Ready!$(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)⏳ Wait 60 seconds for services to warm up...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Service URLs:$(NC)"
+	@echo "  API (2 replicas):     http://localhost:8080/health"
+	@echo "  Consumer (2 replicas): http://localhost:8081/metrics"
+	@echo "  PostgreSQL:           localhost:5433"
+	@echo "  Redpanda Console:     http://localhost:8090"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(NC)"
+	@echo "  1. Wait 60s: $(BLUE)sleep 60$(NC)"
+	@echo "  2. Run test: $(BLUE)make loadtest-high$(NC)  (10,000 RPS)"
+	@echo "  3. Monitor:  $(BLUE)make metrics-watch$(NC)"
+	@echo "  4. Stop:     $(BLUE)make loadtest-stop$(NC)"
+	@echo ""
+
+loadtest-stop: ## Stop optimized load testing stack
+	@echo "$(BLUE)Stopping load testing stack...$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.loadtest.yml down
+	@echo "$(GREEN)Stack stopped!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Restore normal .env:$(NC)"
+	@echo "  git checkout .env"
+	@echo ""
+
+loadtest-restart: loadtest-stop loadtest-start ## Restart load testing stack
+
+loadtest-logs: ## View logs from load testing stack
+	@docker compose -f docker-compose.yml -f docker-compose.loadtest.yml logs -f api consumer
+
+loadtest-stats: ## Show load testing statistics
+	@echo "$(BLUE)Load Testing Statistics$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Container Resource Usage:$(NC)"
+	@docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" | grep ingestkit
+	@echo ""
+	@echo "$(YELLOW)Service Status:$(NC)"
+	@docker compose -f docker-compose.yml -f docker-compose.loadtest.yml ps
+	@echo ""
+	@echo "$(YELLOW)Consumer Metrics:$(NC)"
+	@curl -s http://localhost:8081/metrics | grep -E "^ingestkit_" | head -20 || echo "Metrics not available"
+	@echo ""
+
+loadtest-monitor: ## Real-time monitoring during load test (requires tmux)
+	@if ! command -v tmux > /dev/null; then \
+		echo "$(RED)tmux not installed. Install with: brew install tmux$(NC)"; \
+		exit 1; \
+	fi
+	@tmux new-session -d -s ingestkit-loadtest
+	@tmux split-window -h
+	@tmux split-window -v
+	@tmux select-pane -t 0
+	@tmux send-keys 'watch -n 2 "docker stats --no-stream | grep ingestkit"' C-m
+	@tmux select-pane -t 1
+	@tmux send-keys 'watch -n 2 "curl -s http://localhost:8081/metrics | grep -E \"^ingestkit_\""' C-m
+	@tmux select-pane -t 2
+	@tmux send-keys 'docker compose -f docker-compose.yml -f docker-compose.loadtest.yml logs -f api consumer' C-m
+	@tmux attach-session -t ingestkit-loadtest
+
+# =============================================================================
 # Utilities
 # =============================================================================
 
