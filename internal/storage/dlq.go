@@ -49,7 +49,7 @@ func (d *DLQWriter) WriteBatch(ctx context.Context, envelopes []*messaging.Event
 
 	query := `
 		INSERT INTO ingestkit_meta.dead_letter_queue
-		(event_type, tenant_id, event_payload, error_message, retry_count)
+		(event_type, tenant_id, event_data, error_message, retry_count)
 		VALUES ($1, $2, $3, $4, $5)
 	`
 

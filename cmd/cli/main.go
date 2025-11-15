@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/feat7/ingestkit/internal/config"
 	"github.com/feat7/ingestkit/internal/schema"
@@ -60,6 +64,8 @@ func handleSchemaCommand(subcommand string) {
 		compileSchema()
 	case "validate":
 		validateSchema()
+	case "push":
+		pushSchema()
 	default:
 		fmt.Printf("%sError: Unknown schema subcommand '%s'%s\n", colorRed, subcommand, colorReset)
 		printUsage()
@@ -293,8 +299,41 @@ events:
 	fmt.Println()
 }
 
+// fetchSchemaFromURL fetches schema from a remote URL
+func fetchSchemaFromURL(url string) ([]byte, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schema: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return data, nil
+}
+
 func generateClient() {
 	fmt.Printf("%s=== IngestKit Client Generation ===%s\n\n", colorBlue, colorReset)
+
+	// Check for --schema-url flag
+	var schemaURL string
+	for i := 2; i < len(os.Args); i++ {
+		if os.Args[i] == "--schema-url" && i+1 < len(os.Args) {
+			schemaURL = os.Args[i+1]
+			break
+		}
+	}
 
 	// Load config
 	fmt.Printf("%s→ Loading configuration...%s\n", colorYellow, colorReset)
@@ -306,15 +345,35 @@ func generateClient() {
 	}
 	fmt.Printf("%s✓ Loaded %s%s\n", colorGreen, config.ConfigFileName, colorReset)
 
-	// Parse schema
-	schemaPath := config.GetSchemaPath()
-	fmt.Printf("%s→ Parsing %s...%s\n", colorYellow, schemaPath, colorReset)
-	parsedSchema, err := schema.ParseSchemaFile(schemaPath)
-	if err != nil {
-		fmt.Printf("%s✗ Failed to parse schema: %v%s\n", colorRed, err, colorReset)
-		os.Exit(1)
+	// Parse schema (either from URL or local file)
+	var parsedSchema *schema.Schema
+	if schemaURL != "" {
+		// Fetch schema from URL
+		fmt.Printf("%s→ Fetching schema from %s...%s\n", colorYellow, schemaURL, colorReset)
+		schemaData, err := fetchSchemaFromURL(schemaURL)
+		if err != nil {
+			fmt.Printf("%s✗ Failed to fetch schema: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+		parsedSchema, err = schema.ParseSchema(schemaData)
+		if err != nil {
+			fmt.Printf("%s✗ Failed to parse schema: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+		fmt.Printf("%s✓ Schema fetched and parsed successfully (version: %s)%s\n", colorGreen, parsedSchema.Version, colorReset)
+	} else {
+		// Use local schema file
+		schemaPath := config.GetSchemaPath()
+		fmt.Printf("%s→ Parsing %s...%s\n", colorYellow, schemaPath, colorReset)
+		parsedSchema, err = schema.ParseSchemaFile(schemaPath)
+		if err != nil {
+			fmt.Printf("%s✗ Failed to parse schema: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+		fmt.Printf("%s✓ Schema parsed successfully (version: %s)%s\n", colorGreen, parsedSchema.Version, colorReset)
 	}
-	fmt.Printf("%s✓ Schema parsed successfully (version: %s)%s\n", colorGreen, parsedSchema.Version, colorReset)
+
 	fmt.Printf("  Found %d event types: %v\n\n", len(parsedSchema.Events), parsedSchema.GetEventNames())
 
 	// Generate SDK based on config language
@@ -383,6 +442,139 @@ func validateSchema() {
 	}
 
 	fmt.Printf("%s✓ Schema is valid!%s\n", colorGreen, colorReset)
+}
+
+func pushSchema() {
+	fmt.Printf("%s=== IngestKit Schema Push ===%s\n\n", colorBlue, colorReset)
+
+	// Parse flags
+	var apiURL string
+	var apiKey string
+	var schemaPath string
+
+	for i := 3; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--api-url", "-u":
+			if i+1 < len(os.Args) {
+				apiURL = os.Args[i+1]
+				i++
+			}
+		case "--api-key", "-k":
+			if i+1 < len(os.Args) {
+				apiKey = os.Args[i+1]
+				i++
+			}
+		case "--schema", "-s":
+			if i+1 < len(os.Args) {
+				schemaPath = os.Args[i+1]
+				i++
+			}
+		}
+	}
+
+	// Default values
+	if apiURL == "" {
+		apiURL = os.Getenv("INGESTKIT_API_URL")
+		if apiURL == "" {
+			apiURL = "http://localhost:8080"
+		}
+	}
+
+	if apiKey == "" {
+		apiKey = os.Getenv("INGESTKIT_API_KEY")
+		if apiKey == "" {
+			fmt.Printf("%sError: API key is required%s\n", colorRed, colorReset)
+			fmt.Println("Provide via --api-key flag or INGESTKIT_API_KEY environment variable")
+			os.Exit(1)
+		}
+	}
+
+	if schemaPath == "" {
+		schemaPath = "schema/events.yaml"
+	}
+
+	// Read schema file
+	fmt.Printf("%s→ Reading %s...%s\n", colorYellow, schemaPath, colorReset)
+	schemaData, err := os.ReadFile(schemaPath)
+	if err != nil {
+		fmt.Printf("%s✗ Failed to read schema: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+	fmt.Printf("%s✓ Schema loaded (%d bytes)%s\n", colorGreen, len(schemaData), colorReset)
+
+	// Validate schema locally first
+	fmt.Printf("%s→ Validating schema...%s\n", colorYellow, colorReset)
+	parsedSchema, err := schema.ParseSchema(schemaData)
+	if err != nil {
+		fmt.Printf("%s✗ Schema validation failed: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+	fmt.Printf("%s✓ Schema is valid (version: %s, events: %d)%s\n",
+		colorGreen, parsedSchema.Version, len(parsedSchema.Events), colorReset)
+
+	// Push to server
+	url := fmt.Sprintf("%s/v1/schema/push", apiURL)
+	fmt.Printf("\n%s→ Pushing schema to %s...%s\n", colorYellow, url, colorReset)
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(schemaData)))
+	if err != nil {
+		fmt.Printf("%s✗ Failed to create request: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	req.Header.Set("Content-Type", "application/x-yaml")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("%s✗ Failed to push schema: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("%s✗ Failed to read response: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("%s✗ Server returned error (HTTP %d):%s\n", colorRed, resp.StatusCode, colorReset)
+		fmt.Printf("  %s\n", string(body))
+		os.Exit(1)
+	}
+
+	// Parse response
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Printf("%s✗ Failed to parse response: %v%s\n", colorRed, err, colorReset)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s✓ Schema pushed successfully!%s\n\n", colorGreen, colorReset)
+
+	if message, ok := result["message"].(string); ok {
+		fmt.Printf("  Message: %s\n", message)
+	}
+
+	// Display warning prominently if present
+	if warning, ok := result["warning"].(string); ok {
+		fmt.Printf("\n%s%s%s\n", colorYellow, warning, colorReset)
+	}
+
+	if eventTypes, ok := result["event_types"].([]interface{}); ok {
+		fmt.Printf("  Event types: %d\n", len(eventTypes))
+	}
+
+	if backup, ok := result["backup"].(string); ok {
+		fmt.Printf("  Backup created: %s\n", backup)
+	}
+
+	fmt.Println()
 }
 
 func handleSDKCommand(subcommand string) {
@@ -511,6 +703,8 @@ func printUsage() {
 	fmt.Println("📦 Advanced Commands:")
 	fmt.Println("  schema compile                Generate SQL and Go code (server-side)")
 	fmt.Println("  schema validate               Validate schema/events.yaml syntax")
+	fmt.Println("  schema push [--api-url <url>] [--api-key <key>]")
+	fmt.Println("                                Push local schema to IngestKit server")
 	fmt.Println("  sdk generate --lang <language> [--api-url <url>]")
 	fmt.Println("                                Generate SDK (legacy command)")
 	fmt.Println("  help                          Show this help message")

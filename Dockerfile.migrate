@@ -1,0 +1,7 @@
+# Dockerfile for running database migrations
+FROM migrate/migrate:latest
+
+# Copy migration files
+COPY migrations /migrations
+
+ENTRYPOINT ["migrate"]

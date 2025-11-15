@@ -33,7 +33,7 @@ This document tracks all identified issues in the IngestKit codebase, organized 
 - **Resolution:** Fixed by:
   1. Changed `go 1.23` to `go 1.22` in go.mod to match local development environment
   2. Removed `toolchain go1.24.10` line (non-existent toolchain)
-  3. Auto-downgrades occurred via `go mod tidy` due to Go 1.22 compatibility requirements:
+  3. Auto-downgrades occurred via `go mod tidy` due to Go 1.24 compatibility requirements:
      - `github.com/jackc/pgx/v5`: v5.7.6 → v5.4.3 (v5.7.6 requires go >= 1.23)
      - `github.com/twmb/franz-go`: v1.20.3 → v1.13.5 (v1.20.3 requires go >= 1.24)
      - `github.com/rogpeppe/go-internal`: v1.14.1 → v1.12.0 (v1.14.1 requires go >= 1.23)
@@ -45,7 +45,7 @@ This document tracks all identified issues in the IngestKit codebase, organized 
   5. Verified builds succeed: `go build ./cmd/api && go build ./cmd/consumer`
 
 **✅ RESOLVED - Upgraded to Go 1.25:**
-After initial downgrade to Go 1.22 compatibility, project has been upgraded to **Go 1.25.4** (latest stable) with all dependencies restored to their latest versions. All tests pass (100% pass rate) and builds succeed.
+After initial downgrade to Go 1.24 compatibility, project has been upgraded to **Go 1.25.4** (latest stable) with all dependencies restored to their latest versions. All tests pass (100% pass rate) and builds succeed.
 
 **Final Dependency Versions (Restored):**
 - `jackc/pgx/v5`: v5.7.6 ✅ (was downgraded to v5.4.3)

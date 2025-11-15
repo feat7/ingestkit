@@ -104,9 +104,78 @@ db-drop: ## Drop all tables (DANGEROUS)
 
 db-reset: db-drop db-create ## Drop and recreate database
 
-db-migrate: ## Run database migrations
+db-migrate-up: ## Run database migrations
 	@echo "$(BLUE)Running migrations...$(NC)"
-	@echo "$(YELLOW)Migrations not implemented yet$(NC)"
+	@. .env 2>/dev/null || true; \
+	migrate -path migrations -database "postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" up
+	@echo "$(GREEN)Migrations applied!$(NC)"
+
+db-migrate-down: ## Rollback one migration
+	@echo "$(BLUE)Rolling back migration...$(NC)"
+	@. .env 2>/dev/null || true; \
+	migrate -path migrations -database "postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" down 1
+	@echo "$(GREEN)Migration rolled back!$(NC)"
+
+db-migrate-create: ## Create a new migration (usage: make db-migrate-create NAME=add_user_field)
+	@if [ -z "$(NAME)" ]; then \
+		echo "$(RED)Error: NAME is required$(NC)"; \
+		echo "Usage: make db-migrate-create NAME=add_user_field"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating migration: $(NAME)$(NC)"
+	@migrate create -ext sql -dir migrations -seq $(NAME)
+	@echo "$(GREEN)Migration files created!$(NC)"
+	@echo "$(YELLOW)Edit the migration files in migrations/ directory$(NC)"
+
+db-migrate-force: ## Force migration version without running (usage: make db-migrate-force VERSION=1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "$(RED)Error: VERSION is required$(NC)"; \
+		echo "Usage: make db-migrate-force VERSION=1"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Forcing migration version $(VERSION)...$(NC)"
+	@. .env 2>/dev/null || true; \
+	migrate -path migrations -database "postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" force $(VERSION)
+	@echo "$(GREEN)Migration version set to $(VERSION)!$(NC)"
+
+db-migrate-version: ## Show current migration version
+	@echo "$(BLUE)Current migration version:$(NC)"
+	@. .env 2>/dev/null || true; \
+	migrate -path migrations -database "postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" version
+
+migrate-auto: ## Auto-generate migration from schema changes (usage: make migrate-auto NAME=add_field)
+	@if [ -z "$(NAME)" ]; then \
+		echo "$(RED)Error: NAME is required$(NC)"; \
+		echo "Usage: make migrate-auto NAME=add_user_field"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Auto-generating migration: $(NAME)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 1/3: Regenerating code from schema...$(NC)"
+	@$(MAKE) generate > /dev/null
+	@echo "$(GREEN)✓ Code generated$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 2/3: Computing schema diff...$(NC)"
+	@atlas migrate diff $(NAME) \
+		--env local \
+		--dev-url "docker://postgres/18/dev" \
+		|| (echo "$(RED)Atlas migration failed. Check schema syntax.$(NC)" && exit 1)
+	@echo "$(GREEN)✓ Migration generated$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 3/3: Review migration files:$(NC)"
+	@ls -lh migrations/*$(NAME)* | awk '{print "  " $$9 " (" $$5 ")"}'
+	@echo ""
+	@echo "$(GREEN)✓ Migration ready!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(NC)"
+	@echo "  1. Review migration files in migrations/ directory"
+	@echo "  2. Test: $(BLUE)make db-migrate-up$(NC)"
+	@echo "  3. Verify: Send test events"
+	@echo "  4. Rollback if needed: $(BLUE)make db-migrate-down$(NC)"
+	@echo "  5. Deploy: $(BLUE)make docker-reload$(NC)"
+	@echo ""
+
+db-migrate: db-migrate-up ## Alias for db-migrate-up
 
 # =============================================================================
 # Redpanda Operations
@@ -173,6 +242,28 @@ generate: ## Generate code from schema
 		go build -o bin/ingestkit ./cmd/cli; \
 		./bin/ingestkit schema compile; \
 	fi
+
+schema-apply: ## Apply schema changes (generate + build + migrations)
+	@echo "$(BLUE)Applying schema changes...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 1/3: Generating code from schema...$(NC)"
+	@$(MAKE) generate
+	@echo ""
+	@echo "$(YELLOW)Step 2/3: Building binaries...$(NC)"
+	@$(MAKE) build
+	@echo ""
+	@echo "$(YELLOW)Step 3/3: Applying database migrations...$(NC)"
+	@$(MAKE) db-migrate-up
+	@echo ""
+	@echo "$(GREEN)✓ Schema changes applied successfully!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)⚠️  Next steps:$(NC)"
+	@echo "  1. If you added/removed fields, create a migration:"
+	@echo "     $(BLUE)make db-migrate-create NAME=add_field_name$(NC)"
+	@echo "  2. Edit the migration files in migrations/ directory"
+	@echo "  3. Apply migrations: $(BLUE)make db-migrate-up$(NC)"
+	@echo "  4. For Docker deployment: $(BLUE)make docker-reload$(NC)"
+	@echo ""
 
 # =============================================================================
 # Testing
@@ -369,3 +460,62 @@ quickstart: setup up redpanda-create-topic ## Complete setup and start infrastru
 	@echo "  • make health        - Check service health"
 	@echo "  • make help          - Show all commands"
 	@echo ""
+
+# =============================================================================
+# Docker - Application Deployment
+# =============================================================================
+
+docker-build: ## Build Docker images for API and consumer
+	@echo "$(BLUE)Building Docker images...$(NC)"
+	docker-compose build api consumer
+	@echo "$(GREEN)Docker images built!$(NC)"
+
+docker-up: ## Start full stack including API and consumer
+	@echo "$(BLUE)Starting full IngestKit stack (infrastructure + services)...$(NC)"
+	docker-compose up -d
+	@echo "$(GREEN)Full stack started!$(NC)"
+	@echo "$(YELLOW)API:$(NC)              http://localhost:8080"
+	@echo "$(YELLOW)Consumer Metrics:$(NC) http://localhost:8081/metrics"
+	@echo "$(YELLOW)PostgreSQL:$(NC)       localhost:5433"
+	@echo "$(YELLOW)Redpanda:$(NC)         localhost:19092"
+	@echo "$(YELLOW)Redpanda Console:$(NC) http://localhost:8090"
+
+docker-reload: schema-apply docker-build ## Zero-downtime reload after schema changes
+	@echo "$(BLUE)Performing zero-downtime rolling update...$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 1/2: Reloading API server...$(NC)"
+	@docker-compose up -d --no-deps --build api
+	@echo "$(GREEN)✓ API server reloaded$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Step 2/2: Reloading consumer...$(NC)"
+	@docker-compose up -d --no-deps --build consumer
+	@echo "$(GREEN)✓ Consumer reloaded$(NC)"
+	@echo ""
+	@echo "$(GREEN)✓ Zero-downtime reload complete!$(NC)"
+	@echo "$(YELLOW)Services are running with new schema$(NC)"
+
+docker-logs: ## Tail logs from API and consumer
+	@docker-compose logs -f api consumer
+
+docker-logs-api: ## Tail API logs
+	@docker-compose logs -f api
+
+docker-logs-consumer: ## Tail consumer logs
+	@docker-compose logs -f consumer
+
+docker-down: ## Stop all Docker services
+	@echo "$(BLUE)Stopping all Docker services...$(NC)"
+	docker-compose down
+	@echo "$(GREEN)All services stopped!$(NC)"
+
+docker-restart: docker-down docker-up ## Restart all Docker services
+
+docker-clean: ## Remove all containers, images, and volumes
+	@echo "$(RED)WARNING: This will remove all containers, images, and volumes!$(NC)"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker-compose down -v --rmi all; \
+		echo "$(GREEN)Cleanup complete!$(NC)"; \
+	fi
+

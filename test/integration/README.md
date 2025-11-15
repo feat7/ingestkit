@@ -5,7 +5,7 @@ End-to-end integration tests for IngestKit that verify the full pipeline: API â†
 ## Prerequisites
 
 - Docker and Docker Compose
-- Go 1.22+
+- Go 1.24+
 - IngestKit services running (API, Consumer, PostgreSQL, Redpanda)
 
 ## Running Integration Tests

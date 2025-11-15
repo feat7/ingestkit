@@ -125,6 +125,127 @@ services:
     profiles:
       - full  # Only start with --profile full
 
+  # Database Migrations - Run once on startup
+  migrate:
+    image: migrate/migrate:latest
+    command: >
+      -path /migrations
+      -database "postgres://${POSTGRES_USER:-ingestkit}:${POSTGRES_PASSWORD:-ingestkit_dev}@postgres:5432/${POSTGRES_DB:-ingestkit}?sslmode=disable"
+      up
+    volumes:
+      - ./migrations:/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ingestkit
+    restart: "no"  # Run once and exit
+
+  # IngestKit API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: ingestkit-api:latest
+    restart: unless-stopped
+    environment:
+      # API Configuration
+      API_PORT: ${API_PORT:-8080}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-20000}
+
+      # API Keys (format: key:tenant_id)
+      API_KEY_1: ${API_KEY_1:-dev_key_1234567890:default}
+      API_KEY_2: ${API_KEY_2:-sk_test_tenant_alpha:tenant_alpha}
+      API_KEY_3: ${API_KEY_3:-dev_key_ecommerce:ecommerce-demo}
+
+      # Admin Key for schema push
+      ADMIN_SCHEMA_KEY: ${ADMIN_SCHEMA_KEY:-}
+
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-ingestkit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ingestkit_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-ingestkit}
+
+      # Redpanda
+      REDPANDA_ADDR: redpanda:9092
+      REDPANDA_TOPIC: ${REDPANDA_TOPIC:-ingestkit.events}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - ingestkit
+    deploy:
+      replicas: ${API_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # IngestKit Consumer Worker
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    image: ingestkit-consumer:latest
+    restart: unless-stopped
+    environment:
+      # Consumer Configuration
+      CONSUMER_WORKERS: ${CONSUMER_WORKERS:-4}
+      CONSUMER_BATCH_SIZE: ${CONSUMER_BATCH_SIZE:-500}
+      CONSUMER_BATCH_TIMEOUT_MS: ${CONSUMER_BATCH_TIMEOUT_MS:-20}
+
+      # Database (using DB_* prefix that consumer expects)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-ingestkit}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-ingestkit_dev}
+      DB_NAME: ${POSTGRES_DB:-ingestkit}
+
+      # Redpanda
+      REDPANDA_ADDR: redpanda:9092
+      REDPANDA_TOPIC: ${REDPANDA_TOPIC:-ingestkit.events}
+      CONSUMER_GROUP_ID: ${CONSUMER_GROUP_ID:-ingestkit-consumer}
+
+      # Metrics
+      METRICS_PORT: ${METRICS_PORT:-8081}
+    ports:
+      - "${METRICS_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ingestkit
+    deploy:
+      replicas: ${CONSUMER_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
 volumes:
   postgres_data:
     driver: local

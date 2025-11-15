@@ -20,7 +20,7 @@ Last updated: 2025-11-15
 - **Production-Ready**: Batching, retry, dead letter queue, metrics
 
 ### Tech Stack
-- Go 1.22 + Fiber + pgx/v5 (COPY protocol)
+- Go 1.24 + Fiber + pgx/v5 (COPY protocol)
 - PostgreSQL (partitioned by tenant)
 - Redpanda (Kafka-compatible)
 - Schema compiler generates: SQL DDL, Go models, Python/TypeScript SDKs

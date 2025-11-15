@@ -44,7 +44,12 @@ func GenerateConsumer(schema *Schema) (string, error) {
 	// Generate main batch processing function
 	builder.WriteString("// ProcessBatch unmarshals, groups, and writes events by type\n")
 	builder.WriteString("func (h *BatchHandler) ProcessBatch(ctx context.Context, envelopes []*messaging.EventEnvelope) error {\n")
-	builder.WriteString("\tlog.Printf(\"📦 Processing batch: %d events\", len(envelopes))\n\n")
+	builder.WriteString("\t// Track schema versions in batch for observability\n")
+	builder.WriteString("\tschemaVersions := make(map[string]int)\n")
+	builder.WriteString("\tfor _, envelope := range envelopes {\n")
+	builder.WriteString("\t\tschemaVersions[envelope.SchemaVersion]++\n")
+	builder.WriteString("\t}\n")
+	builder.WriteString("\tlog.Printf(\"📦 Processing batch: %d events (schema versions: %v)\", len(envelopes), schemaVersions)\n\n")
 
 	// Declare slices for each event type
 	builder.WriteString("\t// Group events by type for batch insertion\n")
@@ -102,12 +107,13 @@ func GenerateConsumer(schema *Schema) (string, error) {
 	builder.WriteString("\t\treturn fmt.Errorf(\"failed to unmarshal event: %w\", err)\n")
 	builder.WriteString("\t}\n\n")
 
-	builder.WriteString("\t// Set tenant_id from envelope\n")
+	builder.WriteString("\t// Set tenant_id and timestamp from envelope\n")
 	builder.WriteString("\tswitch e := event.(type) {\n")
 	for _, eventName := range eventNames {
 		structName := toPascalCase(eventName)
 		builder.WriteString(fmt.Sprintf("\tcase *models.%s:\n", structName))
 		builder.WriteString("\t\te.TenantID = envelope.TenantID\n")
+		builder.WriteString("\t\te.Timestamp = envelope.Timestamp\n")
 	}
 	builder.WriteString("\t}\n\n")
 
