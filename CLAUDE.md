@@ -20,7 +20,7 @@ Last updated: 2025-11-15
 - **Production-Ready**: Batching, retry, dead letter queue, metrics
 
 ### Tech Stack
-- Go 1.24 + Fiber + pgx/v5 (COPY protocol)
+- Go 1.24+ (tested with 1.25) + Fiber + pgx/v5 (COPY protocol)
 - PostgreSQL (partitioned by tenant)
 - Redpanda (Kafka-compatible)
 - Schema compiler generates: SQL DDL, Go models, Python/TypeScript SDKs
@@ -206,14 +206,11 @@ npm start
 
 See `/docs` folder for detailed guides:
 
-- **[Development](docs/development.md)** - Workflows, adding events, working with examples
+- **[Development](docs/development.md)** - Development workflow and environment setup
+- **[Automated Migrations](docs/automated-migrations.md)** - Prisma-style migration generation with Atlas
+- **[Migrations](docs/migrations.md)** - Manual migration workflow and best practices
+- **[Docker Deployment](docs/docker-deployment.md)** - Zero-downtime deployments
 - **[SDK Generation](docs/sdk-generation.md)** - Python & TypeScript SDK details
-- **[Common Tasks](docs/common-tasks.md)** - Step-by-step guides
-- **[Debugging](docs/debugging.md)** - Troubleshooting common issues
-- **[Testing](docs/testing.md)** - Test strategy and patterns
-- **[Performance](docs/performance.md)** - Tuning and optimization
-- **[Deployment](docs/deployment.md)** - Production checklist
-- **[Improvements](docs/improvements.md)** - Known issues and future work
 
 ---
 

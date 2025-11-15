@@ -22,7 +22,7 @@ Last updated: 2025-11-15
 
 ### Prerequisites
 
-- **Go 1.24+** - Backend services
+- **Go 1.24+** (tested with 1.25) - Backend services
 - **Docker & Docker Compose** - Infrastructure (PostgreSQL, Redpanda)
 - **Make** - Build automation
 - **Optional**: Python 3.9+ and Node.js 18+ for SDK development
