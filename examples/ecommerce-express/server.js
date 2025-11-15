@@ -44,13 +44,13 @@ app.get('/products/:id', async (req, res) => {
   const sessionId = req.headers['x-session-id'] || uuidv4();
 
   try {
-    await analytics.productViewed.send({
-      userId,
-      sessionId,
-      productId: product.id,
-      productName: product.name,
-      productCategory: product.category,
-      price: product.price.toString(),
+    await analytics.sendProductViewed({
+      user_id: userId,
+      session_id: sessionId,
+      product_id: product.id,
+      product_name: product.name,
+      product_category: product.category,
+      price: product.price,
       currency: 'USD',
       source: req.query.source || 'direct',
       metadata: {
@@ -94,15 +94,15 @@ app.post('/cart/add', async (req, res) => {
 
   // Track add to cart event
   try {
-    await analytics.addedToCart.send({
-      userId,
-      sessionId,
-      productId: product.id,
-      productName: product.name,
+    await analytics.sendAddedToCart({
+      user_id: userId,
+      session_id: sessionId,
+      product_id: product.id,
+      product_name: product.name,
       quantity,
-      price: product.price.toString(),
+      price: product.price,
       currency: 'USD',
-      cartTotal: cartTotal.toString(),
+      cart_total: cartTotal,
       metadata: {
         cartItemCount: carts[userId].length,
       },
@@ -143,12 +143,12 @@ app.post('/checkout/start', async (req, res) => {
 
   // Track checkout started event
   try {
-    await analytics.checkoutStarted.send({
-      userId,
-      sessionId,
-      cartId,
-      numItems,
-      cartTotal: cartTotal.toString(),
+    await analytics.sendCheckoutStarted({
+      user_id: userId,
+      session_id: sessionId,
+      cart_id: cartId,
+      num_items: numItems,
+      cart_total: cartTotal,
       currency: 'USD',
       items,
     });
@@ -197,16 +197,16 @@ app.post('/checkout/complete', async (req, res) => {
 
   // Track order completed event
   try {
-    await analytics.orderCompleted.send({
-      userId,
-      sessionId,
-      orderId,
-      cartId: cartId || uuidv4(),
-      totalAmount: finalAmount.toString(),
+    await analytics.sendOrderCompleted({
+      user_id: userId,
+      session_id: sessionId,
+      order_id: orderId,
+      cart_id: cartId || uuidv4(),
+      total_amount: finalAmount,
       currency: 'USD',
-      paymentMethod,
-      numItems,
-      shippingAddress: shippingAddress || {
+      payment_method: paymentMethod,
+      num_items: numItems,
+      shipping_address: shippingAddress || {
         street: '123 Main St',
         city: 'San Francisco',
         state: 'CA',
@@ -214,8 +214,8 @@ app.post('/checkout/complete', async (req, res) => {
         country: 'US',
       },
       items,
-      discountCode: discountCode || null,
-      discountAmount: discountAmount > 0 ? discountAmount.toString() : null,
+      discount_code: discountCode || undefined,
+      discount_amount: discountAmount > 0 ? discountAmount : undefined,
       metadata: {
         originalAmount: totalAmount,
       },

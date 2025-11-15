@@ -144,7 +144,7 @@ build: ## Build Go applications
 run-api: ## Run API server locally
 	@echo "$(BLUE)Starting API server...$(NC)"
 	@if [ -f bin/api ]; then \
-		./bin/api; \
+		set -a && [ -f .env ] && . ./.env && set +a && ./bin/api; \
 	else \
 		echo "$(RED)Binary not found. Run 'make build' first.$(NC)"; \
 	fi
@@ -152,7 +152,7 @@ run-api: ## Run API server locally
 run-consumer: ## Run consumer worker locally
 	@echo "$(BLUE)Starting consumer worker...$(NC)"
 	@if [ -f bin/consumer ]; then \
-		./bin/consumer; \
+		set -a && [ -f .env ] && . ./.env && set +a && ./bin/consumer; \
 	else \
 		echo "$(RED)Binary not found. Run 'make build' first.$(NC)"; \
 	fi

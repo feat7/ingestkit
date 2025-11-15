@@ -110,6 +110,9 @@ func main() {
 	// DDoS protection should be handled at infrastructure layer (reverse proxy, CDN)
 	app.Get("/health", healthHandler)
 
+	// Schema endpoint - allows SDK generators to fetch the current schema
+	app.Get("/schema", schemaHandler(getEnv("SCHEMA_PATH", "schema/events.yaml")))
+
 	// Protected routes (require auth + rate limiting)
 	api := app.Group("/v1")
 	api.Use(middleware.APIKeyAuth(apiKeyConfig))
@@ -136,9 +139,15 @@ func main() {
 
 	// Start server
 	log.Info().Str("port", port).Msg("🎯 IngestKit API ready")
-	log.Info().Msg("   POST /v1/events/:type       - Ingest single event")
-	log.Info().Msg("   POST /v1/events/:type/batch - Ingest batch events")
-	log.Info().Msg("   GET  /health                - Health check")
+	log.Info().Msg("   POST /v1/events/:type             - Ingest single event")
+	log.Info().Msg("   POST /v1/events/:type/batch       - Ingest batch events")
+	log.Info().Msg("   GET  /health                      - Health check")
+	log.Info().Msg("   GET  /schema                      - Get event schema (YAML)")
+	log.Info().Msg("")
+	log.Info().Msg("   Query parameters:")
+	log.Info().Msg("   ?sync=true                        - Wait for Kafka ACK (default: false)")
+	log.Info().Msg("                                       Default: 202 Accepted (async)")
+	log.Info().Msg("                                       With sync: 200 OK (guaranteed)")
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start server")
 	}
@@ -151,6 +160,23 @@ func healthHandler(c *fiber.Ctx) error {
 		"timestamp":   time.Now().Unix(),
 		"event_types": validator.GetEventTypes(),
 	})
+}
+
+// schemaHandler returns a handler that serves the schema YAML file
+func schemaHandler(schemaPath string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Read schema file
+		schemaData, err := os.ReadFile(schemaPath)
+		if err != nil {
+			log.Error().Err(err).Str("path", schemaPath).Msg("Failed to read schema file")
+			return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+				"Failed to load schema")
+		}
+
+		// Return schema as YAML
+		c.Set("Content-Type", "application/x-yaml")
+		return c.Send(schemaData)
+	}
 }
 
 func ingestHandler(c *fiber.Ctx) error {
@@ -204,7 +230,32 @@ func ingestHandler(c *fiber.Ctx) error {
 		Payload:       payloadJSON,
 	}
 
-	// Publish asynchronously
+	// Check for sync mode (query parameter: ?sync=true)
+	syncMode := c.Query("sync", "false") == "true"
+
+	if syncMode {
+		// Publish synchronously - waits for Kafka broker ACK
+		if err := producer.Publish(c.Context(), envelope); err != nil {
+			log.Error().
+				Str("event_id", envelope.EventID).
+				Str("event_type", eventType).
+				Err(err).
+				Msg("Failed to publish event synchronously")
+			return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+				"Failed to publish event")
+		}
+
+		// Success response - 200 OK (event GUARANTEED delivered to Kafka)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status":     "delivered",
+			"event_id":   envelope.EventID,
+			"event_type": eventType,
+			"tenant_id":  tenantID,
+			"request_id": requestID,
+		})
+	}
+
+	// Async mode (default) - publish asynchronously
 	errChan := make(chan error, 1)
 	producer.PublishAsync(c.Context(), envelope, errChan)
 
@@ -222,7 +273,7 @@ func ingestHandler(c *fiber.Ctx) error {
 		// Message queued successfully, return immediately
 	}
 
-	// Success response
+	// Success response - 202 Accepted (event queued, not yet confirmed)
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"status":     "accepted",
 		"event_id":   envelope.EventID,
@@ -307,7 +358,33 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 		}
 	}
 
-	// Publish batch asynchronously
+	// Check for sync mode (query parameter: ?sync=true)
+	syncMode := c.Query("sync", "false") == "true"
+
+	if syncMode {
+		// Publish batch synchronously - waits for Kafka broker ACK
+		if err := producer.PublishBatch(c.Context(), envelopes); err != nil {
+			log.Error().
+				Str("event_type", eventType).
+				Int("batch_size", len(envelopes)).
+				Err(err).
+				Msg("Failed to publish batch synchronously")
+			return middleware.SendError(c, fiber.StatusInternalServerError, middleware.ErrCodeInternal,
+				"Failed to publish batch")
+		}
+
+		// Success response - 200 OK (batch GUARANTEED delivered to Kafka)
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status":      "delivered",
+			"event_type":  eventType,
+			"tenant_id":   tenantID,
+			"request_id":  requestID,
+			"event_count": len(eventIDs),
+			"event_ids":   eventIDs,
+		})
+	}
+
+	// Async mode (default) - publish batch asynchronously
 	errChan := make(chan error, len(envelopes))
 	producer.PublishAsyncBatch(c.Context(), envelopes, errChan)
 
@@ -325,7 +402,7 @@ func ingestBatchHandler(c *fiber.Ctx) error {
 		// Batch queued successfully
 	}
 
-	// Success response
+	// Success response - 202 Accepted (batch queued, not yet confirmed)
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"status":      "accepted",
 		"event_type":  eventType,

@@ -4,18 +4,24 @@
   "description": "Example e-commerce app using IngestKit for event tracking",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "tsx --env-file=.env server.js",
+    "dev": "tsx --env-file=.env watch server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "body-parser": "^1.20.2",
+    "express": "^4.18.2",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "tsx": "^4.20.6"
   },
-  "keywords": ["ingestkit", "analytics", "ecommerce", "events"],
+  "keywords": [
+    "ingestkit",
+    "analytics",
+    "ecommerce",
+    "events"
+  ],
   "author": "IngestKit Team",
   "license": "MIT"
 }

@@ -59,6 +59,16 @@ func TestEndToEnd(t *testing.T) {
 	t.Run("ValidationErrors", func(t *testing.T) {
 		testValidationErrors(t)
 	})
+
+	// Test synchronous delivery guarantees
+	t.Run("SynchronousDeliveryGuarantees", func(t *testing.T) {
+		testSynchronousDelivery(t, db)
+	})
+
+	// Test asynchronous vs synchronous mode
+	t.Run("AsyncVsSyncMode", func(t *testing.T) {
+		testAsyncVsSyncMode(t, db)
+	})
 }
 
 func testSingleEventIngestion(t *testing.T, db *sql.DB) {
@@ -269,6 +279,273 @@ func sendBatch(t *testing.T, eventType string, events []map[string]interface{}) 
 	}
 
 	return response.EventIDs, nil
+}
+
+func testSynchronousDelivery(t *testing.T, db *sql.DB) {
+	// Create unique test event
+	userID := fmt.Sprintf("sync_user_%d", time.Now().UnixNano())
+	email := fmt.Sprintf("%s@sync-test.com", userID)
+
+	payload := map[string]interface{}{
+		"user_id":        userID,
+		"email":         email,
+		"signup_source": "web",
+		"metadata":      map[string]interface{}{"sync": "true"},
+	}
+
+	// Send event with sync=true
+	eventID, status, statusCode, err := sendEventWithSync(t, "user_signup", payload, true)
+	if err != nil {
+		t.Fatalf("Failed to send event in sync mode: %v", err)
+	}
+
+	// Verify sync mode returns 200 OK with "delivered" status
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200 OK, got %d", statusCode)
+	}
+
+	if status != "delivered" {
+		t.Errorf("Expected status 'delivered', got '%s'", status)
+	}
+
+	t.Logf("✓ Sync mode returned 200 OK with 'delivered' status")
+
+	// Wait for consumer to process (should be quick since Kafka ACK already confirmed)
+	time.Sleep(2 * time.Second)
+
+	// Verify event in database
+	var count int
+	query := `SELECT COUNT(*) FROM events_user_signup WHERE user_id = $1 AND email = $2`
+	err = db.QueryRow(query, userID, email).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query database: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected 1 event in database, got %d", count)
+	}
+
+	t.Logf("✓ Event ID %s successfully written to database after sync delivery", eventID)
+}
+
+func testAsyncVsSyncMode(t *testing.T, db *sql.DB) {
+	// Test async mode (default)
+	t.Run("AsyncMode", func(t *testing.T) {
+		userID := fmt.Sprintf("async_user_%d", time.Now().UnixNano())
+		payload := map[string]interface{}{
+			"user_id":        userID,
+			"email":         fmt.Sprintf("%s@async-test.com", userID),
+			"signup_source": "api",
+			"metadata":      map[string]interface{}{"mode": "async"},
+		}
+
+		start := time.Now()
+		_, status, statusCode, err := sendEventWithSync(t, "user_signup", payload, false)
+		latency := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Failed to send event in async mode: %v", err)
+		}
+
+		// Verify async mode returns 202 Accepted with "accepted" status
+		if statusCode != http.StatusAccepted {
+			t.Errorf("Expected status 202 Accepted, got %d", statusCode)
+		}
+
+		if status != "accepted" {
+			t.Errorf("Expected status 'accepted', got '%s'", status)
+		}
+
+		t.Logf("✓ Async mode returned 202 Accepted with 'accepted' status (latency: %v)", latency)
+
+		// Async mode should be fast (<20ms typically)
+		if latency > 100*time.Millisecond {
+			t.Logf("⚠️  Warning: Async mode took %v (expected <100ms)", latency)
+		}
+	})
+
+	// Test sync mode
+	t.Run("SyncMode", func(t *testing.T) {
+		userID := fmt.Sprintf("sync_user_%d", time.Now().UnixNano())
+		payload := map[string]interface{}{
+			"user_id":        userID,
+			"email":         fmt.Sprintf("%s@sync-test.com", userID),
+			"signup_source": "web",
+			"metadata":      map[string]interface{}{"mode": "sync"},
+		}
+
+		start := time.Now()
+		_, status, statusCode, err := sendEventWithSync(t, "user_signup", payload, true)
+		latency := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Failed to send event in sync mode: %v", err)
+		}
+
+		// Verify sync mode returns 200 OK with "delivered" status
+		if statusCode != http.StatusOK {
+			t.Errorf("Expected status 200 OK, got %d", statusCode)
+		}
+
+		if status != "delivered" {
+			t.Errorf("Expected status 'delivered', got '%s'", status)
+		}
+
+		t.Logf("✓ Sync mode returned 200 OK with 'delivered' status (latency: %v)", latency)
+
+		// Sync mode will be slower due to Kafka ACK wait
+		// Typically 1-10ms for local Kafka, but can vary
+		if latency > 1*time.Second {
+			t.Logf("⚠️  Warning: Sync mode took %v (expected <1s for local Kafka)", latency)
+		}
+	})
+
+	// Test batch sync mode
+	t.Run("BatchSyncMode", func(t *testing.T) {
+		batchSize := 5
+		events := make([]map[string]interface{}, batchSize)
+		baseUserID := fmt.Sprintf("batch_sync_%d", time.Now().UnixNano())
+
+		for i := 0; i < batchSize; i++ {
+			userID := fmt.Sprintf("%s_%d", baseUserID, i)
+			events[i] = map[string]interface{}{
+				"user_id":        userID,
+				"email":         fmt.Sprintf("%s@sync-batch-test.com", userID),
+				"signup_source": "api",
+				"metadata":      map[string]interface{}{"batch_sync": i},
+			}
+		}
+
+		start := time.Now()
+		eventIDs, status, statusCode, err := sendBatchWithSync(t, "user_signup", events, true)
+		latency := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Failed to send batch in sync mode: %v", err)
+		}
+
+		// Verify sync mode returns 200 OK with "delivered" status
+		if statusCode != http.StatusOK {
+			t.Errorf("Expected status 200 OK, got %d", statusCode)
+		}
+
+		if status != "delivered" {
+			t.Errorf("Expected status 'delivered', got '%s'", status)
+		}
+
+		if len(eventIDs) != batchSize {
+			t.Errorf("Expected %d event IDs, got %d", batchSize, len(eventIDs))
+		}
+
+		t.Logf("✓ Batch sync mode returned 200 OK with 'delivered' status (latency: %v for %d events)", latency, batchSize)
+
+		// Wait for consumer to process
+		time.Sleep(2 * time.Second)
+
+		// Verify all events in database
+		var count int
+		query := `SELECT COUNT(*) FROM events_user_signup WHERE user_id LIKE $1`
+		err = db.QueryRow(query, baseUserID+"%").Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if count != batchSize {
+			t.Errorf("Expected %d events in database, got %d", batchSize, count)
+		}
+
+		t.Logf("✓ All %d events from sync batch successfully written to database", batchSize)
+	})
+}
+
+func sendEventWithSync(t *testing.T, eventType string, payload map[string]interface{}, sync bool) (string, string, int, error) {
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/events/%s", apiURL, eventType)
+	if sync {
+		url += "?sync=true"
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadJSON))
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var response struct {
+		EventID string `json:"event_id"`
+		Status  string `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", "", resp.StatusCode, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Accept both 200 OK (sync) and 202 Accepted (async)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return "", "", resp.StatusCode, fmt.Errorf("API returned unexpected status %d", resp.StatusCode)
+	}
+
+	return response.EventID, response.Status, resp.StatusCode, nil
+}
+
+func sendBatchWithSync(t *testing.T, eventType string, events []map[string]interface{}, sync bool) ([]string, string, int, error) {
+	request := map[string]interface{}{
+		"events": events,
+	}
+
+	payloadJSON, err := json.Marshal(request)
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("failed to marshal batch: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/events/%s/batch", apiURL, eventType)
+	if sync {
+		url += "?sync=true"
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadJSON))
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var response struct {
+		EventIDs []string `json:"event_ids"`
+		Status   string   `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, "", resp.StatusCode, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Accept both 200 OK (sync) and 202 Accepted (async)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return nil, "", resp.StatusCode, fmt.Errorf("API returned unexpected status %d", resp.StatusCode)
+	}
+
+	return response.EventIDs, response.Status, resp.StatusCode, nil
 }
 
 func waitForAPI(t *testing.T, timeout time.Duration) bool {

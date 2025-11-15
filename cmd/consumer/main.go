@@ -18,6 +18,7 @@ import (
 	applogger "github.com/feat7/ingestkit/internal/logger"
 	"github.com/feat7/ingestkit/internal/messaging"
 	dlqstorage "github.com/feat7/ingestkit/internal/storage"
+	partstorage "github.com/feat7/ingestkit/internal/storage"
 )
 
 const (
@@ -92,11 +93,40 @@ func main() {
 
 	log.Info().Msg("✓ DLQ writer initialized")
 
+	// Create partition manager for automatic partition creation
+	partitionMgr := partstorage.NewPartitionManager(writer.GetPool())
+	log.Info().Msg("✓ Partition manager initialized (auto-creates partitions on demand)")
+
 	// Create generated batch handler (auto-generated from schema)
 	generatedHandler := consumer.NewBatchHandler(writer)
 
-	// Wrap generated handler with context
+	// Wrap generated handler with partition management and context
 	batchHandler := func(ctx context.Context, envelopes []*messaging.EventEnvelope) error {
+		// Ensure partitions exist for all tenants and event types in this batch
+		tenantEventPairs := make(map[string]map[string]bool)
+		for _, env := range envelopes {
+			if tenantEventPairs[env.TenantID] == nil {
+				tenantEventPairs[env.TenantID] = make(map[string]bool)
+			}
+			tenantEventPairs[env.TenantID][env.EventType] = true
+		}
+
+		// Create partitions concurrently for all unique (tenant, event_type) pairs
+		for tenantID, eventTypes := range tenantEventPairs {
+			for eventType := range eventTypes {
+				tableName := partstorage.GetEventTableName(eventType)
+				if err := partitionMgr.EnsurePartition(ctx, tableName, tenantID); err != nil {
+					log.Error().
+						Str("tenant_id", tenantID).
+						Str("event_type", eventType).
+						Err(err).
+						Msg("Failed to ensure partition")
+					return fmt.Errorf("failed to ensure partition for %s/%s: %w", tenantID, eventType, err)
+				}
+			}
+		}
+
+		// Now process the batch with partitions ready
 		return generatedHandler.ProcessBatch(ctx, envelopes)
 	}
 

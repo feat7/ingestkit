@@ -90,6 +90,13 @@ func GenerateStorage(schema *Schema) (string, error) {
 		builder.WriteString("\n\n")
 	}
 
+	// GetPool method for accessing the connection pool
+	builder.WriteString("// GetPool returns the underlying connection pool for advanced operations\n")
+	builder.WriteString("// (e.g., partition management, custom queries)\n")
+	builder.WriteString("func (w *Writer) GetPool() *pgxpool.Pool {\n")
+	builder.WriteString("\treturn w.pool\n")
+	builder.WriteString("}\n\n")
+
 	// Close method
 	builder.WriteString("// Close closes the database connection pool\n")
 	builder.WriteString("func (w *Writer) Close() error {\n")

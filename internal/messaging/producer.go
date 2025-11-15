@@ -102,6 +102,37 @@ func (p *Producer) PublishAsync(ctx context.Context, envelope *EventEnvelope, er
 	})
 }
 
+// PublishBatch sends multiple events to Redpanda synchronously
+// Waits for Kafka broker acknowledgment before returning
+func (p *Producer) PublishBatch(ctx context.Context, envelopes []*EventEnvelope) error {
+	records := make([]*kgo.Record, 0, len(envelopes))
+
+	// Marshal all envelopes to Kafka records
+	for _, envelope := range envelopes {
+		data, err := json.Marshal(envelope)
+		if err != nil {
+			return fmt.Errorf("failed to marshal event %s: %w", envelope.EventID, err)
+		}
+
+		record := &kgo.Record{
+			Topic: p.topic,
+			Key:   []byte(envelope.TenantID), // Partition by tenant
+			Value: data,
+		}
+		records = append(records, record)
+	}
+
+	// Publish all records synchronously
+	results := p.client.ProduceSync(ctx, records...)
+
+	// Check for errors
+	if err := results.FirstErr(); err != nil {
+		return fmt.Errorf("failed to produce batch: %w", err)
+	}
+
+	return nil
+}
+
 // PublishAsyncBatch sends multiple events to Redpanda asynchronously
 // Returns immediately, errors are sent to the provided error channel
 func (p *Producer) PublishAsyncBatch(ctx context.Context, envelopes []*EventEnvelope, errChan chan<- error) {
