@@ -1,181 +1,180 @@
 # IngestKit
 
-**High-Performance, Schema-First Data Ingestion Platform**
+**High-Performance, Schema-First Event Ingestion Platform**
 
-Self-hosted event tracking with type safety, auto-generated SDKs, and zero data loss guarantees.
+A self-hosted event tracking system with type-safe SDKs, automated migrations, and zero data loss guarantees.
+
+---
+
+## What is IngestKit?
+
+IngestKit is an event ingestion platform built for developers who need:
+- **Type Safety**: Define events in YAML, get type-safe SDKs automatically
+- **Performance**: 15,600 events/sec with PostgreSQL COPY protocol
+- **Reliability**: At-least-once delivery, dead letter queue, automatic retries
+- **Developer Experience**: Prisma-style migrations, auto-generated code, Docker deployments
+
+**Use Cases**: Product analytics, audit logging, user behavior tracking, event streaming
+
+---
 
 ## Features
 
-- **Schema-First**: YAML → SQL DDL, Go models, Python/TypeScript SDKs
-- **Auto-Migrations**: Prisma-style automated migration generation with Atlas
-- **High Performance**: 15,600 events/sec with PostgreSQL COPY protocol
-- **Zero Data Loss**: At-least-once delivery, 100% reliability validated
-- **Auto-Partitions**: Tables auto-create per tenant on first event
-- **Zero-Downtime Deploys**: Docker-based rolling updates with health checks
-- **Production-Ready**: Smart batching, retry logic, dead letter queue
-- **Developer-Friendly**: Auto-generated SDKs with type safety
+### Core Capabilities
 
-**Performance**: 15,600 events/sec | P95 latency: <20ms | 100% success rate
+- **Schema-First Design**: Single YAML file generates SQL DDL, Go models, and client SDKs
+- **Auto-Generated SDKs**: Type-safe Python and TypeScript clients with retry logic
+- **Automated Migrations**: Prisma-style migration generation using Atlas (auto-generates SQL)
+- **Multi-Tenant**: Automatic table partitioning per tenant
+- **Zero Data Loss**: Kafka buffering with at-least-once delivery guarantees
+- **High Performance**: PostgreSQL COPY protocol (3-4x faster than INSERT)
 
-## Quick Start
+### Production Features
+
+- Smart batching (500 events OR 20ms timeout)
+- Automatic retry with exponential backoff
+- Dead letter queue for failed events
+- Prometheus metrics endpoint
+- Zero-downtime Docker deployments
+- Health check endpoints
+
+---
+
+## Quick Start (5 Minutes)
 
 ### Prerequisites
-- Docker & Docker Compose
-- Make
-- Go 1.24+
 
-### Setup (5 minutes)
+- **Go 1.24+** (tested with 1.25)
+- **Docker & Docker Compose**
+- **Make**
+
+### Setup
 
 ```bash
-# 1. Start infrastructure
+# 1. Start infrastructure (PostgreSQL + Redpanda)
 make quickstart
 
-# 2. Initialize and build
+# 2. Initialize Go dependencies
 make init-go
-make generate
-make build
-make db-create
 
-# 3. Run services (separate terminals)
+# 3. Generate code from schema
+make generate
+
+# 4. Build binaries
+make build
+
+# 5. Apply database migrations
+make db-migrate-up
+
+# 6. Start services (in separate terminals)
 make run-api        # Terminal 1: API on :8080
 make run-consumer   # Terminal 2: Consumer on :8081
+```
 
-# 4. Test it
+### Test It
+
+```bash
+# Send an event
 curl -X POST http://localhost:8080/v1/events/user_signup \
   -H "Authorization: Bearer dev_key_1234567890" \
   -H "Content-Type: application/json" \
   -d '{
-    "user_id": "test_user",
+    "user_id": "user_123",
     "email": "test@example.com",
-    "signup_source": "web",
-    "metadata": {}
+    "signup_source": "web"
   }'
 
-# Check it worked
-make metrics
-make db-event-counts
+# Verify it worked
+make metrics           # View consumer metrics
+make db-event-counts   # Count events in database
 ```
 
-## Using IngestKit
-
-### Working Examples
-
-**Blog Analytics** (Python/Flask):
-```bash
-cd examples/blog-flask
-./run.sh
-./test-flow-simple.sh  # In another terminal
-```
-
-**E-commerce** (TypeScript/Express):
-```bash
-cd examples/ecommerce-express
-npm install
-npm start
-./test-flow.sh  # In another terminal
-```
-
-### Integration
-
-**Python:**
-```python
-from ingestkit import Client
-
-analytics = Client(
-    api_url="http://localhost:8080",
-    api_key="dev_key_1234567890"
-)
-
-# Track events (type-safe!)
-analytics.send_user_signup({
-    "user_id": "usr_123",
-    "email": "user@example.com",
-    "signup_source": "web"
-})
-```
-
-**TypeScript:**
-```typescript
-import { Client } from './ingestkit';
-
-const analytics = new Client({
-  apiUrl: 'http://localhost:8080',
-  apiKey: 'dev_key_1234567890'
-});
-
-await analytics.sendUserSignup({
-  userId: 'usr_123',
-  email: 'user@example.com',
-  signupSource: 'web'
-});
-```
-
-## Common Commands
-
-```bash
-# Infrastructure
-make up              # Start PostgreSQL + Redpanda
-make down            # Stop services
-make restart         # Restart everything
-
-# Development
-make generate        # Generate code from schema
-make build           # Build binaries
-make run-api         # Run API (:8080)
-make run-consumer    # Run consumer (:8081)
-
-# Migrations (Automated)
-make migrate-auto NAME=description  # Auto-generate migration SQL
-make db-migrate-up                  # Apply migrations
-make db-migrate-down                # Rollback migration
-make db-migrate-version             # Show current version
-
-# Database
-make db-connect      # Connect with psql
-make db-stats        # Show statistics
-make db-event-counts # Count events by type
-
-# Docker Deployment
-make docker-build    # Build Docker images
-make docker-up       # Start full stack
-make docker-reload   # Zero-downtime rolling update
-
-# Testing
-make loadtest-quick  # 100 RPS smoke test
-make metrics         # View consumer metrics
-```
+---
 
 ## Architecture
 
 ```
 Client Apps (Python/TypeScript SDK)
-    ↓ HTTP POST
+    ↓ HTTP POST /v1/events/:type
 API Server (Fiber :8080)
-    ↓ Validate & Publish
+    ↓ Validate schema + Publish
 Redpanda (:19092)
-    ↓ Batch Consume (500 events OR 20ms)
+    ↓ Batch consume (500 events OR 20ms)
 Consumer Workers (4 parallel)
-    ↓ Auto-create partitions + COPY protocol
-PostgreSQL (:5433, partitioned by tenant)
+    ↓ Auto-partition + COPY protocol
+PostgreSQL (:5433, partitioned by tenant_id)
 ```
 
-**Key Features:**
-- Auto-partition creation per tenant
-- PostgreSQL COPY protocol (3-4x faster than INSERT)
-- Smart batching with configurable timeout
-- At-least-once delivery with AutoCommitMarks
-- Prometheus metrics at :8081/metrics
+**Key Design Decisions:**
+- **API Server validates before Kafka**: Prevents invalid data from entering the queue
+- **Multi-tenancy via API keys**: Each key maps to a tenant, enforced server-side
+- **Auto-partitioning**: Tables like `events_user_signup_tenant_alpha` created automatically
+- **COPY protocol**: Bulk inserts 3-4x faster than individual INSERTs
 
-## Schema Definition
+---
 
-Define events in `schema/events.yaml`:
+## Using IngestKit
+
+### Python Example
+
+```python
+from ingestkit import Client
+
+# Initialize client
+analytics = Client(
+    api_url="http://localhost:8080",
+    api_key="dev_key_1234567890"
+)
+
+# Send events (type-safe!)
+analytics.send_user_signup({
+    "user_id": "usr_123",
+    "email": "user@example.com",
+    "signup_source": "web"
+})
+
+# Batch sending
+analytics.send_user_signup_batch([event1, event2, event3])
+
+# Guaranteed delivery (waits for Kafka ACK)
+response = analytics.send_user_signup(event, sync=True)
+```
+
+### TypeScript Example
+
+```typescript
+import { IngestKitClient } from './ingestkit';
+
+const client = new IngestKitClient({
+  apiUrl: 'http://localhost:8080',
+  apiKey: 'dev_key_1234567890'
+});
+
+// Send event
+await client.sendUserSignup({
+  userId: 'usr_123',
+  email: 'user@example.com',
+  signupSource: 'web'
+});
+
+// Guaranteed delivery
+await client.sendUserSignup(event, { sync: true });
+```
+
+---
+
+## Schema Management
+
+### Define Events
+
+Edit `schema/events.yaml`:
 
 ```yaml
 version: "1.0"
 
 events:
   user_signup:
-    description: Fired when a new user signs up
+    description: "Fired when a new user signs up"
     fields:
       user_id:
         type: string
@@ -191,15 +190,18 @@ events:
         type: jsonb
 ```
 
-### Schema Changes (Prisma-Style)
+### Automated Migration Generation (Prisma-Style)
 
-**Automated migration generation:**
 ```bash
-# 1. Edit schema
+# 1. Edit schema (add/remove fields)
 vim schema/events.yaml
 
-# 2. Auto-generate migration (SQL written automatically!)
+# 2. Auto-generate migration SQL
 make migrate-auto NAME=add_user_country
+
+# Atlas automatically generates:
+#   migrations/20251115_add_user_country.up.sql
+#   migrations/20251115_add_user_country.down.sql
 
 # 3. Review generated SQL
 cat migrations/*add_user_country.up.sql
@@ -207,72 +209,205 @@ cat migrations/*add_user_country.up.sql
 # 4. Apply migration
 make db-migrate-up
 
-# 5. Deploy with zero-downtime
-make docker-reload
+# 5. Rebuild and restart
+make generate && make build
+make run-api        # Restart API
+make run-consumer   # Restart consumer
 ```
 
-**Manual workflow (if needed):**
+**See**: [docs/automated-migrations.md](docs/automated-migrations.md)
+
+---
+
+## Common Commands
+
+### Development
+
 ```bash
-make generate && make build && make db-create
+make up              # Start PostgreSQL + Redpanda
+make down            # Stop services
+make generate        # Generate code from schema
+make build           # Build API + consumer binaries
+make run-api         # Run API server (:8080)
+make run-consumer    # Run consumer (:8081)
 ```
 
-See [docs/automated-migrations.md](docs/automated-migrations.md) for details.
+### Database
 
-## Services
+```bash
+make db-migrate-up        # Apply migrations
+make db-migrate-down      # Rollback migration
+make db-migrate-version   # Show current version
+make db-connect           # Connect with psql
+make db-stats             # Show event counts
+make db-event-counts      # Count by event type
+```
 
-| Service | Port | URL |
-|---------|------|-----|
-| API Server | 8080 | http://localhost:8080/health |
-| Consumer Metrics | 8081 | http://localhost:8081/metrics |
-| Redpanda Console | 8090 | http://localhost:8090 |
-| PostgreSQL | 5433 | `make db-connect` |
+### Docker Deployment
 
-**Note:** Port 5433 avoids conflicts with existing PostgreSQL installations.
+```bash
+make docker-build    # Build Docker images
+make docker-up       # Start full stack (includes migrations)
+make docker-reload   # Zero-downtime rolling update
+```
+
+### Testing
+
+```bash
+make test            # Run unit tests
+make loadtest-quick  # 100 RPS smoke test
+make metrics         # View consumer metrics
+```
+
+---
+
+## Services & Ports
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| API Server | 8080 | Event ingestion endpoint |
+| Consumer Metrics | 8081 | Prometheus `/metrics` |
+| PostgreSQL | 5433 | Database (non-standard port to avoid conflicts) |
+| Redpanda | 19092 | Kafka protocol |
+| Redpanda Console | 8090 | Web UI for Kafka |
+
+---
+
+## Working Examples
+
+**Blog Analytics** (Python + Flask):
+```bash
+cd examples/blog-flask
+./run.sh
+./test-flow-simple.sh  # In another terminal
+```
+
+**E-commerce** (TypeScript + Express):
+```bash
+cd examples/ecommerce-express
+npm install
+npm start
+./test-flow.sh  # In another terminal
+```
+
+---
+
+## Performance
+
+**Validated Performance** (measured with loadtest):
+- **Throughput**: 15,600 events/sec per consumer worker
+- **Latency**: 13ms average, <20ms p95
+- **Success Rate**: 100% (zero data loss in testing)
+
+**Why so fast?**
+- PostgreSQL COPY protocol (bulk inserts)
+- Batch processing (500 events OR 20ms timeout)
+- Async Kafka publishing (10ms response time)
+- Connection pooling (50 max connections)
+
+See: [LOADTEST.md](LOADTEST.md)
+
+---
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** - Quick reference for developers
-- **[docs/automated-migrations.md](docs/automated-migrations.md)** - Prisma-style automated migrations
-- **[docs/migrations.md](docs/migrations.md)** - Migration system guide
-- **[docs/docker-deployment.md](docs/docker-deployment.md)** - Zero-downtime deployment
+- **[CLAUDE.md](CLAUDE.md)** - Quick reference for developers and AI assistants
 - **[docs/development.md](docs/development.md)** - Development workflow
+- **[docs/automated-migrations.md](docs/automated-migrations.md)** - Prisma-style migrations with Atlas
+- **[docs/migrations.md](docs/migrations.md)** - Manual migration workflow
+- **[docs/docker-deployment.md](docs/docker-deployment.md)** - Zero-downtime deployments
 - **[docs/sdk-generation.md](docs/sdk-generation.md)** - SDK generation guide
 - **[LOADTEST.md](LOADTEST.md)** - Performance testing guide
-- **[ISSUES.md](ISSUES.md)** - Known issues and improvements
 
-## Key Concepts
+---
 
-**Auto-Partitions**: Tables automatically created per tenant on first event. No manual partition management needed.
+## What's Working
 
-**Schema Distribution**: Clients fetch schema from API (`/schema` endpoint). No local schema files needed in production.
+✅ **Schema-driven code generation** (SQL, Go models, SDKs)
+✅ **Automated migrations** (Atlas + golang-migrate)
+✅ **High-performance API** (15,600 events/sec tested)
+✅ **Multi-tenant partitioning** (auto-creates tables per tenant)
+✅ **Zero data loss** (at-least-once delivery)
+✅ **Type-safe SDKs** (Python, TypeScript)
+✅ **Dead letter queue** (failed event recovery)
+✅ **Docker deployments** (zero-downtime rolling updates)
+✅ **Working examples** (blog, e-commerce)
 
-**Delivery Guarantees**:
-- Default: 202 Accepted (async, high throughput)
-- With `?sync=true`: 200 OK (guaranteed Kafka ACK)
+---
 
-**Multi-Tenancy**: Each API key maps to a tenant. Events automatically partitioned by `tenant_id`.
+## What's Missing
 
-## Status
+⚠️ **Query API**: You can write events but not read them (no GET endpoints yet)
+⚠️ **Aggregations**: No built-in analytics (use external tools like Metabase)
+⚠️ **Distributed rate limiting**: Current rate limiter is single-server only
+⚠️ **Data retention policies**: Events stored forever (no auto-cleanup)
+⚠️ **Secrets management**: API keys in environment variables (no Vault integration)
+⚠️ **Audit logging**: No tracking of who accessed what
 
-**Production-Ready** ✅
+**For production use**: Pair IngestKit with Metabase, Superset, or Redash for querying and visualization.
 
-- [x] Schema-driven code generation (SQL, Go, Python, TypeScript)
-- [x] Automated migration generation (Prisma-style with Atlas)
-- [x] Zero-downtime Docker deployments with rolling updates
-- [x] High-performance API (15,600 events/sec validated)
-- [x] Auto-partition creation per tenant
-- [x] Zero data loss guarantees
-- [x] Working examples (blog, e-commerce)
-- [x] Comprehensive testing
+---
 
-**Latest Performance:**
-- Throughput: 15,600 events/sec
-- Latency: 13ms avg, <20ms p95
-- Success Rate: 100% (zero failures)
+## Configuration
+
+### Environment Variables
+
+Create `.env` in project root:
+
+```bash
+# API Server
+API_PORT=8080
+API_KEY_1=dev_key_1234567890:default
+API_KEY_2=sk_test_tenant_alpha:tenant_alpha
+API_KEY_3=dev_key_ecommerce:ecommerce-demo
+
+# Consumer
+CONSUMER_WORKERS=4
+CONSUMER_BATCH_SIZE=500
+CONSUMER_BATCH_TIMEOUT_MS=20
+
+# Database
+POSTGRES_PORT=5433
+POSTGRES_USER=ingestkit
+POSTGRES_PASSWORD=ingestkit_dev
+POSTGRES_DB=ingestkit
+
+# Kafka
+REDPANDA_ADDR=localhost:19092
+REDPANDA_TOPIC=ingestkit.events
+```
+
+---
+
+## Troubleshooting
+
+**Consumer not processing?**
+```bash
+curl http://localhost:8081/health
+make metrics
+make db-dlq-check  # Check dead letter queue
+```
+
+**401 Unauthorized?**
+- Check API key is in `.env`
+- Restart API: `make run-api`
+- Verify: API logs should show "count=3" (or your key count)
+
+**Validation errors?**
+- Field names must be `snake_case` (not camelCase)
+- Regenerate: `make generate && make build`
+
+**Database connection failed?**
+- PostgreSQL is on port **5433** (not 5432)
+- Check: `make db-connect`
+
+---
 
 ## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for architecture and development guide.
+See [docs/development.md](docs/development.md) for development workflow.
+
+---
 
 ## License
 
@@ -280,8 +415,9 @@ TBD
 
 ---
 
-**Need Help?**
-- Quick Reference: [CLAUDE.md](CLAUDE.md)
-- Detailed Docs: [docs/](docs/)
-- Load Testing: [LOADTEST.md](LOADTEST.md)
-- Issues: [ISSUES.md](ISSUES.md)
+**Built with:**
+- Go 1.24+ (Fiber web framework)
+- PostgreSQL (with COPY protocol)
+- Redpanda (Kafka-compatible)
+- Atlas (migration generation)
+- Docker (deployment)
