@@ -21,7 +21,7 @@ help: ## Show this help message
 # Quick Start Commands
 # =============================================================================
 
-start: generate docker-build docker-up ## ⚡ ONE COMMAND START - Build and run everything with Docker
+start: docker-build docker-up ## ⚡ ONE COMMAND START - Build and run everything with Docker
 	@echo ""
 	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  ✓ IngestKit is running!$(NC)"

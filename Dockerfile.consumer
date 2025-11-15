@@ -10,8 +10,13 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
+# Copy source code (except generated/)
 COPY . .
+
+# Generate code from schema
+RUN mkdir -p generated/models generated/storage generated/consumer generated/sql && \
+    go build -o /tmp/ingestkit ./cmd/cli && \
+    /tmp/ingestkit schema compile
 
 # Build the consumer binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o consumer ./cmd/consumer

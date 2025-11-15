@@ -23,9 +23,8 @@ api
 consumer
 ingestkit
 
-# Generated code (will be generated in Docker if needed)
-# Note: We actually need generated code, so comment this out
-# generated/
+# Generated code (will be generated during Docker build)
+generated/
 
 # Test files
 *_test.go
