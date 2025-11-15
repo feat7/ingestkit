@@ -21,7 +21,7 @@ help: ## Show this help message
 # Quick Start Commands
 # =============================================================================
 
-start: docker-build docker-up ## ⚡ ONE COMMAND START - Build and run everything with Docker
+start: generate docker-build docker-up ## ⚡ ONE COMMAND START - Build and run everything with Docker
 	@echo ""
 	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  ✓ IngestKit is running!$(NC)"
@@ -275,7 +275,7 @@ generate: ## Generate code from schema
 	@if [ -f bin/ingestkit ]; then \
 		./bin/ingestkit schema compile; \
 	else \
-		@echo "$(YELLOW)Building CLI tool...$(NC)"; \
+		echo "$(YELLOW)Building CLI tool...$(NC)"; \
 		go build -o bin/ingestkit ./cmd/cli; \
 		./bin/ingestkit schema compile; \
 	fi
