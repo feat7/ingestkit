@@ -520,7 +520,7 @@ docker-build: ## Build Docker images for API and consumer
 
 docker-up: ## Start full stack including API and consumer
 	@echo "$(BLUE)Starting full IngestKit stack (infrastructure + services)...$(NC)"
-	docker compose up -d
+	@docker compose up -d || (echo "$(RED)Failed to start services. Check logs with: docker compose logs$(NC)" && exit 1)
 	@echo "$(GREEN)Full stack started!$(NC)"
 	@echo "$(YELLOW)API:$(NC)              http://localhost:8080"
 	@echo "$(YELLOW)Consumer Metrics:$(NC) http://localhost:8081/metrics"
@@ -566,4 +566,9 @@ docker-clean: ## Remove all containers, images, and volumes
 		docker compose down -v --rmi all; \
 		echo "$(GREEN)Cleanup complete!$(NC)"; \
 	fi
+
+docker-clean-volumes: ## Remove database volumes (fixes migration errors)
+	@echo "$(BLUE)Removing database volumes...$(NC)"
+	docker compose down -v
+	@echo "$(GREEN)Volumes removed. Database will be recreated on next start.$(NC)"
 
