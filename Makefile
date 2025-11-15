@@ -1,4 +1,4 @@
-.PHONY: help setup up down restart logs clean test build run dev
+.PHONY: help setup up down restart logs clean test test-event build run dev start start-local
 
 # Colors for output
 BLUE := \033[0;34m
@@ -15,6 +15,43 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(GREEN)Available commands:$(NC)"
 	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo ""
+
+# =============================================================================
+# Quick Start Commands
+# =============================================================================
+
+start: docker-build docker-up ## ⚡ ONE COMMAND START - Build and run everything with Docker
+	@echo ""
+	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  ✓ IngestKit is running!$(NC)"
+	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(BLUE)Next steps:$(NC)"
+	@echo "  1. Edit your schema:  $(YELLOW)vim schema/events.yaml$(NC)"
+	@echo "  2. Apply changes:     $(YELLOW)make docker-reload$(NC)"
+	@echo "  3. Send test event:   $(YELLOW)make test-event$(NC)"
+	@echo ""
+	@echo "$(BLUE)Useful commands:$(NC)"
+	@echo "  • $(YELLOW)make docker-logs$(NC)  - View logs"
+	@echo "  • $(YELLOW)make metrics$(NC)       - View consumer metrics"
+	@echo "  • $(YELLOW)make down$(NC)          - Stop everything"
+	@echo ""
+
+start-local: quickstart init-go generate build db-migrate-up ## ⚡ Start everything locally (not Docker)
+	@echo ""
+	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  ✓ Infrastructure ready!$(NC)"
+	@echo "$(GREEN)═══════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(BLUE)Start services in separate terminals:$(NC)"
+	@echo "  Terminal 1:  $(YELLOW)make run-api$(NC)"
+	@echo "  Terminal 2:  $(YELLOW)make run-consumer$(NC)"
+	@echo ""
+	@echo "$(BLUE)After services start:$(NC)"
+	@echo "  • Edit schema:  $(YELLOW)vim schema/events.yaml$(NC)"
+	@echo "  • Regenerate:   $(YELLOW)make generate && make build$(NC)"
+	@echo "  • Restart services (Ctrl+C and re-run make run-api/run-consumer)"
 	@echo ""
 
 # =============================================================================
@@ -276,6 +313,17 @@ test: ## Run unit tests
 	else \
 		echo "$(YELLOW)No Go project initialized yet$(NC)"; \
 	fi
+
+test-event: ## Send a test user_signup event (quick verification)
+	@echo "$(BLUE)Sending test event...$(NC)"
+	@curl -X POST http://localhost:8080/v1/events/user_signup \
+		-H "Authorization: Bearer dev_key_1234567890" \
+		-H "Content-Type: application/json" \
+		-d '{"user_id":"test_'$$(date +%s)'","email":"test@example.com","signup_source":"web"}' \
+		&& echo "" \
+		&& echo "$(GREEN)✓ Event sent successfully!$(NC)" \
+		&& echo "$(YELLOW)Check: make metrics$(NC)" \
+		|| echo "$(RED)✗ Failed. Is API running?$(NC)"
 
 test-integration: up ## Run integration tests
 	@echo "$(BLUE)Running integration tests...$(NC)"

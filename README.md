@@ -40,53 +40,49 @@ IngestKit is an event ingestion platform built for developers who need:
 
 ---
 
-## Quick Start (5 Minutes)
+## Quick Start (2 Minutes)
 
 ### Prerequisites
 
-- **Go 1.24+** (tested with 1.25)
 - **Docker & Docker Compose**
 - **Make**
 
-### Setup
+### One Command to Start
 
 ```bash
-# 1. Start infrastructure (PostgreSQL + Redpanda)
-make quickstart
-
-# 2. Initialize Go dependencies
-make init-go
-
-# 3. Generate code from schema
-make generate
-
-# 4. Build binaries
-make build
-
-# 5. Apply database migrations
-make db-migrate-up
-
-# 6. Start services (in separate terminals)
-make run-api        # Terminal 1: API on :8080
-make run-consumer   # Terminal 2: Consumer on :8081
+make start
 ```
 
-### Test It
+That's it! This will:
+- Build Docker images
+- Start PostgreSQL, Redpanda, API, and Consumer
+- Apply database migrations automatically
+- Show you what to do next
+
+### Verify It's Working
 
 ```bash
-# Send an event
-curl -X POST http://localhost:8080/v1/events/user_signup \
-  -H "Authorization: Bearer dev_key_1234567890" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "user_123",
-    "email": "test@example.com",
-    "signup_source": "web"
-  }'
+# Send a test event
+make test-event
 
-# Verify it worked
-make metrics           # View consumer metrics
-make db-event-counts   # Count events in database
+# View consumer metrics
+make metrics
+
+# Check events in database
+make db-event-counts
+```
+
+### Local Development (Without Docker)
+
+If you prefer running services locally:
+
+```bash
+# One-time setup
+make start-local
+
+# Then in separate terminals:
+make run-api        # Terminal 1
+make run-consumer   # Terminal 2
 ```
 
 ---
@@ -190,29 +186,35 @@ events:
         type: jsonb
 ```
 
-### Automated Migration Generation (Prisma-Style)
+### Making Schema Changes
+
+**With Docker (simplest)**:
 
 ```bash
-# 1. Edit schema (add/remove fields)
+# 1. Edit schema
 vim schema/events.yaml
 
-# 2. Auto-generate migration SQL
-make migrate-auto NAME=add_user_country
+# 2. Apply changes (auto-generates migrations, rebuilds, restarts)
+make docker-reload
+```
 
-# Atlas automatically generates:
-#   migrations/20251115_add_user_country.up.sql
-#   migrations/20251115_add_user_country.down.sql
+**Manual workflow** (for more control):
+
+```bash
+# 1. Edit schema
+vim schema/events.yaml
+
+# 2. Auto-generate migration SQL with Atlas
+make migrate-auto NAME=add_user_country
 
 # 3. Review generated SQL
 cat migrations/*add_user_country.up.sql
 
-# 4. Apply migration
+# 4. Apply and restart
 make db-migrate-up
-
-# 5. Rebuild and restart
-make generate && make build
-make run-api        # Restart API
-make run-consumer   # Restart consumer
+make docker-reload  # Docker
+# OR
+make generate && make build && restart services  # Local
 ```
 
 **See**: [docs/automated-migrations.md](docs/automated-migrations.md)
@@ -221,11 +223,19 @@ make run-consumer   # Restart consumer
 
 ## Common Commands
 
+### Quick Start
+
+```bash
+make start           # ⚡ Start everything with Docker (one command!)
+make start-local     # ⚡ Setup for local development
+make test-event      # Send a test event
+make down            # Stop everything
+```
+
 ### Development
 
 ```bash
 make up              # Start PostgreSQL + Redpanda
-make down            # Stop services
 make generate        # Generate code from schema
 make build           # Build API + consumer binaries
 make run-api         # Run API server (:8080)
