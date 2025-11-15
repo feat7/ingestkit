@@ -81,7 +81,7 @@ check-env: ## Check if .env file exists
 
 up: check-env ## Start all services (postgres + redpanda)
 	@echo "$(BLUE)Starting IngestKit services...$(NC)"
-	docker-compose up -d postgres redpanda redpanda-console
+	docker compose up -d postgres redpanda redpanda-console
 	@echo "$(GREEN)Services started!$(NC)"
 	@echo "$(YELLOW)PostgreSQL:$(NC)      localhost:5432"
 	@echo "$(YELLOW)Redpanda (Kafka):$(NC) localhost:19092"
@@ -89,7 +89,7 @@ up: check-env ## Start all services (postgres + redpanda)
 
 up-full: check-env ## Start all services including Redis and pgAdmin
 	@echo "$(BLUE)Starting all IngestKit services (full stack)...$(NC)"
-	docker-compose --profile full up -d
+	docker compose --profile full up -d
 	@echo "$(GREEN)All services started!$(NC)"
 	@echo "$(YELLOW)PostgreSQL:$(NC)      localhost:5432"
 	@echo "$(YELLOW)Redpanda (Kafka):$(NC) localhost:19092"
@@ -99,19 +99,19 @@ up-full: check-env ## Start all services including Redis and pgAdmin
 
 down: ## Stop all services
 	@echo "$(BLUE)Stopping all services...$(NC)"
-	docker-compose --profile full down
+	docker compose --profile full down
 	@echo "$(GREEN)Services stopped!$(NC)"
 
 restart: down up ## Restart all services
 
 logs: ## Tail logs from all services
-	docker-compose logs -f
+	docker compose logs -f
 
 logs-postgres: ## Tail PostgreSQL logs
-	docker-compose logs -f postgres
+	docker compose logs -f postgres
 
 logs-redpanda: ## Tail Redpanda logs
-	docker-compose logs -f redpanda
+	docker compose logs -f redpanda
 
 # =============================================================================
 # Database Operations
@@ -119,12 +119,12 @@ logs-redpanda: ## Tail Redpanda logs
 
 db-connect: ## Connect to PostgreSQL with psql
 	@echo "$(BLUE)Connecting to PostgreSQL...$(NC)"
-	docker-compose exec postgres psql -U ingestkit -d ingestkit
+	docker compose exec postgres psql -U ingestkit -d ingestkit
 
 db-create: ## Create database schema
 	@echo "$(BLUE)Creating database schema...$(NC)"
 	@if [ -f generated/sql/schema.sql ]; then \
-		docker-compose exec -T postgres psql -U ingestkit -d ingestkit < generated/sql/schema.sql; \
+		docker compose exec -T postgres psql -U ingestkit -d ingestkit < generated/sql/schema.sql; \
 		echo "$(GREEN)Schema created!$(NC)"; \
 	else \
 		echo "$(RED)No schema.sql found. Run 'make generate' first.$(NC)"; \
@@ -135,7 +135,7 @@ db-drop: ## Drop all tables (DANGEROUS)
 	@read -p "Are you sure? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		docker-compose exec postgres psql -U ingestkit -d ingestkit -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		docker compose exec postgres psql -U ingestkit -d ingestkit -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
 		echo "$(GREEN)Database reset!$(NC)"; \
 	fi
 
@@ -219,18 +219,18 @@ db-migrate: db-migrate-up ## Alias for db-migrate-up
 # =============================================================================
 
 redpanda-topics: ## List Redpanda topics
-	docker-compose exec redpanda rpk topic list
+	docker compose exec redpanda rpk topic list
 
 redpanda-create-topic: ## Create ingestkit.events topic
 	@echo "$(BLUE)Creating topic: ingestkit.events$(NC)"
-	docker-compose exec redpanda rpk topic create ingestkit.events -p 3 -r 1
+	docker compose exec redpanda rpk topic create ingestkit.events -p 3 -r 1
 	@echo "$(GREEN)Topic created!$(NC)"
 
 redpanda-consume: ## Consume messages from ingestkit.events topic
-	docker-compose exec redpanda rpk topic consume ingestkit.events --format '%v\n'
+	docker compose exec redpanda rpk topic consume ingestkit.events --format '%v\n'
 
 redpanda-info: ## Show Redpanda cluster info
-	docker-compose exec redpanda rpk cluster info
+	docker compose exec redpanda rpk cluster info
 
 # =============================================================================
 # Application Development
@@ -400,7 +400,7 @@ metrics-watch: ## Watch consumer metrics in real-time (requires watch command)
 
 db-stats: ## Show database statistics (table sizes, row counts)
 	@echo "$(BLUE)Database Statistics:$(NC)"
-	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+	@docker compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
 		SELECT \
 			schemaname, \
 			tablename, \
@@ -412,7 +412,7 @@ db-stats: ## Show database statistics (table sizes, row counts)
 
 db-event-counts: ## Show event counts by type
 	@echo "$(BLUE)Event Counts:$(NC)"
-	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+	@docker compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
 		SELECT 'user_signup' as event_type, COUNT(*) as count FROM events_user_signup \
 		UNION ALL \
 		SELECT 'purchase', COUNT(*) FROM events_purchase \
@@ -422,7 +422,7 @@ db-event-counts: ## Show event counts by type
 
 db-dlq-check: ## Check dead letter queue
 	@echo "$(BLUE)Dead Letter Queue:$(NC)"
-	@docker-compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
+	@docker compose exec -T postgres psql -U ingestkit -d ingestkit -c "\
 		SELECT \
 			event_type, \
 			COUNT(*) as count, \
@@ -432,20 +432,20 @@ db-dlq-check: ## Check dead letter queue
 
 clean: down ## Clean up containers, volumes, and build artifacts
 	@echo "$(BLUE)Cleaning up...$(NC)"
-	docker-compose --profile full down -v
+	docker compose --profile full down -v
 	rm -rf bin/ generated/
 	@echo "$(GREEN)Cleanup complete!$(NC)"
 
 status: ## Show status of all services
 	@echo "$(BLUE)Service Status:$(NC)"
-	@docker-compose ps
+	@docker compose ps
 
 health: ## Check health of all services
 	@echo "$(BLUE)Health Check:$(NC)"
 	@echo -n "$(YELLOW)PostgreSQL:$(NC) "
-	@docker-compose exec -T postgres pg_isready -U ingestkit && echo "$(GREEN)✓$(NC)" || echo "$(RED)✗$(NC)"
+	@docker compose exec -T postgres pg_isready -U ingestkit && echo "$(GREEN)✓$(NC)" || echo "$(RED)✗$(NC)"
 	@echo -n "$(YELLOW)Redpanda:$(NC)   "
-	@docker-compose exec -T redpanda rpk cluster health > /dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(RED)✗$(NC)"
+	@docker compose exec -T redpanda rpk cluster health > /dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(RED)✗$(NC)"
 
 fmt: ## Format Go code
 	@if [ -f go.mod ]; then \
@@ -515,12 +515,12 @@ quickstart: setup up redpanda-create-topic ## Complete setup and start infrastru
 
 docker-build: ## Build Docker images for API and consumer
 	@echo "$(BLUE)Building Docker images...$(NC)"
-	docker-compose build api consumer
+	docker compose build api consumer
 	@echo "$(GREEN)Docker images built!$(NC)"
 
 docker-up: ## Start full stack including API and consumer
 	@echo "$(BLUE)Starting full IngestKit stack (infrastructure + services)...$(NC)"
-	docker-compose up -d
+	docker compose up -d
 	@echo "$(GREEN)Full stack started!$(NC)"
 	@echo "$(YELLOW)API:$(NC)              http://localhost:8080"
 	@echo "$(YELLOW)Consumer Metrics:$(NC) http://localhost:8081/metrics"
@@ -532,28 +532,28 @@ docker-reload: schema-apply docker-build ## Zero-downtime reload after schema ch
 	@echo "$(BLUE)Performing zero-downtime rolling update...$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Step 1/2: Reloading API server...$(NC)"
-	@docker-compose up -d --no-deps --build api
+	@docker compose up -d --no-deps --build api
 	@echo "$(GREEN)✓ API server reloaded$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Step 2/2: Reloading consumer...$(NC)"
-	@docker-compose up -d --no-deps --build consumer
+	@docker compose up -d --no-deps --build consumer
 	@echo "$(GREEN)✓ Consumer reloaded$(NC)"
 	@echo ""
 	@echo "$(GREEN)✓ Zero-downtime reload complete!$(NC)"
 	@echo "$(YELLOW)Services are running with new schema$(NC)"
 
 docker-logs: ## Tail logs from API and consumer
-	@docker-compose logs -f api consumer
+	@docker compose logs -f api consumer
 
 docker-logs-api: ## Tail API logs
-	@docker-compose logs -f api
+	@docker compose logs -f api
 
 docker-logs-consumer: ## Tail consumer logs
-	@docker-compose logs -f consumer
+	@docker compose logs -f consumer
 
 docker-down: ## Stop all Docker services
 	@echo "$(BLUE)Stopping all Docker services...$(NC)"
-	docker-compose down
+	docker compose down
 	@echo "$(GREEN)All services stopped!$(NC)"
 
 docker-restart: docker-down docker-up ## Restart all Docker services
@@ -563,7 +563,7 @@ docker-clean: ## Remove all containers, images, and volumes
 	@read -p "Are you sure? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		docker-compose down -v --rmi all; \
+		docker compose down -v --rmi all; \
 		echo "$(GREEN)Cleanup complete!$(NC)"; \
 	fi
 
