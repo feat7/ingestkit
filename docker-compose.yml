@@ -8,22 +8,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-ingestkit}
       POSTGRES_USER: ${POSTGRES_USER:-ingestkit}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ingestkit_dev}
-      POSTGRES_HOST_AUTH_METHOD: trust
-    command: >
-      postgres
-      -c shared_buffers=4GB
-      -c effective_cache_size=12GB
-      -c max_connections=300
-      -c work_mem=20MB
-      -c maintenance_work_mem=1GB
-      -c synchronous_commit=off
-      -c wal_compression=on
-      -c checkpoint_completion_target=0.9
-      -c max_wal_size=16GB
-      -c max_worker_processes=8
-      -c max_parallel_workers=8
-      -c effective_io_concurrency=200
-      -c random_page_cost=1.1
+
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -36,16 +21,7 @@ services:
       retries: 5
     networks:
       - ingestkit
-    deploy:
-      resources:
-        limits:
-          cpus: '6'
-          memory: 8G
-    ulimits:
-      nofile:
-        soft: 131072
-        hard: 131072
-    shm_size: 4g
+
 
   # Redpanda - Message broker (Kafka-compatible)
   redpanda:
@@ -62,11 +38,6 @@ services:
       - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
       - --rpc-addr redpanda:33145
       - --advertise-rpc-addr redpanda:33145
-      - --smp 4
-      - --memory 6G
-      - --reserve-memory 2G
-      - --overprovisioned
-      - --default-log-level=warn
     ports:
       - "18081:18081"  # Schema Registry
       - "18082:18082"  # HTTP Proxy
@@ -82,15 +53,7 @@ services:
       start_period: 5s
     networks:
       - ingestkit
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 7G
-    ulimits:
-      nofile:
-        soft: 131072
-        hard: 131072
+
 
   # Redpanda Console - Web UI for Redpanda
   redpanda-console:
@@ -119,46 +82,7 @@ services:
     networks:
       - ingestkit
 
-  # Redis - Caching and rate limiting (optional, for later)
-  redis:
-    image: redis:7-alpine
-    container_name: ingestkit-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    networks:
-      - ingestkit
-    profiles:
-      - full  # Only start with --profile full
 
-  # pgAdmin - PostgreSQL web UI (optional, for debugging)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ingestkit-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ingestkit.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - ingestkit
-    profiles:
-      - full  # Only start with --profile full
 
   # Database Migrations - Run once on startup
   migrate:
@@ -179,7 +103,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
-    image: ingestkit-api:latest
     restart: unless-stopped
     environment:
       # API Configuration
@@ -224,27 +147,13 @@ services:
       start_period: 5s
     networks:
       - ingestkit
-    deploy:
-      replicas: ${API_REPLICAS:-1}
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '6'
-          memory: 4G
-    ulimits:
-      nofile:
-        soft: 131072
-        hard: 131072
+
 
   # IngestKit Consumer Worker
   consumer:
     build:
       context: .
       dockerfile: Dockerfile.consumer
-    image: ingestkit-consumer:latest
     restart: unless-stopped
     environment:
       # Consumer Configuration
@@ -286,29 +195,12 @@ services:
       start_period: 10s
     networks:
       - ingestkit
-    deploy:
-      replicas: ${CONSUMER_REPLICAS:-1}
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '6'
-          memory: 6G
-    ulimits:
-      nofile:
-        soft: 131072
-        hard: 131072
+
 
 volumes:
   postgres_data:
     driver: local
   redpanda_data:
-    driver: local
-  redis_data:
-    driver: local
-  pgadmin_data:
     driver: local
 
 networks:

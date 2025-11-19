@@ -710,6 +710,5 @@ When the schema changes:
 ## Additional Resources
 
 - [Development Guide](development.md)
-- [Schema Versioning](SCHEMA_VERSIONING.md)
 - [API Reference](../README.md#api-reference)
 - [Example Applications](../examples/)

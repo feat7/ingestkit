@@ -619,7 +619,6 @@ go mod tidy
 
 ## Additional Resources
 
-- [Schema Versioning Guide](SCHEMA_VERSIONING.md)
-- [Common Tasks](common-tasks.md)
-- [Performance Tuning](performance.md)
-- [Deployment Guide](deployment.md)
+- [Docker Deployment](docker-deployment.md)
+- [Load Testing](load-testing.md)
+- [Automated Migrations](automated-migrations.md)
