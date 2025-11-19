@@ -7,14 +7,14 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/feat7/ingestkit)](https://goreportcard.com/report/github.com/feat7/ingestkit)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 
-IngestKit is a production-ready, open-source event ingestion platform designed for developers who need to collect massive amounts of data without breaking the bank. It decouples ingestion from storage using a modern Producer-Consumer architecture, ensuring your API never slows down even when your database is under load.
+IngestKit is an open-source event ingestion platform designed for developers who need to collect massive amounts of data without breaking the bank. It decouples ingestion from storage using a modern Producer-Consumer architecture, ensuring your API never slows down even when your database is under load.
 
 ---
 
 ## 🚀 Why IngestKit?
 
 ### ⚡ Unmatched Performance
-*   **30,000+ RPS** on a single $14/month Hetzner server (CPX31: 8 vCPU, 16GB RAM).
+*   **30,000+ RPS** on a single $14/month Hetzner server (CAX31: 8 vCPU, 16GB RAM).
 *   **Zero Data Loss**: Durable buffering via Redpanda (Kafka-compatible).
 *   **Async & Sync Modes**: Choose between fire-and-forget (HTTP 202) or guaranteed delivery (HTTP 200).
 
@@ -23,7 +23,7 @@ IngestKit is a production-ready, open-source event ingestion platform designed f
 *   **Type-Safe**: Automatic validation of every incoming event.
 *   **One-Command Deploys**: `make start` gets you a full stack (API, Consumer, Postgres, Redpanda) in seconds.
 
-### 🛡 Production Ready
+### 🛡 Built for Reliability
 *   **Dead Letter Queues**: Failed events are never lost, just sidelined for inspection.
 *   **Multi-Tenant**: Built-in API key management and tenant isolation.
 *   **Observability**: Prometheus metrics and structured JSON logging out of the box.
@@ -116,7 +116,7 @@ API_KEY_3=dev_key_ecommerce:ecommerce-demo
 
 ## 📊 Benchmarks
 
-We take performance seriously. Here is a real-world benchmark run on a **Hetzner CPX31** ($14/mo) instance running the *entire* stack (IngestKit API + Consumer + Redpanda + Postgres).
+We take performance seriously. Here is a real-world benchmark run on a **Hetzner CAX31** ($14/mo) instance running the *entire* stack (IngestKit API + Consumer + Redpanda + Postgres).
 
 | Metric | Result |
 | :--- | :--- |
