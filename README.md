@@ -315,9 +315,6 @@ npm start
 - Async Kafka publishing (10ms response time)
 - Connection pooling (50 max connections)
 
-See: [LOADTEST.md](LOADTEST.md)
-
----
 
 ## Documentation
 
@@ -327,7 +324,7 @@ See: [LOADTEST.md](LOADTEST.md)
 - **[docs/migrations.md](docs/migrations.md)** - Manual migration workflow
 - **[docs/docker-deployment.md](docs/docker-deployment.md)** - Zero-downtime deployments
 - **[docs/sdk-generation.md](docs/sdk-generation.md)** - SDK generation guide
-- **[LOADTEST.md](LOADTEST.md)** - Performance testing guide
+- **[docs/load-testing.md](docs/load-testing.md)** - Performance testing guide
 
 ---
 
@@ -415,13 +412,13 @@ make db-dlq-check  # Check dead letter queue
 
 ## Contributing
 
-See [docs/development.md](docs/development.md) for development workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 
 ---
 
 ## License
 
-TBD
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 

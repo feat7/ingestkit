@@ -8,12 +8,9 @@ Detailed documentation for IngestKit development, deployment, and operations.
 
 - **[Development](development.md)** - Development workflows, adding events, examples
 - **[SDK Generation](sdk-generation.md)** - Python & TypeScript SDK architecture
-- **[Common Tasks](common-tasks.md)** - Step-by-step task guides
-- **[Debugging](debugging.md)** - Troubleshooting and common issues
-- **[Testing](testing.md)** - Testing strategy and patterns
-- **[Performance](performance.md)** - Optimization and tuning
-- **[Deployment](deployment.md)** - Production deployment checklist
-- **[Improvements](improvements.md)** - Known issues and roadmap
+- **[Load Testing](load-testing.md)** - Performance testing guide
+- **[Automated Migrations](automated-migrations.md)** - Atlas migration workflow
+- **[Docker Deployment](docker-deployment.md)** - Production deployment checklist
 
 ## Quick Links
 
@@ -23,27 +20,23 @@ Detailed documentation for IngestKit development, deployment, and operations.
 - **Working with Examples**: [Development Guide](development.md#working-examples)
 
 ### For Operators
-- **Deployment**: [Deployment Guide](deployment.md)
-- **Monitoring**: [Performance Guide](performance.md#monitoring)
-- **Troubleshooting**: [Debugging Guide](debugging.md)
+- **Deployment**: [Docker Deployment Guide](docker-deployment.md)
+- **Migrations**: [Migrations Guide](migrations.md)
 
 ### For Contributors
 - **Architecture**: [CLAUDE.md](../CLAUDE.md#architecture)
-- **Known Issues**: [Improvements](improvements.md)
-- **Testing**: [Testing Guide](testing.md)
+- **Contributing**: [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Documentation Status
 
 | Document | Status | Priority |
 |----------|--------|----------|
-| development.md | ✅ Needed | High |
-| sdk-generation.md | ✅ Needed | High |
-| common-tasks.md | ⚠️ Can extract from old CLAUDE.md | Medium |
-| debugging.md | ⚠️ Can extract from old CLAUDE.md | Medium |
-| testing.md | ⚠️ Can extract from old CLAUDE.md | Low |
-| performance.md | ⚠️ Can extract from old CLAUDE.md | Low |
-| deployment.md | ⚠️ Can extract from old CLAUDE.md | Medium |
-| improvements.md | ⚠️ Link to ISSUES.md | Low |
+| development.md | ✅ Complete | High |
+| sdk-generation.md | ✅ Complete | High |
+| load-testing.md | ✅ Complete | High |
+| automated-migrations.md | ✅ Complete | High |
+| docker-deployment.md | ✅ Complete | High |
+| migrations.md | ✅ Complete | High |
 
 ## Contributing to Docs
 
