@@ -199,32 +199,34 @@ curl -X POST http://localhost:8080/v1/events/subscription_upgraded \
 
 ---
 
-## SDK Generation
+## Using IngestKit
 
-IngestKit comes with a built-in CLI to generate type-safe client libraries for your application.
+IngestKit serves two audiences: **SDK Users** (sending events to an existing server) and **Server Operators** (self-hosting).
 
-### 1. Initialize
-Run this in your project root (where you want the SDK to live):
+### For SDK Users
 
+If you're sending events to an existing IngestKit server, install the CLI and generate a type-safe client:
+
+**Python:**
 ```bash
-# For Python
-./bin/ingestkit init --python
-
-# For TypeScript
-./bin/ingestkit init --typescript
+pip install ingestkit
+cd your-project
+ingestkit init --python
+ingestkit generate --schema-url https://your-ingestkit-server.com/schema
 ```
 
-### 2. Generate Client
-After editing `schema/events.yaml`, regenerate the client:
-
+**Node.js:**
 ```bash
-./bin/ingestkit generate
+npm install ingestkit
+cd your-project
+npx ingestkit init --typescript
+npx ingestkit generate --schema-url https://your-ingestkit-server.com/schema
 ```
 
-This creates a type-safe client in the `ingestkit/` directory that you can use immediately:
+Then use the generated client:
 
 ```python
-# Python Example
+# Python
 from ingestkit import Client
 
 client = Client()
@@ -233,6 +235,29 @@ client.user_signup.send(
     email="hello@example.com"
 )
 ```
+
+```typescript
+// TypeScript
+import { Client } from './ingestkit';
+
+const client = new Client();
+await client.userSignup.send({
+    userId: "user_123",
+    email: "hello@example.com"
+});
+```
+
+### For Server Operators
+
+If you're self-hosting IngestKit, use the local CLI:
+
+```bash
+# After cloning and starting the server
+./bin/ingestkit init --python
+./bin/ingestkit generate
+```
+
+See the [Quick Start](#quick-start) section above for full setup instructions.
 
 ---
 
