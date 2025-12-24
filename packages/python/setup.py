@@ -90,17 +90,41 @@ def download_binary():
         print(f"   Move to: {install_dir}")
         raise
 
+def is_build_environment():
+    """Check if we're in a build environment (not actual user install)"""
+    # Check common build environment indicators
+    venv = os.environ.get('VIRTUAL_ENV', '')
+    if 'build-env' in venv or '/tmp/' in venv:
+        return True
+    # Check if running wheel/sdist build commands
+    build_cmds = ['bdist_wheel', 'sdist', 'build', 'egg_info']
+    if any(cmd in sys.argv for cmd in build_cmds):
+        return True
+    return False
+
 class PostInstallCommand(install):
     """Post-installation hook to download binary"""
     def run(self):
         install.run(self)
-        download_binary()
+        # Only download during actual pip install, not during wheel build
+        if not is_build_environment():
+            try:
+                download_binary()
+            except Exception as e:
+                # Don't fail installation if binary download fails
+                print(f"⚠️  Binary download skipped: {e}")
+                print("   Run 'ingestkit' to trigger download later")
 
 class PostDevelopCommand(develop):
     """Post-develop hook to download binary"""
     def run(self):
         develop.run(self)
-        download_binary()
+        if not is_build_environment():
+            try:
+                download_binary()
+            except Exception as e:
+                print(f"⚠️  Binary download skipped: {e}")
+                print("   Run 'ingestkit' to trigger download later")
 
 # Read long description from README
 long_description = """

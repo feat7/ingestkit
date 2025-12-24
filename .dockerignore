@@ -62,3 +62,10 @@ grafana-data/
 Dockerfile*
 docker-compose*.yml
 .dockerignore
+
+# Claude Code worktrees
+.conductor/
+
+# Node modules (not needed for Go build)
+node_modules/
+**/node_modules/
