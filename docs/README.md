@@ -1,48 +1,29 @@
 # IngestKit Documentation
 
-Detailed documentation for IngestKit development, deployment, and operations.
+Detailed guides for development, deployment, and operations.
 
-## Documentation Structure
+## Guides
 
-### Core Guides
+### Getting Started
+- **[Development](development.md)** - Development workflows, adding events, schema changes
+- **[SDK Generation](sdk-generation.md)** - Python and TypeScript SDK architecture
 
-- **[Development](development.md)** - Development workflows, adding events, examples
-- **[SDK Generation](sdk-generation.md)** - Python & TypeScript SDK architecture
-- **[Load Testing](load-testing.md)** - Performance testing guide
-- **[Automated Migrations](automated-migrations.md)** - Atlas migration workflow
-- **[Docker Deployment](docker-deployment.md)** - Production deployment checklist
+### Database & Migrations
+- **[Automated Migrations](automated-migrations.md)** - Prisma-style migration generation with Atlas
+- **[Manual Migrations](migrations.md)** - Manual migration workflow and best practices
 
-## Quick Links
+### Deployment & Operations
+- **[Docker Deployment](docker-deployment.md)** - Zero-downtime container deployments
+- **[Load Testing](load-testing.md)** - Performance testing with k6
 
-### For Developers
-- **Getting Started**: See [CLAUDE.md](../CLAUDE.md) for quick reference
-- **Adding Events**: [Development Guide](development.md#adding-a-new-event-type)
-- **Working with Examples**: [Development Guide](development.md#working-examples)
+## Quick Reference
 
-### For Operators
-- **Deployment**: [Docker Deployment Guide](docker-deployment.md)
-- **Migrations**: [Migrations Guide](migrations.md)
+For a concise overview of commands and architecture, see [CLAUDE.md](../CLAUDE.md).
 
-### For Contributors
-- **Architecture**: [CLAUDE.md](../CLAUDE.md#architecture)
-- **Contributing**: [CONTRIBUTING.md](../CONTRIBUTING.md)
-
-## Documentation Status
-
-| Document | Status | Priority |
-|----------|--------|----------|
-| development.md | ✅ Complete | High |
-| sdk-generation.md | ✅ Complete | High |
-| load-testing.md | ✅ Complete | High |
-| automated-migrations.md | ✅ Complete | High |
-| docker-deployment.md | ✅ Complete | High |
-| migrations.md | ✅ Complete | High |
-
-## Contributing to Docs
+## Contributing
 
 When updating documentation:
-1. Keep [CLAUDE.md](../CLAUDE.md) concise - only essentials for quick reference
+1. Keep CLAUDE.md concise - only essentials for quick reference
 2. Add detailed guides to this `/docs` folder
 3. Update this README when adding new docs
-4. Use clear examples and code snippets
-5. Keep docs up to date with code changes
+4. Include clear examples and code snippets

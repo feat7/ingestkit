@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const VERSION = '1.0.0';
+const VERSION = '0.1.0';
 const BINARY_BASE_URL = `https://github.com/feat7/ingestkit/releases/download/v${VERSION}`;
 
 function getPlatformInfo() {

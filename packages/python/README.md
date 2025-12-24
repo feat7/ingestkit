@@ -41,10 +41,10 @@ client.user_signup.send(
 
 ## What You Get
 
-✅ **Type-safe client** - Auto-generated from your schema
-✅ **Pydantic validation** - Catch errors before sending
-✅ **Zero configuration** - Just `ingestkit init` and go
-✅ **Fast binary** - Go-powered CLI, no overhead
+- **Type-safe client** - Auto-generated from your schema
+- **Pydantic validation** - Catch errors before sending
+- **Zero configuration** - Just `ingestkit init` and go
+- **Fast binary** - Go-powered CLI, no overhead
 
 ## Project Structure
 
