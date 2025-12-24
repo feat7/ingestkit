@@ -37,38 +37,78 @@ IngestKit automatically generates type-safe client SDKs from your schema definit
 
 ---
 
+## Installation
+
+### For SDK Users (Recommended)
+
+Install the IngestKit CLI to generate type-safe clients for your application:
+
+**Python:**
+```bash
+pip install ingestkit
+```
+
+**Node.js:**
+```bash
+npm install ingestkit
+```
+
+### For Server Operators
+
+If you're self-hosting IngestKit, you have two options:
+
+**Option A: Quick Start with CLI**
+```bash
+# Install CLI
+pip install ingestkit
+
+# Initialize and start server
+ingestkit init --server
+ingestkit server start
+```
+
+**Option B: Build from Source**
+```bash
+git clone https://github.com/feat7/ingestkit.git
+cd ingestkit
+make build
+# Binary available at ./bin/ingestkit
+```
+
+**Server CLI Commands:**
+- `ingestkit init --server` - Initialize server project
+- `ingestkit server start` - Start IngestKit (Docker)
+- `ingestkit server stop` - Stop IngestKit
+- `ingestkit server logs` - View logs
+- `ingestkit server status` - Show status
+- `ingestkit schema apply` - Apply schema changes
+
+---
+
 ## Generating SDKs
 
-### Method 1: From Local Schema (Development)
+### Method 1: From Remote Server (SDK Users)
+
+If you're connecting to an existing IngestKit server:
 
 ```bash
-# Python SDK
-./bin/ingestkit sdk generate --lang python --api-url http://localhost:8080
+# Initialize project structure
+ingestkit init --python   # or --typescript
 
-# TypeScript SDK
-./bin/ingestkit sdk generate --lang typescript --api-url http://localhost:8080
+# Generate client from server schema
+ingestkit generate --schema-url https://your-server.com/schema
 ```
 
-Output:
-```
-✓ Schema parsed successfully (version: 1.0)
-  Found 12 event types: [user_signup, purchase, page_view, ...]
+This fetches the schema from the server and generates a type-safe client in `./ingestkit/`.
 
-✓ Generated: generated/sdk/python/models.py
-✓ Generated: generated/sdk/python/client.py
-✓ Generated: generated/sdk/python/__init__.py
-```
+### Method 2: From Local Schema (Server Operators)
 
-### Method 2: From Remote Schema (Production)
+If you're running IngestKit locally:
 
 ```bash
-# Generate Python SDK from production server
-./bin/ingestkit generate --schema-url https://api.ingestkit.com/schema
-
-# This will:
-# 1. Fetch schema/events.yaml from the server
-# 2. Generate SDK based on fetched schema
-# 3. Place files in ingestkit/ directory
+# Using the local binary
+./bin/ingestkit init --python
+./bin/ingestkit generate --api-url http://localhost:8080
 ```
 
 ### Method 3: Automated in Makefile
@@ -78,22 +118,24 @@ Add to your project's Makefile:
 ```makefile
 .PHONY: generate-sdk
 generate-sdk:
-	@ingestkit sdk generate --lang python --api-url $(API_URL)
-	@echo "SDK generated in generated/sdk/python/"
+	@ingestkit generate --schema-url $(INGESTKIT_URL)/schema
+	@echo "SDK generated in ingestkit/"
 ```
 
 ---
 
 ## Python SDK
 
-### Installation
+### Setup
 
 ```bash
-# Install dependencies
-pip install requests pydantic
+# Install CLI (downloads Go binary)
+pip install ingestkit
 
-# Copy generated SDK to your project
-cp -r generated/sdk/python/ your_project/ingestkit/
+# Initialize in your project
+cd your-project
+ingestkit init --python
+ingestkit generate --schema-url https://your-server.com/schema
 ```
 
 ### Basic Usage
@@ -259,14 +301,16 @@ except QueueFullError as e:
 
 ## TypeScript SDK
 
-### Installation
+### Setup
 
 ```bash
-# Install dependencies
-npm install axios
+# Install CLI (downloads Go binary)
+npm install ingestkit
 
-# Copy generated SDK to your project
-cp -r generated/sdk/typescript/ src/ingestkit/
+# Initialize in your project
+cd your-project
+npx ingestkit init --typescript
+npx ingestkit generate --schema-url https://your-server.com/schema
 ```
 
 ### Basic Usage

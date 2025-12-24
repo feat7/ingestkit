@@ -32,6 +32,11 @@ func main() {
 
 	switch command {
 	case "init":
+		// Check for --server flag
+		if hasFlag("--server") {
+			serverInit()
+			return
+		}
 		initProject()
 	case "generate":
 		generateClient()
@@ -42,6 +47,13 @@ func main() {
 		}
 		subcommand := os.Args[2]
 		handleSchemaCommand(subcommand)
+	case "server":
+		if len(os.Args) < 3 {
+			printServerUsage()
+			os.Exit(1)
+		}
+		subcommand := os.Args[2]
+		handleServerCommand(subcommand)
 	case "sdk":
 		if len(os.Args) < 3 {
 			printUsage()
@@ -66,6 +78,8 @@ func handleSchemaCommand(subcommand string) {
 		validateSchema()
 	case "push":
 		pushSchema()
+	case "apply":
+		schemaApply()
 	default:
 		fmt.Printf("%sError: Unknown schema subcommand '%s'%s\n", colorRed, subcommand, colorReset)
 		printUsage()
@@ -695,10 +709,19 @@ func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  ingestkit <command> [arguments]")
 	fmt.Println("")
-	fmt.Println("Quick Start Commands:")
+	fmt.Println("SDK User Commands:")
 	fmt.Println("  init [--python|--typescript|--go]")
 	fmt.Println("                                Initialize IngestKit in your project")
 	fmt.Println("  generate                      Generate type-safe client from schema")
+	fmt.Println("")
+	fmt.Println("Server Operator Commands:")
+	fmt.Println("  init --server                 Initialize IngestKit server project")
+	fmt.Println("  server start                  Start IngestKit server (Docker)")
+	fmt.Println("  server stop                   Stop IngestKit server")
+	fmt.Println("  server restart                Restart IngestKit server")
+	fmt.Println("  server logs                   View server logs")
+	fmt.Println("  server status                 Show server status")
+	fmt.Println("  schema apply                  Apply schema changes (restart services)")
 	fmt.Println("")
 	fmt.Println("Advanced Commands:")
 	fmt.Println("  schema compile                Generate SQL and Go code (server-side)")
@@ -710,22 +733,14 @@ func printUsage() {
 	fmt.Println("  help                          Show this help message")
 	fmt.Println("")
 	fmt.Println("Examples:")
-	fmt.Println("  # Initialize a new project (auto-detects language)")
-	fmt.Println("  ingestkit init")
-	fmt.Println("")
-	fmt.Println("  # Initialize with specific language")
+	fmt.Println("  # SDK User: Initialize and generate client")
 	fmt.Println("  ingestkit init --python")
-	fmt.Println("  ingestkit init --typescript")
+	fmt.Println("  ingestkit generate --schema-url https://your-server.com/schema")
 	fmt.Println("")
-	fmt.Println("  # Generate client after editing schema")
-	fmt.Println("  ingestkit generate")
-	fmt.Println("")
-	fmt.Println("Project Structure After Init:")
-	fmt.Println("  my-project/")
-	fmt.Println("    ├── ingestkit/")
-	fmt.Println("    │   ├── schema.yaml          # Define your events here")
-	fmt.Println("    │   ├── client.py|ts         # Generated (gitignored)")
-	fmt.Println("    │   └── models.py|ts         # Generated (gitignored)")
-	fmt.Println("    └── ingestkit.config.json    # Configuration")
+	fmt.Println("  # Server Operator: Run IngestKit server")
+	fmt.Println("  ingestkit init --server")
+	fmt.Println("  ingestkit server start")
+	fmt.Println("  # Edit schema/events.yaml")
+	fmt.Println("  ingestkit schema apply")
 	fmt.Println("")
 }

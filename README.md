@@ -11,26 +11,26 @@ IngestKit is an open-source event ingestion platform designed for developers who
 
 ---
 
-## 🚀 Why IngestKit?
+## Why IngestKit?
 
-### ⚡ Unmatched Performance
+### Unmatched Performance
 *   **30,000+ RPS** on a single $14/month Hetzner server (CAX31: 8 vCPU, 16GB RAM).
 *   **Zero Data Loss**: Durable buffering via Redpanda (Kafka-compatible).
 *   **Async & Sync Modes**: Choose between fire-and-forget (HTTP 202) or guaranteed delivery (HTTP 200).
 
-### 🛠 Developer Experience
+### Developer Experience
 *   **Schema-First**: Define events in `events.yaml`, and we generate the Go code, SQL schemas, and validation logic for you.
 *   **Type-Safe**: Automatic validation of every incoming event.
 *   **One-Command Deploys**: `make start` gets you a full stack (API, Consumer, Postgres, Redpanda) in seconds.
 
-### 🛡 Built for Reliability
+### Built for Reliability
 *   **Dead Letter Queues**: Failed events are never lost, just sidelined for inspection.
 *   **Multi-Tenant**: Built-in API key management and tenant isolation.
 *   **Observability**: Prometheus metrics and structured JSON logging out of the box.
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 IngestKit uses a decoupled architecture to ensure high availability and throughput.
 
@@ -43,11 +43,11 @@ graph LR
     Consumer -->|Batch Insert| DB[(PostgreSQL)]
 ```
 
-👉 **[Read the Full Project Overview](PROJECT_OVERVIEW.md)** for deep dives into the architecture, data flow, and component details.
+**[Read the Full Project Overview](PROJECT_OVERVIEW.md)** for deep dives into the architecture, data flow, and component details.
 
 ---
 
-## 🏁 Quick Start
+## Quick Start
 
 ### Prerequisites
 *   Docker & Docker Compose
@@ -84,7 +84,7 @@ make db-connect
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 IngestKit uses environment variables for configuration. The default settings work out of the box, but you can customize them:
 
@@ -114,7 +114,7 @@ API_KEY_3=dev_key_ecommerce:ecommerce-demo
 
 ---
 
-## 📊 Benchmarks
+## Benchmarks
 
 We take performance seriously. Here is a real-world benchmark run on a **Hetzner CAX31** ($14/mo) instance running the *entire* stack (IngestKit API + Consumer + Redpanda + Postgres).
 
@@ -129,7 +129,7 @@ We take performance seriously. Here is a real-world benchmark run on a **Hetzner
 
 ---
 
-## 🛠️ How to Add Custom Events
+## How to Add Custom Events
 
 Adding a new event type is simple. Just edit `schema/events.yaml` and run the generator.
 
@@ -199,32 +199,34 @@ curl -X POST http://localhost:8080/v1/events/subscription_upgraded \
 
 ---
 
-## 📦 SDK Generation
+## Using IngestKit
 
-IngestKit comes with a built-in CLI to generate type-safe client libraries for your application.
+IngestKit serves two audiences: **SDK Users** (sending events to an existing server) and **Server Operators** (self-hosting).
 
-### 1. Initialize
-Run this in your project root (where you want the SDK to live):
+### For SDK Users
 
+If you're sending events to an existing IngestKit server, install the CLI and generate a type-safe client:
+
+**Python:**
 ```bash
-# For Python
-./bin/ingestkit init --python
-
-# For TypeScript
-./bin/ingestkit init --typescript
+pip install ingestkit
+cd your-project
+ingestkit init --python
+ingestkit generate --schema-url https://your-ingestkit-server.com/schema
 ```
 
-### 2. Generate Client
-After editing `schema/events.yaml`, regenerate the client:
-
+**Node.js:**
 ```bash
-./bin/ingestkit generate
+npm install ingestkit
+cd your-project
+npx ingestkit init --typescript
+npx ingestkit generate --schema-url https://your-ingestkit-server.com/schema
 ```
 
-This creates a type-safe client in the `ingestkit/` directory that you can use immediately:
+Then use the generated client:
 
 ```python
-# Python Example
+# Python
 from ingestkit import Client
 
 client = Client()
@@ -234,9 +236,57 @@ client.user_signup.send(
 )
 ```
 
+```typescript
+// TypeScript
+import { Client } from './ingestkit';
+
+const client = new Client();
+await client.userSignup.send({
+    userId: "user_123",
+    email: "hello@example.com"
+});
+```
+
+### For Server Operators
+
+If you're self-hosting IngestKit, you have two options:
+
+**Option A: Quick Start with CLI (Recommended)**
+
+```bash
+# Install CLI
+pip install ingestkit
+# or: npm install -g ingestkit
+
+# Initialize and start server
+ingestkit init --server
+ingestkit server start
+
+# Server is now running at http://localhost:8080
+# Edit schema/events.yaml to define your events
+ingestkit schema apply
+```
+
+**Option B: Clone and Run**
+
+```bash
+git clone https://github.com/feat7/ingestkit.git
+cd ingestkit
+make setup && make start
+```
+
+**Server CLI Commands:**
+- `ingestkit server start` - Start IngestKit (Docker)
+- `ingestkit server stop` - Stop IngestKit
+- `ingestkit server logs` - View server logs
+- `ingestkit server status` - Show server status
+- `ingestkit schema apply` - Apply schema changes
+
+See the [Quick Start](#quick-start) section above for full setup instructions.
+
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Services Not Starting?
 
@@ -308,7 +358,7 @@ make start           # Fresh start
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 *   **[Project Overview](PROJECT_OVERVIEW.md)**: Architecture and design.
 *   **[Development Guide](docs/development.md)**: How to add new events and modify the schema.
@@ -318,7 +368,7 @@ make start           # Fresh start
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
@@ -328,6 +378,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4.  Push to the branch (`git push origin feature/amazing-feature`)
 5.  Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.

@@ -171,7 +171,7 @@ from ingestkit.client import IngestKitClient  # ❌ Wrong
 
 ## License
 
-MIT
+Apache 2.0
 
 ## Support
 

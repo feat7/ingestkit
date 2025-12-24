@@ -15,15 +15,21 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Check if IngestKit binary exists
-if [ ! -f "../../bin/ingestkit" ]; then
+# Detect IngestKit CLI
+INGESTKIT_CMD=""
+if command -v ingestkit &> /dev/null; then
+    INGESTKIT_CMD="ingestkit"
+    echo "[ok] Using ingestkit from PATH"
+elif [ -f "../../bin/ingestkit" ]; then
+    INGESTKIT_CMD="../../bin/ingestkit"
+    echo "[ok] Using local binary"
+else
     echo "[info] IngestKit CLI not found. Building..."
-    echo "  Run: cd ../.. && make build"
-    echo
     (cd ../.. && make build)
+    INGESTKIT_CMD="../../bin/ingestkit"
     echo "[ok] CLI built"
-    echo
 fi
+echo
 
 # Check if IngestKit server is running
 echo "[check] IngestKit API server..."
@@ -44,7 +50,7 @@ echo
 # Generate client if not present
 if [ ! -f "ingestkit/client.ts" ]; then
     echo "[info] Generating IngestKit client..."
-    ../../bin/ingestkit generate --schema-url http://localhost:8080/schema
+    $INGESTKIT_CMD generate --schema-url http://localhost:8080/schema
     echo "[ok] Client generated"
     echo
 else
