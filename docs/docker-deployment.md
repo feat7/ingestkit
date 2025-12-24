@@ -296,7 +296,7 @@ kompose convert -f docker-compose.yml
 kubectl apply -f .
 ```
 
-See [Kubernetes deployment guide](kubernetes-deployment.md) for details.
+For more complex Kubernetes deployments, we recommend using Helm (chart coming soon).
 
 ---
 
