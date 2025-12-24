@@ -187,7 +187,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # No registry-url - npm will use OIDC automatically for trusted publishing
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm for OIDC support
+        run: npm install -g npm@latest
 
       - name: Extract version
         id: version
@@ -198,7 +201,9 @@ jobs:
           cd packages/npm
           npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
-      - name: Publish to npm with provenance
+      - name: Publish to npm with OIDC
         run: |
           cd packages/npm
-          npm publish --access public --provenance
+          npm publish --access public
+        env:
+          NPM_CONFIG_PROVENANCE: true
