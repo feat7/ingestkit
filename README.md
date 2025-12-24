@@ -249,13 +249,38 @@ await client.userSignup.send({
 
 ### For Server Operators
 
-If you're self-hosting IngestKit, use the local CLI:
+If you're self-hosting IngestKit, you have two options:
+
+**Option A: Quick Start with CLI (Recommended)**
 
 ```bash
-# After cloning and starting the server
-./bin/ingestkit init --python
-./bin/ingestkit generate
+# Install CLI
+pip install ingestkit
+# or: npm install -g ingestkit
+
+# Initialize and start server
+ingestkit init --server
+ingestkit server start
+
+# Server is now running at http://localhost:8080
+# Edit schema/events.yaml to define your events
+ingestkit schema apply
 ```
+
+**Option B: Clone and Run**
+
+```bash
+git clone https://github.com/feat7/ingestkit.git
+cd ingestkit
+make setup && make start
+```
+
+**Server CLI Commands:**
+- `ingestkit server start` - Start IngestKit (Docker)
+- `ingestkit server stop` - Stop IngestKit
+- `ingestkit server logs` - View server logs
+- `ingestkit server status` - Show server status
+- `ingestkit schema apply` - Apply schema changes
 
 See the [Quick Start](#quick-start) section above for full setup instructions.
 

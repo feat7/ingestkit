@@ -55,12 +55,33 @@ npm install ingestkit
 
 ### For Server Operators
 
-If you're self-hosting IngestKit, the CLI is built with the project:
+If you're self-hosting IngestKit, you have two options:
 
+**Option A: Quick Start with CLI**
 ```bash
+# Install CLI
+pip install ingestkit
+
+# Initialize and start server
+ingestkit init --server
+ingestkit server start
+```
+
+**Option B: Build from Source**
+```bash
+git clone https://github.com/feat7/ingestkit.git
+cd ingestkit
 make build
 # Binary available at ./bin/ingestkit
 ```
+
+**Server CLI Commands:**
+- `ingestkit init --server` - Initialize server project
+- `ingestkit server start` - Start IngestKit (Docker)
+- `ingestkit server stop` - Stop IngestKit
+- `ingestkit server logs` - View logs
+- `ingestkit server status` - Show status
+- `ingestkit schema apply` - Apply schema changes
 
 ---
 
