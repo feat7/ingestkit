@@ -388,7 +388,7 @@ func isRetriableError(err error) bool {
 	// Check for network errors (transient - should retry)
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		if netErr.Timeout() || netErr.Temporary() {
+		if netErr.Timeout() {
 			return true
 		}
 	}

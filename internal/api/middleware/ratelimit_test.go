@@ -99,7 +99,7 @@ func TestRateLimit_RefillsOverTime(t *testing.T) {
 	// Use up all tokens
 	for i := 0; i < 10; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
-		app.Test(req)
+		_, _ = app.Test(req)
 	}
 
 	// Next request should fail

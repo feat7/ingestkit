@@ -129,11 +129,3 @@ func isServerInitialized() bool {
 	_, err := os.Stat(".ingestkit/docker-compose.yaml")
 	return err == nil
 }
-
-// getEnv returns environment variable value or default
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

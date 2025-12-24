@@ -290,7 +290,7 @@ events:
 	// Create .gitignore for ingestkit directory
 	gitignorePath := filepath.Join(config.SchemaDir, ".gitignore")
 	gitignoreContent := "# Generated files\n*.py\n*.ts\n*.js\n__pycache__/\nnode_modules/\n"
-	os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644)
+	_ = os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644) // Best effort, non-fatal
 
 	// Success summary
 	fmt.Printf("\n%s=== Initialization Complete ===%s\n", colorGreen, colorReset)

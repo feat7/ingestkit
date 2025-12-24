@@ -317,8 +317,8 @@ func startMetricsServer(port string, consumer *messaging.Consumer) {
 	// (Kubernetes probes, load balancers, etc.)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "healthy",
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "healthy",
 			"metrics": consumer.GetMetrics(),
 		})
 	})

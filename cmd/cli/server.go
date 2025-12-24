@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -158,7 +157,7 @@ func serverStart() {
 	// Start Docker Compose
 	fmt.Printf("%s-> Starting containers...%s\n", colorYellow, colorReset)
 	if err := dockerCompose("up", "-d"); err != nil {
-		fmt.Printf("%sX Failed to start containers%s\n", colorRed, err, colorReset)
+		fmt.Printf("%sX Failed to start containers: %v%s\n", colorRed, err, colorReset)
 		fmt.Println("\nTroubleshooting:")
 		fmt.Println("  1. Check Docker is running: docker info")
 		fmt.Println("  2. Check port conflicts: lsof -i :5433 :8080 :8081 :19092")
@@ -405,13 +404,4 @@ func hasFlag(flag string) bool {
 		}
 	}
 	return false
-}
-
-// getAbsPath returns absolute path for a relative path
-func getAbsPath(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return path
-	}
-	return abs
 }

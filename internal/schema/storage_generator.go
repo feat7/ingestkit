@@ -228,9 +228,7 @@ func generateBatchWriteMethod(eventName string, event *Event) (string, error) {
 
 	// Build column names for COPY
 	columns := []string{"tenant_id", "timestamp"}
-	for _, fieldName := range fieldNames {
-		columns = append(columns, fieldName)
-	}
+	columns = append(columns, fieldNames...)
 
 	// Generate columns array
 	builder.WriteString("\t// Define columns for COPY\n")

@@ -278,13 +278,13 @@ func runQueryBenchmarks(db *sql.DB) {
 	// Normalized
 	start := time.Now()
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM events_user_signup WHERE user_id = $1", "user_1000").Scan(&count)
+	_ = db.QueryRow("SELECT COUNT(*) FROM events_user_signup WHERE user_id = $1", "user_1000").Scan(&count)
 	normalizedTime := time.Since(start)
 	fmt.Printf("   Normalized: %s%s%s (%d rows)\n", colorCyan, normalizedTime, colorReset, count)
 
 	// JSONB
 	start = time.Now()
-	db.QueryRow("SELECT COUNT(*) FROM events_jsonb WHERE event_type = 'user_signup' AND payload->>'user_id' = $1", "user_1000").Scan(&count)
+	_ = db.QueryRow("SELECT COUNT(*) FROM events_jsonb WHERE event_type = 'user_signup' AND payload->>'user_id' = $1", "user_1000").Scan(&count)
 	jsonbTime := time.Since(start)
 	fmt.Printf("   JSONB:      %s%s%s (%d rows)\n", colorCyan, jsonbTime, colorReset, count)
 
@@ -297,13 +297,13 @@ func runQueryBenchmarks(db *sql.DB) {
 
 	// Normalized
 	start = time.Now()
-	db.QueryRow("SELECT COUNT(*) FROM events_purchase WHERE timestamp > $1", oneHourAgo).Scan(&count)
+	_ = db.QueryRow("SELECT COUNT(*) FROM events_purchase WHERE timestamp > $1", oneHourAgo).Scan(&count)
 	normalizedTime = time.Since(start)
 	fmt.Printf("   Normalized: %s%s%s (%d rows)\n", colorCyan, normalizedTime, colorReset, count)
 
 	// JSONB
 	start = time.Now()
-	db.QueryRow("SELECT COUNT(*) FROM events_jsonb WHERE event_type = 'purchase' AND timestamp > $1", oneHourAgo).Scan(&count)
+	_ = db.QueryRow("SELECT COUNT(*) FROM events_jsonb WHERE event_type = 'purchase' AND timestamp > $1", oneHourAgo).Scan(&count)
 	jsonbTime = time.Since(start)
 	fmt.Printf("   JSONB:      %s%s%s (%d rows)\n", colorCyan, jsonbTime, colorReset, count)
 
@@ -316,13 +316,13 @@ func runQueryBenchmarks(db *sql.DB) {
 	// Normalized
 	start = time.Now()
 	var total float64
-	db.QueryRow("SELECT COALESCE(SUM(amount), 0) FROM events_purchase").Scan(&total)
+	_ = db.QueryRow("SELECT COALESCE(SUM(amount), 0) FROM events_purchase").Scan(&total)
 	normalizedTime = time.Since(start)
 	fmt.Printf("   Normalized: %s%s%s (total: $%.2f)\n", colorCyan, normalizedTime, colorReset, total)
 
 	// JSONB
 	start = time.Now()
-	db.QueryRow("SELECT COALESCE(SUM((payload->>'amount')::decimal), 0) FROM events_jsonb WHERE event_type = 'purchase'").Scan(&total)
+	_ = db.QueryRow("SELECT COALESCE(SUM((payload->>'amount')::decimal), 0) FROM events_jsonb WHERE event_type = 'purchase'").Scan(&total)
 	jsonbTime = time.Since(start)
 	fmt.Printf("   JSONB:      %s%s%s (total: $%.2f)\n", colorCyan, jsonbTime, colorReset, total)
 

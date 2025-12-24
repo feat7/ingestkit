@@ -140,7 +140,9 @@ func main() {
 		defer cancel()
 		producer.Flush(ctx)
 
-		app.Shutdown()
+		if err := app.Shutdown(); err != nil {
+			log.Error().Err(err).Msg("Error during shutdown")
+		}
 	}()
 
 	// Start server

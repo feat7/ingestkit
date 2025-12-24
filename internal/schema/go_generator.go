@@ -32,7 +32,7 @@ func GenerateGo(schema *Schema) (string, error) {
 	builder.WriteString(headerBuf.String())
 
 	// Add schema version constant
-	builder.WriteString(fmt.Sprintf("// SchemaVersion is the version of the event schema this code was generated from\n"))
+	builder.WriteString("// SchemaVersion is the version of the event schema this code was generated from\n")
 	builder.WriteString(fmt.Sprintf("const SchemaVersion = %q\n\n", schema.Version))
 
 	// Generate struct for each event
