@@ -150,7 +150,7 @@ Visit: https://github.com/feat7/ingestkit
 
 ## License
 
-MIT
+Apache 2.0
 """
 
 setup(
@@ -180,7 +180,7 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',

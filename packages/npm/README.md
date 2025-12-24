@@ -176,7 +176,7 @@ import { Client } from 'ingestkit'     // ❌ Wrong (npm package)
 
 ## License
 
-MIT
+Apache 2.0
 
 ## Support
 
