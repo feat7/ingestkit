@@ -43,7 +43,8 @@ vendor/
 # =============================================================================
 # Generated Code
 # =============================================================================
-generated/
+# Note: generated/ is committed to ensure builds work without running schema compiler
+# Run 'make generate' after schema changes and commit the updated generated/ files
 
 # =============================================================================
 # IDE and Editor

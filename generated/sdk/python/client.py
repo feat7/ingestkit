@@ -1,0 +1,1331 @@
+"""
+IngestKit Python SDK - Client
+Auto-generated from schema version 1.0
+DO NOT EDIT MANUALLY
+"""
+
+import os
+import json
+import re
+import time
+import logging
+import uuid
+import queue
+import threading
+import atexit
+import requests
+from typing import Dict, Any, List, Optional, Callable, Union
+from pathlib import Path
+from concurrent.futures import Future
+from .models import *
+
+# Configuration constants
+DEFAULT_API_URL = "http://localhost:8080"
+DEFAULT_TENANT_ID = "default"
+DEFAULT_TIMEOUT = 30  # seconds
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_BACKOFF_BASE = 1.0  # seconds
+DEFAULT_MAX_BATCH_SIZE = 1000
+DEFAULT_QUEUE_SIZE = 10000  # Maximum events in queue
+
+# HTTP status code ranges
+HTTP_CLIENT_ERROR_START = 400
+HTTP_CLIENT_ERROR_END = 499
+HTTP_SERVER_ERROR_START = 500
+HTTP_SERVER_ERROR_END = 599
+
+
+class IngestKitError(Exception):
+    """Base exception for IngestKit errors"""
+    pass
+
+
+class ClientError(IngestKitError):
+    """4xx client errors (non-retriable)"""
+    def __init__(self, status_code: int, message: str, request_id: Optional[str] = None):
+        self.status_code = status_code
+        self.request_id = request_id
+        super().__init__(f"HTTP {status_code}: {message}" + (f" [request_id: {request_id}]" if request_id else ""))
+
+
+class ServerError(IngestKitError):
+    """5xx server errors (retriable)"""
+    def __init__(self, status_code: int, message: str, request_id: Optional[str] = None):
+        self.status_code = status_code
+        self.request_id = request_id
+        super().__init__(f"HTTP {status_code}: {message}" + (f" [request_id: {request_id}]" if request_id else ""))
+
+
+class NetworkError(IngestKitError):
+    """Network errors (retriable)"""
+    pass
+
+
+class QueueFullError(IngestKitError):
+    """Event queue is full"""
+    pass
+
+
+def _load_config() -> Dict[str, Any]:
+    """Load configuration from ingestkit.config.json"""
+    config_path = Path("ingestkit.config.json")
+    if config_path.exists():
+        with open(config_path) as f:
+            config = json.load(f)
+
+            # Substitute environment variables in config values
+            def substitute_env(value):
+                if isinstance(value, str):
+                    # Replace ${VAR_NAME} with environment variable value
+                    return re.sub(
+                        r'\$\{([^}]+)\}',
+                        lambda m: os.getenv(m.group(1), ''),
+                        value
+                    )
+                return value
+
+            return {k: substitute_env(v) for k, v in config.items()}
+    return {}
+
+
+def _validate_api_key(api_key: str) -> None:
+    """
+    Validate API key format and warn if it appears to be hardcoded.
+
+    Args:
+        api_key: API key to validate
+
+    Raises:
+        ValueError: If API key appears invalid
+    """
+    if not api_key:
+        raise ValueError("API key cannot be empty")
+
+    # Warn if API key doesn't look like an environment variable placeholder
+    if not api_key.startswith("${") and len(api_key) < 10:
+        logging.warning(
+            "API key appears to be hardcoded and short. "
+            "Consider using environment variables: ${INGESTKIT_API_KEY}"
+        )
+
+
+def _redact_api_key(api_key: str) -> str:
+    """Redact API key for logging (show first 4 and last 4 characters)"""
+    if len(api_key) <= 8:
+        return "****"
+    return f"{api_key[:4]}...{api_key[-4:]}"
+
+
+class IngestKitClient:
+    """
+    IngestKit API client with Kafka-style delivery guarantees.
+
+    Features:
+    - GUARANTEED DELIVERY: Future-based confirmation (like Kafka producer)
+    - Non-blocking by default, synchronous when needed
+    - Success/failure callbacks for async notifications
+    - Automatic retry with exponential backoff
+    - Request ID tracking for debugging
+    - Context manager for automatic flush
+    - Connection pooling via requests.Session
+
+    Usage:
+        # Pattern 1: Fire and forget with callbacks (like Sentry)
+        def on_success(event_data, result):
+            logger.info(f"Delivered: {result['request_id']}")
+
+        def on_failure(event_data, error):
+            logger.error(f"Failed: {error}")
+            save_to_disk(event_data)  # Retry later
+
+        client = IngestKitClient(
+            on_success=on_success,
+            on_failure=on_failure
+        )
+
+        # Send events - returns Future instantly
+        future = client.send_user_signup(event)  # Non-blocking
+
+        # Pattern 2: Guaranteed delivery (wait for confirmation)
+        client.send_payment_completed(event, wait=True)  # Blocks until delivered
+        # If this completes, event is GUARANTEED delivered (like Redis)
+
+        # Pattern 3: Context manager (auto-flush all events)
+        with IngestKitClient() as client:
+            client.send_user_signup(event1)
+            client.send_order_placed(event2)
+        # All events guaranteed delivered before exit
+
+        # Pattern 4: Manual Future handling (like Kafka)
+        future = client.send_user_signup(event)
+        # Do other work...
+        result = future.result(timeout=5)  # Wait when needed
+    """
+
+    def __init__(
+        self,
+        api_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
+        debug: bool = False,
+        logger: Optional[logging.Logger] = None,
+        background: bool = True,
+        queue_size: int = DEFAULT_QUEUE_SIZE,
+        on_success: Optional[Callable[[Dict[str, Any], Dict[str, Any]], None]] = None,
+        on_failure: Optional[Callable[[Dict[str, Any], Exception], None]] = None
+    ):
+        """
+        Initialize IngestKit client.
+
+        Args:
+            api_url: Base URL of the IngestKit API (default: from config or INGESTKIT_API_URL)
+            api_key: API key for authentication (default: from config or INGESTKIT_API_KEY)
+            tenant_id: Tenant ID (default: from config or INGESTKIT_TENANT_ID)
+            timeout: Request timeout in seconds (default: 30)
+            max_retries: Maximum number of retry attempts for retriable errors (default: 3)
+            retry_backoff_base: Base delay for exponential backoff in seconds (default: 1.0)
+            debug: Enable debug logging (default: False)
+            logger: Custom logger instance (default: creates new logger)
+            background: Enable background worker for non-blocking sends (default: True)
+            queue_size: Maximum events in queue before blocking/dropping (default: 10000)
+            on_success: Optional callback called when event is delivered: on_success(event_data, result)
+            on_failure: Optional callback called when event fails: on_failure(event_data, exception)
+        """
+        # Load from config file or environment variables
+        config = _load_config()
+
+        self.api_url = (
+            api_url or
+            config.get("apiUrl") or
+            os.getenv("INGESTKIT_API_URL", DEFAULT_API_URL)
+        ).rstrip("/")
+
+        self.api_key = (
+            api_key or
+            config.get("apiKey") or
+            os.getenv("INGESTKIT_API_KEY", "")
+        )
+
+        self.tenant_id = (
+            tenant_id or
+            config.get("tenantId") or
+            os.getenv("INGESTKIT_TENANT_ID", DEFAULT_TENANT_ID)
+        )
+
+        if not self.api_key:
+            raise ValueError(
+                "API key is required. Provide via argument, ingestkit.config.json, "
+                "or INGESTKIT_API_KEY environment variable."
+            )
+
+        # Validate API key
+        _validate_api_key(self.api_key)
+
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_backoff_base = retry_backoff_base
+        self.debug = debug
+        self.background = background
+        self.on_success = on_success
+        self.on_failure = on_failure
+
+        # Future tracking for delivery confirmation
+        self.pending_futures: Dict[str, Future] = {}  # request_id -> Future
+        self.futures_lock = threading.Lock()
+
+        # Setup logging
+        self.logger = logger or logging.getLogger(__name__)
+        if debug:
+            self.logger.setLevel(logging.DEBUG)
+            if not self.logger.handlers:
+                handler = logging.StreamHandler()
+                handler.setFormatter(logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                ))
+                self.logger.addHandler(handler)
+
+        # Setup HTTP session with connection pooling
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        })
+
+        # Configure connection pool (max 50 connections, 10 idle)
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=50,
+            max_retries=0  # We handle retries manually
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+
+        # Background worker setup
+        if self.background:
+            self.event_queue = queue.Queue(maxsize=queue_size)
+            self.worker_thread = threading.Thread(
+                target=self._background_worker,
+                daemon=True,
+                name="ingestkit-worker"
+            )
+            self.worker_running = True
+            self.worker_thread.start()
+
+            # Register cleanup on exit
+            atexit.register(self.close)
+
+        if self.debug:
+            self.logger.debug(
+                f"IngestKit client initialized: api_url={self.api_url}, "
+                f"tenant_id={self.tenant_id}, api_key={_redact_api_key(self.api_key)}, "
+                f"background={self.background}"
+            )
+
+
+    def send_article_viewed(self, event: ArticleViewed, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a article_viewed event.
+        
+        Fired when a user views a blog article
+        
+        Args:
+            event: ArticleViewed event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("article_viewed", event, wait=wait, timeout=timeout)
+
+    def send_article_viewed_batch(self, events: List[ArticleViewed], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of article_viewed events.
+
+        Args:
+            events: List of ArticleViewed events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("article_viewed", events, wait=wait, timeout=timeout)
+
+    def send_article_shared(self, event: ArticleShared, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a article_shared event.
+        
+        Fired when a user shares an article
+        
+        Args:
+            event: ArticleShared event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("article_shared", event, wait=wait, timeout=timeout)
+
+    def send_article_shared_batch(self, events: List[ArticleShared], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of article_shared events.
+
+        Args:
+            events: List of ArticleShared events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("article_shared", events, wait=wait, timeout=timeout)
+
+    def send_comment_posted(self, event: CommentPosted, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a comment_posted event.
+        
+        Fired when a user posts a comment
+        
+        Args:
+            event: CommentPosted event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("comment_posted", event, wait=wait, timeout=timeout)
+
+    def send_comment_posted_batch(self, events: List[CommentPosted], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of comment_posted events.
+
+        Args:
+            events: List of CommentPosted events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("comment_posted", events, wait=wait, timeout=timeout)
+
+    def send_newsletter_subscribed(self, event: NewsletterSubscribed, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a newsletter_subscribed event.
+        
+        Fired when a user subscribes to newsletter
+        
+        Args:
+            event: NewsletterSubscribed event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("newsletter_subscribed", event, wait=wait, timeout=timeout)
+
+    def send_newsletter_subscribed_batch(self, events: List[NewsletterSubscribed], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of newsletter_subscribed events.
+
+        Args:
+            events: List of NewsletterSubscribed events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("newsletter_subscribed", events, wait=wait, timeout=timeout)
+
+    def send_search_performed(self, event: SearchPerformed, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a search_performed event.
+        
+        Fired when a user searches for content
+        
+        Args:
+            event: SearchPerformed event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("search_performed", event, wait=wait, timeout=timeout)
+
+    def send_search_performed_batch(self, events: List[SearchPerformed], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of search_performed events.
+
+        Args:
+            events: List of SearchPerformed events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("search_performed", events, wait=wait, timeout=timeout)
+
+    def send_checkout_started(self, event: CheckoutStarted, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a checkout_started event.
+        
+        Fired when a user begins checkout process
+        
+        Args:
+            event: CheckoutStarted event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("checkout_started", event, wait=wait, timeout=timeout)
+
+    def send_checkout_started_batch(self, events: List[CheckoutStarted], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of checkout_started events.
+
+        Args:
+            events: List of CheckoutStarted events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("checkout_started", events, wait=wait, timeout=timeout)
+
+    def send_page_view(self, event: PageView, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a page_view event.
+        
+        Fired when a user views a page
+        
+        Args:
+            event: PageView event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("page_view", event, wait=wait, timeout=timeout)
+
+    def send_page_view_batch(self, events: List[PageView], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of page_view events.
+
+        Args:
+            events: List of PageView events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("page_view", events, wait=wait, timeout=timeout)
+
+    def send_product_viewed(self, event: ProductViewed, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a product_viewed event.
+        
+        Fired when a user views a product page
+        
+        Args:
+            event: ProductViewed event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("product_viewed", event, wait=wait, timeout=timeout)
+
+    def send_product_viewed_batch(self, events: List[ProductViewed], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of product_viewed events.
+
+        Args:
+            events: List of ProductViewed events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("product_viewed", events, wait=wait, timeout=timeout)
+
+    def send_added_to_cart(self, event: AddedToCart, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a added_to_cart event.
+        
+        Fired when a user adds an item to cart
+        
+        Args:
+            event: AddedToCart event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("added_to_cart", event, wait=wait, timeout=timeout)
+
+    def send_added_to_cart_batch(self, events: List[AddedToCart], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of added_to_cart events.
+
+        Args:
+            events: List of AddedToCart events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("added_to_cart", events, wait=wait, timeout=timeout)
+
+    def send_order_completed(self, event: OrderCompleted, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a order_completed event.
+        
+        Fired when an order is successfully placed
+        
+        Args:
+            event: OrderCompleted event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("order_completed", event, wait=wait, timeout=timeout)
+
+    def send_order_completed_batch(self, events: List[OrderCompleted], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of order_completed events.
+
+        Args:
+            events: List of OrderCompleted events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("order_completed", events, wait=wait, timeout=timeout)
+
+    def send_user_signup(self, event: UserSignup, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a user_signup event.
+        
+        Fired when a new user signs up
+        
+        Args:
+            event: UserSignup event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("user_signup", event, wait=wait, timeout=timeout)
+
+    def send_user_signup_batch(self, events: List[UserSignup], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of user_signup events.
+
+        Args:
+            events: List of UserSignup events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("user_signup", events, wait=wait, timeout=timeout)
+
+    def send_purchase(self, event: Purchase, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a purchase event.
+        
+        Fired when a user makes a purchase
+        
+        Args:
+            event: Purchase event to send
+            wait: If True, blocks until event is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors (blocking mode only)
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        return self._send_event("purchase", event, wait=wait, timeout=timeout)
+
+    def send_purchase_batch(self, events: List[Purchase], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Send a batch of purchase events.
+
+        Args:
+            events: List of Purchase events to send (max 1000)
+            wait: If True, blocks until batch is delivered (default: False)
+            timeout: Max seconds to wait for delivery (default: None = wait forever)
+
+        Returns:
+            - wait=False: Future object (call .result() to block and get confirmation)
+            - wait=True: Dict with delivery confirmation
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+            QueueFullError: If background queue is full (only in background mode)
+            ClientError: For 4xx client errors
+            ServerError: For 5xx server errors (after retries exhausted)
+            NetworkError: For network errors (after retries exhausted)
+            TimeoutError: If wait=True and timeout is exceeded
+        """
+        if len(events) > DEFAULT_MAX_BATCH_SIZE:
+            raise ValueError(
+                f"Batch size {len(events)} exceeds maximum {DEFAULT_MAX_BATCH_SIZE}. "
+                f"Please split into smaller batches."
+            )
+        return self._send_batch("purchase", events, wait=wait, timeout=timeout)
+
+
+    def _send_event(self, event_type: str, event: Any, wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Internal method to send a single event.
+
+        Args:
+            event_type: Type of event
+            event: Event data (Pydantic model or dictionary)
+            wait: If True, blocks until delivered (sends ?sync=true to API)
+            timeout: Max seconds to wait
+        """
+        url = f"{self.api_url}/v1/events/{event_type}"
+
+        # Add ?sync=true for guaranteed Kafka delivery when wait=True
+        if wait:
+            url += "?sync=true"
+
+        request_id = str(uuid.uuid4())
+
+        # Convert to dict if it's a Pydantic model
+        if hasattr(event, 'dict'):
+            event_data = event.dict(exclude_none=True)
+        else:
+            # Already a dictionary
+            event_data = {k: v for k, v in event.items() if v is not None}
+
+        if self.background:
+            # Queue event and get Future
+            future = self._queue_event("POST", url, event_data, request_id)
+
+            if wait:
+                # Block until delivered
+                return future.result(timeout=timeout)
+            else:
+                # Return Future immediately
+                return future
+        else:
+            # BLOCKING: Send synchronously
+            return self._request_with_retry("POST", url, event_data, request_id)
+
+    def _send_batch(self, event_type: str, events: List[Any], wait: bool = False, timeout: Optional[float] = None) -> Union[Future, Dict[str, Any]]:
+        """
+        Internal method to send a batch of events.
+
+        Args:
+            event_type: Type of events
+            events: List of event data (Pydantic models or dictionaries)
+            wait: If True, blocks until delivered (sends ?sync=true to API)
+            timeout: Max seconds to wait
+        """
+        url = f"{self.api_url}/v1/events/{event_type}/batch"
+
+        # Add ?sync=true for guaranteed Kafka delivery when wait=True
+        if wait:
+            url += "?sync=true"
+
+        request_id = str(uuid.uuid4())
+
+        # Convert each event to dict
+        event_list = []
+        for event in events:
+            if hasattr(event, 'dict'):
+                event_list.append(event.dict(exclude_none=True))
+            else:
+                event_list.append({k: v for k, v in event.items() if v is not None})
+
+        payload = {"events": event_list}
+
+        if self.background:
+            # Queue event and get Future
+            future = self._queue_event("POST", url, payload, request_id)
+
+            if wait:
+                # Block until delivered
+                return future.result(timeout=timeout)
+            else:
+                # Return Future immediately
+                return future
+        else:
+            # BLOCKING: Send synchronously
+            return self._request_with_retry("POST", url, payload, request_id)
+
+    def _queue_event(
+        self,
+        method: str,
+        url: str,
+        json_data: Dict[str, Any],
+        request_id: str
+    ) -> Future:
+        """
+        Queue event for background processing and return Future.
+
+        Returns Future that will resolve when event is delivered.
+        """
+        # Create Future for this event
+        future = Future()
+
+        # Store Future for tracking
+        with self.futures_lock:
+            self.pending_futures[request_id] = future
+
+        try:
+            self.event_queue.put_nowait((method, url, json_data, request_id))
+            if self.debug:
+                self.logger.debug(f"Event queued [request_id: {request_id}]")
+            return future
+        except queue.Full:
+            # Remove Future on queue full error
+            with self.futures_lock:
+                self.pending_futures.pop(request_id, None)
+
+            error_msg = f"Event queue full (size: {self.event_queue.qsize()})"
+            self.logger.error(f"{error_msg} [request_id: {request_id}]")
+
+            # Set Future exception
+            future.set_exception(QueueFullError(error_msg))
+
+            # Call failure callback if provided
+            if self.on_failure:
+                try:
+                    self.on_failure(json_data, QueueFullError(error_msg))
+                except Exception as e:
+                    self.logger.error(f"Failure callback failed: {e}")
+
+            raise QueueFullError(error_msg)
+
+    def _background_worker(self):
+        """
+        Background worker thread that processes queued events.
+
+        Runs continuously, processing events from the queue and retrying on failures.
+        Resolves Futures and calls callbacks based on delivery status.
+        """
+        if self.debug:
+            self.logger.debug("Background worker started")
+
+        while self.worker_running:
+            try:
+                # Get event from queue with timeout
+                try:
+                    method, url, json_data, request_id = self.event_queue.get(timeout=1)
+                except queue.Empty:
+                    continue
+
+                # Get Future for this event
+                with self.futures_lock:
+                    future = self.pending_futures.get(request_id)
+
+                # Send event with retry logic (retries happen here in background)
+                try:
+                    result = self._request_with_retry(method, url, json_data, request_id)
+
+                    # SUCCESS: Resolve Future
+                    if future and not future.done():
+                        future.set_result(result)
+
+                    # Remove from pending
+                    with self.futures_lock:
+                        self.pending_futures.pop(request_id, None)
+
+                    # Call success callback if provided
+                    if self.on_success:
+                        try:
+                            self.on_success(json_data, result)
+                        except Exception as cb_error:
+                            self.logger.error(f"Success callback failed: {cb_error}")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to send event after retries: {e}")
+
+                    # FAILURE: Set Future exception
+                    if future and not future.done():
+                        future.set_exception(e)
+
+                    # Remove from pending
+                    with self.futures_lock:
+                        self.pending_futures.pop(request_id, None)
+
+                    # Call failure callback if provided
+                    if self.on_failure:
+                        try:
+                            self.on_failure(json_data, e)
+                        except Exception as cb_error:
+                            self.logger.error(f"Failure callback failed: {cb_error}")
+                finally:
+                    self.event_queue.task_done()
+
+            except Exception as e:
+                self.logger.error(f"Background worker error: {e}")
+                time.sleep(1)  # Avoid tight loop on persistent errors
+
+        if self.debug:
+            self.logger.debug("Background worker stopped")
+
+    def _request_with_retry(
+        self,
+        method: str,
+        url: str,
+        json_data: Dict[str, Any],
+        request_id: str
+    ) -> Dict[str, Any]:
+        """
+        Make HTTP request with exponential backoff retry logic.
+
+        Args:
+            method: HTTP method (POST)
+            url: Request URL
+            json_data: JSON payload
+            request_id: Unique request ID for tracking
+
+        Returns:
+            API response as dictionary
+
+        Raises:
+            ClientError: For 4xx errors (non-retriable)
+            ServerError: For 5xx errors after retries exhausted
+            NetworkError: For network errors after retries exhausted
+        """
+        headers = {
+            "X-Request-ID": request_id
+        }
+
+        last_exception = None
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                if self.debug:
+                    self.logger.debug(
+                        f"Request attempt {attempt}/{self.max_retries}: "
+                        f"{method} {url} [request_id: {request_id}]"
+                    )
+
+                response = self.session.request(
+                    method=method,
+                    url=url,
+                    json=json_data,
+                    headers=headers,
+                    timeout=self.timeout
+                )
+
+                # Check response status
+                if response.ok:
+                    if self.debug:
+                        self.logger.debug(
+                            f"Request successful: HTTP {response.status_code} "
+                            f"[request_id: {request_id}]"
+                        )
+                    return response.json()
+
+                # Classify error
+                if HTTP_CLIENT_ERROR_START <= response.status_code <= HTTP_CLIENT_ERROR_END:
+                    # 4xx errors are non-retriable client errors
+                    error_msg = response.text or response.reason
+                    self.logger.error(
+                        f"Client error: HTTP {response.status_code} - {error_msg} "
+                        f"[request_id: {request_id}]"
+                    )
+                    raise ClientError(response.status_code, error_msg, request_id)
+
+                elif HTTP_SERVER_ERROR_START <= response.status_code <= HTTP_SERVER_ERROR_END:
+                    # 5xx errors are retriable server errors
+                    error_msg = response.text or response.reason
+                    last_exception = ServerError(response.status_code, error_msg, request_id)
+
+                    if attempt < self.max_retries:
+                        backoff_delay = self.retry_backoff_base * (2 ** (attempt - 1))
+                        self.logger.warning(
+                            f"Server error (attempt {attempt}/{self.max_retries}): "
+                            f"HTTP {response.status_code} - {error_msg}. "
+                            f"Retrying in {backoff_delay}s... [request_id: {request_id}]"
+                        )
+                        time.sleep(backoff_delay)
+                        continue
+                    else:
+                        self.logger.error(
+                            f"Server error after {self.max_retries} attempts: "
+                            f"HTTP {response.status_code} - {error_msg} "
+                            f"[request_id: {request_id}]"
+                        )
+                        raise last_exception
+
+            except requests.exceptions.Timeout as e:
+                last_exception = NetworkError(f"Request timeout: {str(e)}")
+                if attempt < self.max_retries:
+                    backoff_delay = self.retry_backoff_base * (2 ** (attempt - 1))
+                    self.logger.warning(
+                        f"Timeout (attempt {attempt}/{self.max_retries}). "
+                        f"Retrying in {backoff_delay}s... [request_id: {request_id}]"
+                    )
+                    time.sleep(backoff_delay)
+                    continue
+                else:
+                    self.logger.error(
+                        f"Timeout after {self.max_retries} attempts [request_id: {request_id}]"
+                    )
+                    raise last_exception
+
+            except requests.exceptions.ConnectionError as e:
+                last_exception = NetworkError(f"Connection error: {str(e)}")
+                if attempt < self.max_retries:
+                    backoff_delay = self.retry_backoff_base * (2 ** (attempt - 1))
+                    self.logger.warning(
+                        f"Connection error (attempt {attempt}/{self.max_retries}). "
+                        f"Retrying in {backoff_delay}s... [request_id: {request_id}]"
+                    )
+                    time.sleep(backoff_delay)
+                    continue
+                else:
+                    self.logger.error(
+                        f"Connection error after {self.max_retries} attempts "
+                        f"[request_id: {request_id}]"
+                    )
+                    raise last_exception
+
+            except requests.exceptions.RequestException as e:
+                last_exception = NetworkError(f"Request failed: {str(e)}")
+                if attempt < self.max_retries:
+                    backoff_delay = self.retry_backoff_base * (2 ** (attempt - 1))
+                    self.logger.warning(
+                        f"Request error (attempt {attempt}/{self.max_retries}): {str(e)}. "
+                        f"Retrying in {backoff_delay}s... [request_id: {request_id}]"
+                    )
+                    time.sleep(backoff_delay)
+                    continue
+                else:
+                    self.logger.error(
+                        f"Request failed after {self.max_retries} attempts: {str(e)} "
+                        f"[request_id: {request_id}]"
+                    )
+                    raise last_exception
+
+        # Should not reach here, but just in case
+        if last_exception:
+            raise last_exception
+        raise NetworkError("Request failed for unknown reason")
+
+    def flush(self, timeout: Optional[float] = None) -> bool:
+        """
+        Wait for all queued events to be sent.
+
+        Call this before shutting down to ensure all events are sent.
+
+        Args:
+            timeout: Maximum time to wait in seconds (None = wait forever)
+
+        Returns:
+            True if all events were sent, False if timeout occurred
+        """
+        if not self.background:
+            return True  # Nothing to flush in blocking mode
+
+        if timeout is None:
+            self.event_queue.join()
+            return True
+        else:
+            # Wait with timeout
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if self.event_queue.empty():
+                    return True
+                time.sleep(0.1)
+            return False
+
+    def close(self, timeout: float = 5.0):
+        """
+        Gracefully shutdown the client.
+
+        Flushes all pending events and stops the background worker.
+
+        Args:
+            timeout: Maximum time to wait for flush in seconds
+        """
+        if not self.background:
+            return
+
+        if self.debug:
+            self.logger.debug("Closing client, flushing pending events...")
+
+        # Flush pending events
+        flushed = self.flush(timeout=timeout)
+        if not flushed:
+            self.logger.warning(
+                f"Not all events were sent before timeout ({self.event_queue.qsize()} remaining)"
+            )
+
+        # Stop worker
+        self.worker_running = False
+        if self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=2.0)
+
+        if self.debug:
+            self.logger.debug("Client closed")
+
+    def health_check(self) -> bool:
+        """
+        Check if the IngestKit API is reachable.
+
+        Returns:
+            True if API is healthy, False otherwise
+        """
+        try:
+            url = f"{self.api_url}/health"
+            response = self.session.get(url, timeout=5)
+            return response.ok
+        except Exception as e:
+            if self.debug:
+                self.logger.error(f"Health check failed: {str(e)}")
+            return False
+
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensures flush on exit"""
+        self.close()
+
+
+# Convenience alias
+Client = IngestKitClient
