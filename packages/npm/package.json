@@ -1,6 +1,6 @@
 {
   "name": "ingestkit",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "High-performance event ingestion with type-safe SDKs",
   "main": "index.js",
   "bin": {

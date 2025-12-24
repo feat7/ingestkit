@@ -2,92 +2,87 @@
 
 **High-Performance, Schema-First Event Ingestion Platform**
 
-A self-hosted event tracking system with type-safe SDKs, automated migrations, and zero data loss guarantees.
-
----
+Self-hosted event tracking with type-safe SDKs, automated migrations, and zero data loss guarantees.
 
 ## What is IngestKit?
 
-IngestKit is an event ingestion platform built for developers who need:
+IngestKit is an event ingestion platform for developers who need:
 - **Type Safety**: Define events in YAML, get type-safe SDKs automatically
 - **Performance**: 15,600 events/sec with PostgreSQL COPY protocol
 - **Reliability**: At-least-once delivery, dead letter queue, automatic retries
-- **Developer Experience**: Prisma-style migrations, auto-generated code, Docker deployments
+- **Developer Experience**: Prisma-style migrations, auto-generated code
 
 **Use Cases**: Product analytics, audit logging, user behavior tracking, event streaming
 
 ---
 
-## Features
+## Getting Started
 
-### Core Capabilities
+Choose your path:
 
-- **Schema-First Design**: Single YAML file generates SQL DDL, Go models, and client SDKs
-- **Auto-Generated SDKs**: Type-safe Python and TypeScript clients with retry logic
-- **Automated Migrations**: Prisma-style migration generation using Atlas (auto-generates SQL)
-- **Multi-Tenant**: Automatic table partitioning per tenant
-- **Zero Data Loss**: Kafka buffering with at-least-once delivery guarantees
-- **High Performance**: PostgreSQL COPY protocol (3-4x faster than INSERT)
+### Option A: Self-Host IngestKit (Server Operators)
 
-### Production Features
-
-- Smart batching (500 events OR 20ms timeout)
-- Automatic retry with exponential backoff
-- Dead letter queue for failed events
-- Prometheus metrics endpoint
-- Zero-downtime Docker deployments
-- Health check endpoints
-
----
-
-## Quick Start (2 Minutes)
-
-### Prerequisites
-
-- **Docker & Docker Compose**
-- **Make**
-
-### One Command to Start
+Run the complete IngestKit platform on your infrastructure.
 
 ```bash
+git clone https://github.com/feat7/ingestkit.git
+cd ingestkit
 make start
 ```
 
-That's it! This will:
-- Build Docker images
-- Start PostgreSQL, Redpanda, API, and Consumer
-- Apply database migrations automatically
-- Show you what to do next
+This builds and starts everything: PostgreSQL, Redpanda, API server, and consumer.
 
-### Verify It's Working
+[Continue to Self-Hosting Guide →](#self-hosting-ingestkit)
+
+### Option B: Use IngestKit SDKs (Application Developers)
+
+Send events to an existing IngestKit server.
 
 ```bash
-# Send a test event
+pip install ingestkit   # or: npm install -g ingestkit
+
+cd my-app
+ingestkit init --python
+ingestkit generate --schema-url https://your-ingestkit-server.com/schema
+```
+
+[Continue to SDK Guide →](#using-ingestkit-sdks)
+
+---
+
+## Self-Hosting IngestKit
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Make
+- Go 1.24+ (for local development)
+
+### Quick Start
+
+```bash
+# Start everything with Docker
+make start
+
+# Verify it's working
 make test-event
-
-# View consumer metrics
 make metrics
-
-# Check events in database
 make db-event-counts
 ```
 
-### Local Development (Without Docker)
-
-If you prefer running services locally:
+### Local Development
 
 ```bash
-# One-time setup
-make start-local
+# Start infrastructure only
+make up
 
-# Then in separate terminals:
+# Build and run locally
+make build
 make run-api        # Terminal 1
 make run-consumer   # Terminal 2
 ```
 
----
-
-## Architecture
+### Architecture
 
 ```
 Client Apps (Python/TypeScript SDK)
@@ -101,69 +96,9 @@ Consumer Workers (4 parallel)
 PostgreSQL (:5433, partitioned by tenant_id)
 ```
 
-**Key Design Decisions:**
-- **API Server validates before Kafka**: Prevents invalid data from entering the queue
-- **Multi-tenancy via API keys**: Each key maps to a tenant, enforced server-side
-- **Auto-partitioning**: Tables like `events_user_signup_tenant_alpha` created automatically
-- **COPY protocol**: Bulk inserts 3-4x faster than individual INSERTs
+### Schema Management
 
----
-
-## Using IngestKit
-
-### Python Example
-
-```python
-from ingestkit import Client
-
-# Initialize client
-analytics = Client(
-    api_url="http://localhost:8080",
-    api_key="dev_key_1234567890"
-)
-
-# Send events (type-safe!)
-analytics.send_user_signup({
-    "user_id": "usr_123",
-    "email": "user@example.com",
-    "signup_source": "web"
-})
-
-# Batch sending
-analytics.send_user_signup_batch([event1, event2, event3])
-
-# Guaranteed delivery (waits for Kafka ACK)
-response = analytics.send_user_signup(event, sync=True)
-```
-
-### TypeScript Example
-
-```typescript
-import { IngestKitClient } from './ingestkit';
-
-const client = new IngestKitClient({
-  apiUrl: 'http://localhost:8080',
-  apiKey: 'dev_key_1234567890'
-});
-
-// Send event
-await client.sendUserSignup({
-  userId: 'usr_123',
-  email: 'user@example.com',
-  signupSource: 'web'
-});
-
-// Guaranteed delivery
-await client.sendUserSignup(event, { sync: true });
-```
-
----
-
-## Schema Management
-
-### Define Events
-
-Edit `schema/events.yaml`:
+Define events in `schema/events.yaml`:
 
 ```yaml
 version: "1.0"
@@ -182,185 +117,185 @@ events:
       signup_source:
         type: string
         values: [web, mobile, api]
-      metadata:
-        type: jsonb
 ```
 
-### Making Schema Changes
-
-**With Docker (simplest)**:
+Apply changes:
 
 ```bash
-# 1. Edit schema
-vim schema/events.yaml
-
-# 2. Apply changes (auto-generates migrations, rebuilds, restarts)
+# With Docker
 make docker-reload
-```
 
-**Manual workflow** (for more control):
-
-```bash
-# 1. Edit schema
-vim schema/events.yaml
-
-# 2. Auto-generate migration SQL with Atlas
+# Manual workflow
 make migrate-auto NAME=add_user_country
-
-# 3. Review generated SQL
-cat migrations/*add_user_country.up.sql
-
-# 4. Apply and restart
 make db-migrate-up
-make docker-reload  # Docker
-# OR
-make generate && make build && restart services  # Local
+make generate && make build
 ```
 
-**See**: [docs/automated-migrations.md](docs/automated-migrations.md)
-
----
-
-## Common Commands
-
-### Quick Start
+### Common Commands
 
 ```bash
-make start           # ⚡ Start everything with Docker (one command!)
-make start-local     # ⚡ Setup for local development
+# Quick Start
+make start           # Start everything with Docker
+make start-local     # Setup for local development
 make test-event      # Send a test event
 make down            # Stop everything
-```
 
-### Development
-
-```bash
-make up              # Start PostgreSQL + Redpanda
+# Development
 make generate        # Generate code from schema
-make build           # Build API + consumer binaries
-make run-api         # Run API server (:8080)
-make run-consumer    # Run consumer (:8081)
+make build           # Build binaries
+
+# Database
+make db-migrate-up   # Apply migrations
+make db-connect      # Connect with psql
+make db-stats        # Show statistics
+
+# Docker
+make docker-reload   # Zero-downtime update
 ```
 
-### Database
-
-```bash
-make db-migrate-up        # Apply migrations
-make db-migrate-down      # Rollback migration
-make db-migrate-version   # Show current version
-make db-connect           # Connect with psql
-make db-stats             # Show event counts
-make db-event-counts      # Count by event type
-```
-
-### Docker Deployment
-
-```bash
-make docker-build    # Build Docker images
-make docker-up       # Start full stack (includes migrations)
-make docker-reload   # Zero-downtime rolling update
-```
-
-### Testing
-
-```bash
-make test            # Run unit tests
-make loadtest-quick  # 100 RPS smoke test
-make metrics         # View consumer metrics
-```
-
----
-
-## Services & Ports
+### Services & Ports
 
 | Service | Port | Purpose |
 |---------|------|---------|
 | API Server | 8080 | Event ingestion endpoint |
 | Consumer Metrics | 8081 | Prometheus `/metrics` |
-| PostgreSQL | 5433 | Database (non-standard port to avoid conflicts) |
+| PostgreSQL | 5433 | Database |
 | Redpanda | 19092 | Kafka protocol |
-| Redpanda Console | 8090 | Web UI for Kafka |
+| Redpanda Console | 8090 | Web UI |
 
 ---
 
-## Working Examples
+## Using IngestKit SDKs
 
-**Blog Analytics** (Python + Flask):
+### Installation
+
 ```bash
-cd examples/blog-flask
-./run.sh
-./test-flow-simple.sh  # In another terminal
+# Python
+pip install ingestkit
+
+# Node.js
+npm install -g ingestkit
 ```
 
-**E-commerce** (TypeScript + Express):
+### Initialize Project
+
 ```bash
-cd examples/ecommerce-express
-npm install
-npm start
-./test-flow.sh  # In another terminal
+cd my-app
+ingestkit init --python    # or --typescript
+```
+
+This creates:
+```
+my-app/
+├── ingestkit/
+│   ├── schema.yaml    # Define your events
+│   └── client.py      # Generated (after ingestkit generate)
+└── ingestkit.config.json
+```
+
+### Generate Client
+
+```bash
+# From local schema
+ingestkit generate
+
+# From server schema
+ingestkit generate --schema-url https://your-server.com/schema
+```
+
+### Use in Code
+
+**Python:**
+```python
+from ingestkit import Client
+
+client = Client()
+client.user_signup.send(
+    user_id="123",
+    email="user@example.com",
+    signup_source="web"
+)
+```
+
+**TypeScript:**
+```typescript
+import { Client } from './ingestkit'
+
+const client = new Client()
+await client.userSignup.send({
+  userId: "123",
+  email: "user@example.com",
+  signupSource: "web"
+})
 ```
 
 ---
 
 ## Performance
 
-**Validated Performance** (measured with loadtest):
-- **Throughput**: 15,600 events/sec per consumer worker
+Validated benchmarks:
+- **Throughput**: 15,600 events/sec per consumer
 - **Latency**: 13ms average, <20ms p95
-- **Success Rate**: 100% (zero data loss in testing)
+- **Success Rate**: 100% (zero data loss)
 
-**Why so fast?**
+Why it's fast:
 - PostgreSQL COPY protocol (bulk inserts)
 - Batch processing (500 events OR 20ms timeout)
-- Async Kafka publishing (10ms response time)
-- Connection pooling (50 max connections)
+- Async Kafka publishing
 
-See: [LOADTEST.md](LOADTEST.md)
+See: [docs/load-testing.md](docs/load-testing.md)
+
+---
+
+## Examples
+
+**Blog Analytics** (Python + Flask):
+```bash
+cd examples/blog-flask
+./run.sh
+```
+
+**E-commerce** (TypeScript + Express):
+```bash
+cd examples/ecommerce-express
+./run.sh
+```
 
 ---
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** - Quick reference for developers and AI assistants
-- **[docs/development.md](docs/development.md)** - Development workflow
-- **[docs/automated-migrations.md](docs/automated-migrations.md)** - Prisma-style migrations with Atlas
-- **[docs/migrations.md](docs/migrations.md)** - Manual migration workflow
-- **[docs/docker-deployment.md](docs/docker-deployment.md)** - Zero-downtime deployments
-- **[docs/sdk-generation.md](docs/sdk-generation.md)** - SDK generation guide
-- **[LOADTEST.md](LOADTEST.md)** - Performance testing guide
+- [docs/development.md](docs/development.md) - Development workflow
+- [docs/automated-migrations.md](docs/automated-migrations.md) - Prisma-style migrations
+- [docs/migrations.md](docs/migrations.md) - Manual migration workflow
+- [docs/docker-deployment.md](docs/docker-deployment.md) - Zero-downtime deployments
+- [docs/sdk-generation.md](docs/sdk-generation.md) - SDK generation guide
+- [docs/load-testing.md](docs/load-testing.md) - Performance testing
 
 ---
 
-## What's Working
+## Current Status
 
-✅ **Schema-driven code generation** (SQL, Go models, SDKs)
-✅ **Automated migrations** (Atlas + golang-migrate)
-✅ **High-performance API** (15,600 events/sec tested)
-✅ **Multi-tenant partitioning** (auto-creates tables per tenant)
-✅ **Zero data loss** (at-least-once delivery)
-✅ **Type-safe SDKs** (Python, TypeScript)
-✅ **Dead letter queue** (failed event recovery)
-✅ **Docker deployments** (zero-downtime rolling updates)
-✅ **Working examples** (blog, e-commerce)
+**Working:**
+- Schema-driven code generation (SQL, Go models, SDKs)
+- Automated migrations with Atlas
+- High-performance API (15,600 events/sec tested)
+- Multi-tenant partitioning
+- Zero data loss (at-least-once delivery)
+- Type-safe SDKs (Python, TypeScript)
+- Dead letter queue
+- Docker deployments with zero-downtime updates
 
----
-
-## What's Missing
-
-⚠️ **Query API**: You can write events but not read them (no GET endpoints yet)
-⚠️ **Aggregations**: No built-in analytics (use external tools like Metabase)
-⚠️ **Distributed rate limiting**: Current rate limiter is single-server only
-⚠️ **Data retention policies**: Events stored forever (no auto-cleanup)
-⚠️ **Secrets management**: API keys in environment variables (no Vault integration)
-⚠️ **Audit logging**: No tracking of who accessed what
-
-**For production use**: Pair IngestKit with Metabase, Superset, or Redash for querying and visualization.
+**Not Yet Implemented:**
+- Query API (write-only currently)
+- Built-in analytics (use Metabase/Superset)
+- Distributed rate limiting
+- Data retention policies
+- Secrets management (Vault integration)
 
 ---
 
 ## Configuration
-
-### Environment Variables
 
 Create `.env` in project root:
 
@@ -369,12 +304,10 @@ Create `.env` in project root:
 API_PORT=8080
 API_KEY_1=dev_key_1234567890:default
 API_KEY_2=sk_test_tenant_alpha:tenant_alpha
-API_KEY_3=dev_key_ecommerce:ecommerce-demo
 
 # Consumer
 CONSUMER_WORKERS=4
 CONSUMER_BATCH_SIZE=500
-CONSUMER_BATCH_TIMEOUT_MS=20
 
 # Database
 POSTGRES_PORT=5433
@@ -384,7 +317,6 @@ POSTGRES_DB=ingestkit
 
 # Kafka
 REDPANDA_ADDR=localhost:19092
-REDPANDA_TOPIC=ingestkit.events
 ```
 
 ---
@@ -395,21 +327,19 @@ REDPANDA_TOPIC=ingestkit.events
 ```bash
 curl http://localhost:8081/health
 make metrics
-make db-dlq-check  # Check dead letter queue
+make db-dlq-check
 ```
 
 **401 Unauthorized?**
-- Check API key is in `.env`
+- Check API key in `.env`
 - Restart API: `make run-api`
-- Verify: API logs should show "count=3" (or your key count)
 
 **Validation errors?**
-- Field names must be `snake_case` (not camelCase)
+- Field names must be `snake_case`
 - Regenerate: `make generate && make build`
 
 **Database connection failed?**
-- PostgreSQL is on port **5433** (not 5432)
-- Check: `make db-connect`
+- PostgreSQL uses port **5433** (not 5432)
 
 ---
 
@@ -421,13 +351,8 @@ See [docs/development.md](docs/development.md) for development workflow.
 
 ## License
 
-TBD
+MIT
 
 ---
 
-**Built with:**
-- Go 1.24+ (Fiber web framework)
-- PostgreSQL (with COPY protocol)
-- Redpanda (Kafka-compatible)
-- Atlas (migration generation)
-- Docker (deployment)
+**Built with:** Go, PostgreSQL, Redpanda, Atlas, Docker

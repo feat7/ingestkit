@@ -24,11 +24,11 @@ A complete e-commerce API built with Express.js showing event tracking for:
 **Tech Stack**: Express.js, TypeScript, IngestKit auto-generated client
 
 **Features**:
-- 📦 Realistic product catalog
-- 🛒 Shopping cart management
-- 💰 Discount code support
-- 📊 Complete purchase funnel tracking
-- ✅ Type-safe event tracking
+- Realistic product catalog
+- Shopping cart management
+- Discount code support
+- Complete purchase funnel tracking
+- Type-safe event tracking
 
 [**View Example →**](./ecommerce-express/)
 
@@ -46,11 +46,11 @@ A blog platform built with Flask demonstrating content analytics:
 **Tech Stack**: Flask, Python, Pydantic models, IngestKit auto-generated client
 
 **Features**:
-- 📰 Multi-category blog articles
-- 🔍 Full-text search
-- 💬 Nested comment system
-- 📧 Newsletter subscriptions
-- ✅ Pydantic validation
+- Multi-category blog articles
+- Full-text search
+- Nested comment system
+- Newsletter subscriptions
+- Pydantic validation
 
 [**View Example →**](./blog-flask/)
 
@@ -119,24 +119,24 @@ python examples/python-quickstart.py
 
 **Expected Output**:
 ```
-🚀 IngestKit Python SDK - Quick Start Example
+IngestKit Python SDK - Quick Start Example
 
-✓ Client initialized
+[ok] Client initialized
 
-📝 Example 1: Send user signup event
-   ✓ User signup tracked: {'success': True, 'event_id': 12345}
+Example 1: Send user signup event
+   [ok] User signup tracked: {'success': True, 'event_id': 12345}
 
-💳 Example 2: Send purchase event
-   ✓ Purchase tracked: {'success': True, 'event_id': 12346}
+Example 2: Send purchase event
+   [ok] Purchase tracked: {'success': True, 'event_id': 12346}
 
-👁️  Example 3: Send page view event
-   ✓ Page view tracked: {'success': True, 'event_id': 12347}
+Example 3: Send page view event
+   [ok] Page view tracked: {'success': True, 'event_id': 12347}
 
-📦 Example 4: Send batch of signups
-   ✓ Batch tracked: {'success': True, 'events_received': 10}
+Example 4: Send batch of signups
+   [ok] Batch tracked: {'success': True, 'events_received': 10}
 
 ==================================================
-✅ All events sent successfully!
+All events sent successfully!
 ==================================================
 ```
 
@@ -184,18 +184,18 @@ WHERE tenant_id = 'quickstart-demo';
 ## What Each Example Shows
 
 ### Python Example (`python-quickstart.py`)
-- ✅ Pydantic models with validation
-- ✅ Type-safe client methods
-- ✅ Single event tracking
-- ✅ Batch event tracking
-- ✅ Error handling
+- Pydantic models with validation
+- Type-safe client methods
+- Single event tracking
+- Batch event tracking
+- Error handling
 
 ### TypeScript Example (`typescript-quickstart.ts`)
-- ✅ TypeScript interfaces
-- ✅ Async/await patterns
-- ✅ Fetch API usage
-- ✅ Type checking at compile time
-- ✅ Runtime error handling
+- TypeScript interfaces
+- Async/await patterns
+- Fetch API usage
+- Type checking at compile time
+- Runtime error handling
 
 ## Running Complete Examples
 

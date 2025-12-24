@@ -14,7 +14,7 @@ import os
 import stat
 import sys
 
-VERSION = "1.0.0"
+VERSION = "0.1.0"
 BINARY_BASE_URL = "https://github.com/feat7/ingestkit/releases/download/v{version}"
 
 def get_platform_info():

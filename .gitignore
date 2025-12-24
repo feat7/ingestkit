@@ -153,3 +153,6 @@ examples/*/venv/
 examples/*/__pycache__/
 examples/*/node_modules/
 examples/*/ingestkit/
+
+# Test artifacts
+tests/benchmarks/benchmark

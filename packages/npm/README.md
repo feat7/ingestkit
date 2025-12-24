@@ -42,10 +42,10 @@ await client.userSignup.send({
 
 ## What You Get
 
-✅ **Type-safe client** - Auto-generated from your schema
-✅ **TypeScript interfaces** - Full IDE autocomplete
-✅ **Zero configuration** - Just `npx ingestkit init` and go
-✅ **Fast binary** - Go-powered CLI, no overhead
+- **Type-safe client** - Auto-generated from your schema
+- **TypeScript interfaces** - Full IDE autocomplete
+- **Zero configuration** - Just `npx ingestkit init` and go
+- **Fast binary** - Go-powered CLI, no overhead
 
 ## Project Structure
 

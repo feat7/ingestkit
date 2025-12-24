@@ -1,16 +1,34 @@
 #!/bin/bash
 
 # Quick start script for ecommerce-express example
+# This script assumes you're running from within the IngestKit repository
 
 set -e
 
-echo "🚀 IngestKit E-Commerce Express Example - Quick Start"
+echo "IngestKit E-Commerce Express Example"
+echo "====================================="
 echo
 
+# Check if we're in the right directory
+if [ ! -f "package.json" ]; then
+    echo "[error] Please run this script from the examples/ecommerce-express directory"
+    exit 1
+fi
+
+# Check if IngestKit binary exists
+if [ ! -f "../../bin/ingestkit" ]; then
+    echo "[info] IngestKit CLI not found. Building..."
+    echo "  Run: cd ../.. && make build"
+    echo
+    (cd ../.. && make build)
+    echo "[ok] CLI built"
+    echo
+fi
+
 # Check if IngestKit server is running
-echo "→ Checking IngestKit API server..."
+echo "[check] IngestKit API server..."
 if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
-    echo "❌ IngestKit API server is not running on port 8080"
+    echo "[error] IngestKit API server is not running on port 8080"
     echo
     echo "Please start IngestKit first:"
     echo "  cd ../.."
@@ -20,52 +38,48 @@ if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then
     echo
     exit 1
 fi
-echo "✓ IngestKit API server is running"
+echo "[ok] API server is running"
 echo
 
-# Check if client is generated
+# Generate client if not present
 if [ ! -f "ingestkit/client.ts" ]; then
-    echo "→ Generating IngestKit client..."
-    ../../bin/ingestkit generate
-    echo "✓ Client generated"
+    echo "[info] Generating IngestKit client..."
+    ../../bin/ingestkit generate --schema-url http://localhost:8080/schema
+    echo "[ok] Client generated"
     echo
 else
-    echo "✓ IngestKit client already generated"
+    echo "[ok] IngestKit client already generated"
     echo
 fi
 
-# Check if node_modules exists
+# Install dependencies if needed
 if [ ! -d "node_modules" ]; then
-    echo "→ Installing dependencies..."
+    echo "[info] Installing dependencies..."
     npm install
-    echo "✓ Dependencies installed"
+    echo "[ok] Dependencies installed"
     echo
 else
-    echo "✓ Dependencies already installed"
+    echo "[ok] Dependencies already installed"
     echo
 fi
 
 # Copy .env if needed
 if [ ! -f ".env" ]; then
     cp .env.example .env
-    echo "✓ Created .env from .env.example"
+    echo "[ok] Created .env from .env.example"
     echo
 fi
 
-echo "=========================================="
-echo "✅ Setup complete! Starting Express app..."
-echo "=========================================="
+echo "====================================="
+echo "Setup complete! Starting Express app"
+echo "====================================="
 echo
-echo "The app will run on http://localhost:3000"
+echo "App URL: http://localhost:3000"
 echo
-echo "To test the app, run in another terminal:"
-echo "  cd examples/ecommerce-express"
+echo "To test, run in another terminal:"
 echo "  ./test-flow.sh"
 echo
-echo "Press Ctrl+C to stop the server"
-echo
-echo "=========================================="
+echo "Press Ctrl+C to stop"
 echo
 
-# Start the Express app
 npm start
