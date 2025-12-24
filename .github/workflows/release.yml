@@ -171,11 +171,14 @@ jobs:
         with:
           packages-dir: packages/python/dist/
 
-  # Publish to npm
+  # Publish to npm with provenance (cryptographic attestation)
   publish-npm:
     name: Publish to npm
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for npm provenance
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -195,9 +198,9 @@ jobs:
           cd packages/npm
           npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
 
-      - name: Publish to npm
+      - name: Publish to npm with provenance
         run: |
           cd packages/npm
-          npm publish --access public
+          npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
