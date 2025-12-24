@@ -156,8 +156,8 @@ make run-consumer
 make run-api
 
 # Look for:
-# ✓ Event types, API key count, rate limit settings
-# ✗ Schema validation failures, auth errors
+# - Event types, API key count, rate limit settings
+# - Schema validation failures, auth errors
 ```
 
 **Check Consumer Logs:**
@@ -166,9 +166,9 @@ make run-api
 make run-consumer
 
 # Look for:
-# 📦 Batch: N events
-# ✅ Wrote N event_type events
-# ⚠️ Errors in processing or DLQ writes
+# - Batch: N events
+# - Wrote N event_type events
+# - Errors in processing or DLQ writes
 ```
 
 **Check Database State:**
@@ -356,10 +356,10 @@ curl -X POST http://localhost:8080/v1/schema/push \
 **What Happens After Push**
 
 Server will:
-- ✅ Validate the schema before accepting
-- ✅ Create automatic backup (e.g., `schema/events.yaml.backup.1731672000`)
-- ✅ Update schema file
-- ✅ Return validation results with event count
+- Validate the schema before accepting
+- Create automatic backup (e.g., `schema/events.yaml.backup.1731672000`)
+- Update schema file
+- Return validation results with event count
 
 **⚠️  IMPORTANT: Manual Steps Required**
 

@@ -246,7 +246,7 @@ curl -s -X POST http://localhost:3000/checkout/complete \
   }" | jq .
 echo
 
-echo "✅ Complete purchase flow finished!"
+echo "Complete purchase flow finished!"
 ```
 
 Save this as `test-flow.sh` and run with `bash test-flow.sh`.
@@ -444,5 +444,5 @@ Make sure you've generated the client after any schema changes.
 ## Learn More
 
 - [IngestKit README](../../README.md) - Full documentation
-- [Prisma-Style Guide](../../PRISMA_STYLE_GUIDE.md) - CLI workflow guide
+- [SDK Generation Guide](../../docs/sdk-generation.md) - CLI workflow guide
 - [Schema Reference](../../schema/events.yaml) - Schema syntax examples

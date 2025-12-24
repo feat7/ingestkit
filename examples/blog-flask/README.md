@@ -233,7 +233,7 @@ curl -s -X POST http://localhost:5000/subscribe \
   }' | python -m json.tool
 echo
 
-echo "✅ Complete user journey finished!"
+echo "Complete user journey finished!"
 echo
 echo "Events tracked:"
 echo "  - 1x search_performed"
@@ -386,8 +386,8 @@ The generated client uses Pydantic for type safety:
 ```python
 # This will raise validation error if fields are missing or wrong type
 analytics.article_viewed.send({
-    'user_id': 123,  # ❌ Wrong - should be string
-    'article_title': None,  # ❌ Wrong - required field
+    'user_id': 123,  # Wrong - should be string
+    'article_title': None,  # Wrong - required field
 })
 ```
 
@@ -444,5 +444,5 @@ Check your event data matches the schema types in `ingestkit/schema.yaml`.
 ## Learn More
 
 - [IngestKit README](../../README.md) - Full documentation
-- [Prisma-Style Guide](../../PRISMA_STYLE_GUIDE.md) - CLI workflow guide
+- [SDK Generation Guide](../../docs/sdk-generation.md) - CLI workflow guide
 - [E-Commerce Example](../ecommerce-express/) - TypeScript/Express example
