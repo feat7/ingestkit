@@ -2,6 +2,18 @@
 
 Detailed guides for development, deployment, and operations.
 
+## Installation
+
+```bash
+# Python
+pip install ingestkit
+
+# Node.js
+npm install -g ingestkit
+
+# Or download from GitHub Releases
+```
+
 ## Guides
 
 ### Getting Started

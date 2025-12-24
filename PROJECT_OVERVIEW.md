@@ -2,7 +2,16 @@
 
 IngestKit is a high-performance, scalable event ingestion system designed to handle thousands of events per second with zero data loss. It provides a robust foundation for building real-time analytics, audit logging, and data pipeline applications.
 
-## 🏗️ Architecture
+## Installation
+
+```bash
+pip install ingestkit    # Python
+npm install -g ingestkit  # Node.js
+```
+
+Or download binaries from [GitHub Releases](https://github.com/feat7/ingestkit/releases).
+
+## Architecture
 
 IngestKit follows a decoupled, event-driven architecture using the **Producer-Consumer** pattern.
 

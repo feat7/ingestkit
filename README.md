@@ -47,20 +47,61 @@ graph LR
 
 ---
 
+## Installation
+
+**Python:**
+```bash
+pip install ingestkit
+```
+
+**Node.js:**
+```bash
+npm install -g ingestkit
+```
+
+**Or download binaries** from [GitHub Releases](https://github.com/feat7/ingestkit/releases).
+
+---
+
 ## Quick Start
 
-### Prerequisites
-*   Docker & Docker Compose
-*   Go 1.21+ (optional, for local dev)
+### For Server Operators (Self-Hosting)
 
-### 1. Start the Stack
+```bash
+# Install CLI
+pip install ingestkit
+
+# Initialize and start server (uses Docker)
+ingestkit init --server
+ingestkit server start
+
+# Server running at http://localhost:8080
+# Edit schema/events.yaml, then apply changes:
+ingestkit schema apply
+```
+
+### For SDK Users (Sending Events)
+
+```bash
+# Install CLI
+pip install ingestkit
+
+# Initialize in your project
+cd your-app
+ingestkit init --python  # or --typescript
+
+# Generate type-safe client from server
+ingestkit generate --schema-url https://your-server.com/schema
+```
+
+### Alternative: Clone and Run
+
 ```bash
 git clone https://github.com/feat7/ingestkit.git
 cd ingestkit
-make setup
-make start
+make setup && make start
 ```
-*This automatically builds and starts all services: API (port 8080), Consumer, Redpanda, and PostgreSQL (port 5433). Everything runs in Docker with zero configuration needed.*
+*Starts all services: API (port 8080), Consumer, Redpanda, and PostgreSQL (port 5433).*
 
 ### 2. Send an Event
 ```bash
