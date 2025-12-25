@@ -47,7 +47,8 @@ func checkDockerComposeAvailable() error {
 // dockerCompose runs a docker compose command with the server compose file
 func dockerCompose(args ...string) error {
 	composePath := ".ingestkit/docker-compose.yaml"
-	fullArgs := append([]string{"compose", "-f", composePath}, args...)
+	// .env is in project root, not in .ingestkit/, so we need --env-file
+	fullArgs := append([]string{"compose", "-f", composePath, "--env-file", ".env"}, args...)
 
 	cmd := exec.Command("docker", fullArgs...)
 	cmd.Stdout = os.Stdout
@@ -60,7 +61,8 @@ func dockerCompose(args ...string) error {
 // dockerComposeOutput runs docker compose and returns output
 func dockerComposeOutput(args ...string) (string, error) {
 	composePath := ".ingestkit/docker-compose.yaml"
-	fullArgs := append([]string{"compose", "-f", composePath}, args...)
+	// .env is in project root, not in .ingestkit/, so we need --env-file
+	fullArgs := append([]string{"compose", "-f", composePath, "--env-file", ".env"}, args...)
 
 	cmd := exec.Command("docker", fullArgs...)
 	output, err := cmd.CombinedOutput()
