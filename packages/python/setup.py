@@ -14,7 +14,7 @@ import os
 import stat
 import sys
 
-VERSION = "0.1.0"
+VERSION = "0.1.7"
 BINARY_BASE_URL = "https://github.com/feat7/ingestkit/releases/download/v{version}"
 
 def get_platform_info():
@@ -64,7 +64,8 @@ def download_binary():
 
     os.makedirs(install_dir, exist_ok=True)
 
-    binary_path = os.path.join(install_dir, 'ingestkit')
+    # Use a different name for the Go binary to avoid conflicts with Python entry point
+    binary_path = os.path.join(install_dir, 'ingestkit-cli')
     if system_name == 'windows':
         binary_path += '.exe'
 
@@ -87,6 +88,7 @@ def download_binary():
         print(f"\n💡 Manual installation:")
         print(f"   Visit: https://github.com/feat7/ingestkit/releases/latest")
         print(f"   Download: {binary_name}")
+        print(f"   Rename to: ingestkit-cli")
         print(f"   Move to: {install_dir}")
         raise
 

@@ -155,5 +155,16 @@ examples/*/__pycache__/
 examples/*/node_modules/
 examples/*/ingestkit/
 
+# =============================================================================
+# Python Packages
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+.eggs/
+
 # Test artifacts
 tests/benchmarks/benchmark
