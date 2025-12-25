@@ -7,9 +7,10 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
-const VERSION = '0.1.0';
+// Read version from package.json
+const packageJson = require('../package.json');
+const VERSION = packageJson.version;
 const BINARY_BASE_URL = `https://github.com/feat7/ingestkit/releases/download/v${VERSION}`;
 
 function getPlatformInfo() {
@@ -48,7 +49,7 @@ function downloadBinary() {
   const binDir = path.join(__dirname, '..', 'bin');
   const binaryPath = path.join(binDir, systemName === 'windows' ? 'ingestkit.exe' : 'ingestkit');
 
-  console.log('📥 Downloading IngestKit CLI...');
+  console.log(`📥 Downloading IngestKit CLI v${VERSION}...`);
   console.log(`   From: ${binaryUrl}`);
   console.log(`   To: ${binaryPath}`);
 
@@ -78,7 +79,7 @@ function downloadBinary() {
             });
           });
         }).on('error', reject);
-      } else {
+      } else if (response.statusCode === 200) {
         response.pipe(file);
         file.on('finish', () => {
           file.close(() => {
@@ -92,6 +93,10 @@ function downloadBinary() {
             resolve();
           });
         });
+      } else {
+        file.close();
+        fs.unlink(binaryPath, () => {});
+        reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
       }
     }).on('error', (err) => {
       fs.unlink(binaryPath, () => {});  // Delete partial download
@@ -105,8 +110,13 @@ function downloadBinary() {
   });
 }
 
-// Run download
-downloadBinary().catch((err) => {
-  console.error('Installation failed:', err);
-  process.exit(1);
-});
+// Export for use by CLI wrapper
+module.exports = { downloadBinary, getPlatformInfo };
+
+// Run download if called directly
+if (require.main === module) {
+  downloadBinary().catch((err) => {
+    console.error('Installation failed:', err.message);
+    process.exit(1);
+  });
+}
