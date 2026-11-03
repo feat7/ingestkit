@@ -26,7 +26,14 @@ cd ingestkit
 make up
 ~~~
 
-Then send an event:
+For an isolated walkthrough that verifies stored IDs:
+
+~~~sh
+make demo
+make demo-recovery
+~~~
+
+Or send an event to the manually started stack:
 
 ~~~sh
 curl --fail-with-body http://localhost:8080/v1/events \

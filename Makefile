@@ -1,7 +1,7 @@
 # Supported replacement workflow; legacy helpers are removed after recovery verification.
 .PHONY: help up down logs test test-integration
 help:
-	@echo "make up | down | logs | test | test-integration"
+	@echo "make up | down | logs | test | test-integration | demo | demo-recovery"
 up:
 	docker compose up -d --build --wait
 down:
@@ -12,3 +12,9 @@ test:
 	go test -race ./...
 test-integration:
 	scripts/test-integration.sh
+
+.PHONY: demo demo-recovery
+demo:
+	scripts/demo.sh $(DEMO_FLAGS)
+demo-recovery:
+	scripts/demo-recovery.sh $(DEMO_FLAGS)
