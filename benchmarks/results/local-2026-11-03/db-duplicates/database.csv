@@ -1,0 +1,10 @@
+method,repetition,submitted,inserted,duplicates,elapsed_ns,correct
+insert,1,10000,9000,1000,13276936084,true
+batch-insert,1,10000,9000,1000,255948875,true
+copy-merge,1,10000,9000,1000,705096541,true
+batch-insert,2,10000,9000,1000,388610833,true
+copy-merge,2,10000,9000,1000,706170500,true
+insert,2,10000,9000,1000,13054436708,true
+copy-merge,3,10000,9000,1000,913675458,true
+insert,3,10000,9000,1000,10527874833,true
+batch-insert,3,10000,9000,1000,215062250,true
