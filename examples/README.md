@@ -2,6 +2,8 @@
 
 - [Checkout](checkout/README.md): copyable Python/Node HTTP clients, single/batch
   fixture CLIs, explicit CA trust and bounded stable-ID retries.
+- [Transactional outbox](outbox/README.md): atomically store a business order and
+  serialized event, then dispatch safely across process restarts.
 - [Backend integration guide](../docs/integration.md): import and use the clients
   from application code.
 - [HTTP contract](../docs/api.md): limits, responses, retries and persistence checks.

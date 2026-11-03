@@ -96,6 +96,9 @@ Public HTTPS uses the system CA roots. For an owned local deployment with a
 private CA, set `INGESTKIT_CA_FILE=/absolute/path/to/root.crt`; Python's `ca_file`
 and Node's `caFile` options provide the same trust. No certificate bypass is used.
 
+The [transactional outbox example](../examples/outbox/README.md) implements the
+order→dispatch→SQL workflow with SQLite, including a real after-ACK crash test.
+
 An HTTP send after committing your application's transaction still leaves a gap:
 the process can die between those operations. An application outbox closes that
 creation gap by saving the business row and serialized event in one local
