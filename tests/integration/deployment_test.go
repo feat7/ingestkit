@@ -357,3 +357,37 @@ func TestBackupRestoresIntoOwnedReplacement(t *testing.T) {
 	require.NoError(t, sourcePool.QueryRow(ctx, "SELECT count(*) FROM ingestkit.events WHERE event_id=$1", b.EventID.String()).Scan(&n))
 	require.Zero(t, n)
 }
+
+func TestReusableClientsThroughHTTPS(t *testing.T) {
+	s, ctx := deployment(t, true)
+	p := deploymentPool(t, ctx, s)
+	root, e := runenv.Root()
+	require.NoError(t, e)
+	events := []event.Input{freshEvent(), freshEvent(), freshEvent()}
+	raw, e := json.Marshal(map[string]any{"events": events})
+	require.NoError(t, e)
+	fixture := filepath.Join(t.TempDir(), "events.json")
+	require.NoError(t, os.WriteFile(fixture, raw, 0600))
+	baseEnv := append(os.Environ(), "API_URL="+s.APIURL, "INGESTKIT_API_KEY="+s.APIKey(), "INGESTKIT_CA_FILE="+filepath.Join(s.Directory, "root.crt"), "EVENTS_FILE="+fixture)
+	for _, language := range []struct{ binary, path string }{{"python3", "examples/checkout/send.py"}, {"node", "examples/checkout/send.mjs"}} {
+		for _, mode := range []string{"single", "batch"} {
+			cmd := exec.CommandContext(ctx, language.binary, language.path)
+			cmd.Dir = root
+			cmd.Env = append(baseEnv, "SEND_MODE="+mode)
+			out, e := cmd.CombinedOutput()
+			require.NoError(t, e, string(out))
+			require.Contains(t, string(out), "accepted")
+		}
+	}
+	// Verify the documented Python package import as well as direct-file CLIs.
+	cmd := exec.CommandContext(ctx, "python3", "-c", `import json,os; from examples.checkout.ingest_client import Client; c=Client(os.environ['API_URL'],os.environ['INGESTKIT_API_KEY'],ca_file=os.environ['INGESTKIT_CA_FILE']); c.send(json.load(open(os.environ['EVENTS_FILE']))['events'][0])`)
+	cmd.Dir = root
+	cmd.Env = baseEnv
+	out, e := cmd.CombinedOutput()
+	require.NoError(t, e, string(out))
+	ids := []uuid.UUID{}
+	for _, event := range events {
+		ids = append(ids, event.EventID)
+	}
+	require.NoError(t, waitForIDs(ctx, p, "default", ids))
+}
