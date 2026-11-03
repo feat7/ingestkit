@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/feat7/ingestkit/internal/benchmark"
 	"github.com/feat7/ingestkit/internal/event"
 	"github.com/feat7/ingestkit/internal/persistence"
 	"github.com/feat7/ingestkit/internal/runenv"
@@ -395,4 +396,31 @@ func TestReusableClientsThroughHTTPS(t *testing.T) {
 		ids = append(ids, event.EventID)
 	}
 	require.NoError(t, waitForIDs(ctx, p, "default", ids))
+}
+
+func TestSelfhostPipelineUsesTrustedHTTPS(t *testing.T) {
+	s, ctx := deployment(t, true)
+	p := deploymentPool(t, ctx, s)
+	client, e := s.HTTPClient()
+	require.NoError(t, e)
+	report, e := benchmark.RunPipeline(ctx, benchmark.PipelineConfig{Pool: p, HTTPClient: client, Namespace: "https-" + uuid.NewString(), APIURL: s.APIURL, APIKey: s.APIKey(), Tenant: "default", Rate: 20, Concurrency: 2, Duration: time.Second, Warmup: 100 * time.Millisecond, DrainDeadline: 15 * time.Second, PollInterval: 25 * time.Millisecond, BatchSize: 2, PayloadBytes: 128, Pattern: "steady", Seed: 98, Repetitions: 3})
+	require.NoError(t, e)
+	require.Len(t, report.Runs, 3)
+	for _, run := range report.Runs {
+		require.True(t, run.Correct)
+		require.Equal(t, 20, run.Persisted)
+		require.Positive(t, run.ObserverQueries)
+	}
+	manifest, e := benchmark.CaptureManifest(ctx, s, p)
+	require.NoError(t, e)
+	require.Equal(t, "1G", manifest.Settings["redpanda_memory"])
+	require.Equal(t, 1, manifest.Settings["redpanda_smp"])
+	require.Equal(t, true, manifest.Settings["api_tls"])
+	raw, e := json.Marshal(manifest)
+	require.NoError(t, e)
+	cfg, e := runenv.ReadDeploymentConfig(filepath.Join(s.Directory, "run.env"))
+	require.NoError(t, e)
+	for _, secret := range []string{s.APIKey(), cfg.WriterPassword, cfg.AdminPassword, "postgres://"} {
+		require.NotContains(t, string(raw), secret)
+	}
 }

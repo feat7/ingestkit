@@ -69,3 +69,50 @@ func TestVisibilityUsesObserverClockDomain(t *testing.T) {
 	require.True(t, r.Correct)
 	require.Equal(t, []int64{int64(7 * time.Millisecond)}, r.VisibilityNS)
 }
+
+func TestLateAckOutsideMeasuredWindow(t *testing.T) {
+	c := PipelineConfig{Rate: 10, Concurrency: 1, Duration: 100 * time.Millisecond, DrainDeadline: 20 * time.Millisecond, PollInterval: time.Millisecond, BatchSize: 1, PayloadBytes: 64, Pattern: "steady"}
+	send := func(context.Context, []uuid.UUID) sendResult {
+		time.Sleep(120 * time.Millisecond)
+		return sendResult{Accepted: true}
+	}
+	observe := func(_ context.Context, ids []uuid.UUID) ([]StoredObservation, error) {
+		return []StoredObservation{{ID: ids[0], ReceivedAt: time.Now().Add(-time.Second)}}, nil
+	}
+	r, e := runPipelineSample(context.Background(), c, 1, send, observe)
+	require.NoError(t, e)
+	require.Equal(t, 0, r.AcceptedInWindow)
+	require.Equal(t, 1, r.AcceptedAfterWindow)
+	require.Zero(t, r.AcceptedEPS)
+	require.Equal(t, "limited", r.Outcome)
+}
+func TestClientQueueTailClassified(t *testing.T) {
+	c := PipelineConfig{Rate: 100, Concurrency: 1, Duration: 30 * time.Millisecond, DrainDeadline: 20 * time.Millisecond, PollInterval: time.Millisecond, BatchSize: 1, PayloadBytes: 64, Pattern: "steady"}
+	send := func(context.Context, []uuid.UUID) sendResult {
+		time.Sleep(50 * time.Millisecond)
+		return sendResult{Accepted: true}
+	}
+	observe := func(_ context.Context, ids []uuid.UUID) ([]StoredObservation, error) {
+		out := []StoredObservation{}
+		for _, id := range ids {
+			out = append(out, StoredObservation{ID: id, ReceivedAt: time.Now().Add(-time.Second)})
+		}
+		return out, nil
+	}
+	r, e := runPipelineSample(context.Background(), c, 1, send, observe)
+	require.NoError(t, e)
+	require.Equal(t, 1, r.AttemptedInWindow)
+	require.Equal(t, 2, r.AttemptedAfterWindow)
+	require.Equal(t, 3, r.AcceptedAfterWindow)
+	require.Equal(t, "limited", r.Outcome)
+}
+
+func TestAmbiguousAbsenceIsUnknownAtDeadline(t *testing.T) {
+	c := PipelineConfig{Rate: 10, Concurrency: 1, Duration: 100 * time.Millisecond, DrainDeadline: 20 * time.Millisecond, PollInterval: time.Millisecond, BatchSize: 1, PayloadBytes: 64, Pattern: "steady"}
+	r, e := runPipelineSample(context.Background(), c, 1, func(context.Context, []uuid.UUID) sendResult { return sendResult{Ambiguous: true} }, func(context.Context, []uuid.UUID) ([]StoredObservation, error) { return nil, nil })
+	require.NoError(t, e)
+	require.True(t, r.Correct)
+	require.Equal(t, "limited", r.Outcome)
+	require.Equal(t, 1, r.AmbiguousUnobserved)
+	require.GreaterOrEqual(t, r.DrainNS, int64(c.DrainDeadline))
+}
