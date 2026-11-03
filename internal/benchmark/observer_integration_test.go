@@ -101,3 +101,33 @@ func TestIndependentReconciliationFindsMissingAndUnexpected(t *testing.T) {
 	require.Error(t, e)
 	require.Equal(t, 1, v.ContentMismatch)
 }
+
+func TestOutboxVerificationPreservesOtherOrderNamespaces(t *testing.T) {
+	ctx := context.Background()
+	p := observerPool(t)
+	tenant := "outbox-scope-" + uuid.NewString()
+	defer p.Exec(ctx, "DELETE FROM ingestkit.events WHERE tenant_id=$1", tenant)
+	events, e := Workload(WorkloadConfig{Count: 1, PayloadBytes: 128})
+	require.NoError(t, e)
+	events[0].TenantID = tenant
+	events[0].EventType = "order_completed"
+	events[0].Payload = []byte(`{"order_id":"wanted/0","amount_cents":1}`)
+	other := events[0]
+	other.EventID = uuid.New()
+	other.Payload = []byte(`{"order_id":"unrelated/0","amount_cents":2}`)
+	_, e = writeMethod(ctx, p, "batch-insert", append(events, other))
+	require.NoError(t, e)
+	v, e := VerifyOutboxRows(ctx, p, tenant, "wanted/", events, eventIDs(events))
+	require.NoError(t, e)
+	require.Equal(t, eventIDs(events), v.StoredIDs)
+	stranger := events[0]
+	stranger.EventID = uuid.New()
+	_, e = writeMethod(ctx, p, "batch-insert", []event.Envelope{stranger})
+	require.NoError(t, e)
+	v, e = VerifyOutboxRows(ctx, p, tenant, "wanted/", events, eventIDs(events))
+	require.Error(t, e)
+	require.Equal(t, 1, v.Unexpected)
+	var n int
+	require.NoError(t, p.QueryRow(ctx, "SELECT count(*) FROM ingestkit.events WHERE tenant_id=$1 AND event_id=$2", tenant, other.EventID.String()).Scan(&n))
+	require.Equal(t, 1, n)
+}

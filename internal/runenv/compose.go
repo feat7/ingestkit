@@ -297,3 +297,12 @@ func (s *Stack) CollectEvidence(ctx context.Context, directory string) error {
 	}
 	return nil
 }
+
+// KillConsumer is a fault-injection operation restricted to this owned project.
+func (s *Stack) KillConsumer(ctx context.Context) error {
+	if err := s.verifyOwner(ctx); err != nil {
+		return err
+	}
+	_, err := s.Compose(ctx, "kill", "-s", "KILL", "consumer")
+	return err
+}

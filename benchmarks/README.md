@@ -23,3 +23,96 @@ process-level fsync bypass enabled by dev-container mode. They do not establish
 performance for the corrected configuration. The current stack explicitly disables
 that bypass, and new manifests record the effective running-process setting.
 Rerun before making deployment-throughput claims; do not rewrite old raw samples.
+
+## Registered HTTPS study
+
+`make bench-study` runs 25 sequential configurations on an owned self-hosted
+HTTPS deployment. It starts private PostgreSQL/Redpanda dependencies and trusts
+the deployment's extracted local CA; it does not use a public ACME host or an
+external database. No Go installation is needed on a deployment server, but the
+local experiment driver requires Go, Docker Compose 2.24.4+, Python 3.9+ and
+OpenSSL. Commit source changes before a full run.
+
+~~~sh
+# Small correctness run: one database and one HTTPS pipeline case, three reps.
+make bench-study-smoke STUDY_FLAGS='-out tmp/studies/smoke-1 -seed 42'
+
+# Full timing/availability study: eleven DB, eleven pipeline, three recovery cases.
+make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42'
+
+# Resume an interrupted run using exactly its original source and controls.
+make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42 -resume'
+~~~
+
+The driver prints the chosen directory and each case's progress. A default
+invocation chooses a new ignored `tmp/studies/<UUID>` directory. Existing output
+is refused unless `-resume` is supplied. Study mode does not accept ad-hoc rate,
+payload or batch flags: those would silently change the registered comparison.
+Single-run database/pipeline commands remain available separately; their local
+development route is not the HTTPS study route.
+
+### Controls
+
+- Database: 5,000 submissions, three methods with rotated order, three measured
+  repetitions after warm-up. Batch sizes 1/10/50/100/500/1000; 1 KiB/16 KiB
+  payloads at batch100; 10/50/90% duplicates at batch100 and 256B.
+- Pipeline: ten-second windows, two-second warm-up, 30-second drain, 50 ms target
+  SQL polling, 32 clients, 256B and 1,000 offered events/s by default. Sweeps
+  cover batch1/10/100, rates100/5000/10000, payload1KiB/16KiB with batch10,
+  a first-quarter burst, and 8/64 clients with batch1. Compare larger payloads
+  with the 256B/batch10 control, not batch100.
+- Recovery: DB down at3s/restoration requested at8s during a15s500/s run;
+  consumer killed at3s/restarted at5s during the same workload; outbox100events
+  with the broker stopped for eight seconds, exceeding a one-attempt publish
+  deadline before replay. Each has three repetitions and recorded actual fault
+  timestamps. Docker command duration and group recovery can shift availability;
+  the figures must use actual observations, not the intended times.
+
+The new registry uses deterministic varied ASCII payloads, not repeated padding.
+Every case has its own namespace, recorded seed and exact byte controls. The
+owned profile fixes API rate limit10,000, broker1core/1GiB and seven-day topic
+retention independently of ambient shell variables; manifests verify actual
+settings. No service storage default is changed by the study.
+
+During the deliberate database outage, the SQL observer explicitly records an
+unavailable interval. It reconnects with remaining IDs after PostgreSQL returns;
+it never advances a timestamp cursor or invents visibility samples in that gap.
+Other pipeline SQL observation failures still invalidate the measurement. Final
+independent ID/content reconciliation remains mandatory. Request samples retain
+actual start/finish times and outcomes; backlog counts are reconstructed from
+actual ACK times even when a SQL query blocks the driver.
+
+### Artifacts and resume
+
+- `index.json` and `summary.csv`: readable case controls, status, summary, attempt
+  history and artifact checksums. `limited` is an observed driver/rejection/
+  ambiguity/observer limitation, not an attained capacity claim.
+- `manifest-N.json`: immutable, checksummed source/host/image/runtime provenance
+  for each execution session. Full source SHA, actual source-file fingerprint,
+  registry controls, image content/runtime config and host/runtime fingerprints
+  must match before a resume can append measurements.
+- `raw/<case>-attempt-N.json.gz`: every measured repetition/method, raw latency
+  and request/backlog samples, and ID population evidence. Gzip timestamps are
+  zero and compressed bytes are SHA-256 checked. Pipeline IDs use compact
+  submission indices plus namespace/seed/count; outbox UUIDs are explicit.
+- `resources-N.json.gz`: coarse owned-container snapshots, never an isolated
+  bottleneck measurement. The generator and observer share the physical host.
+- `journal.json`: atomic progress checkpoint. A partially completed case restarts
+  all three repetitions on a fresh owned stack, retaining the interrupted capture;
+  completed cases and their artifact bytes stay immutable. Source/config changes
+  require a new output directory. Existing unrelated data is preserved.
+
+Per-capture bounds are128MiB raw and64MiB compressed. Secret-bearing deployment
+configuration, CA files and private Docker/error evidence remain in the ignored
+owned run directory printed by the driver. They are not public result artifacts.
+Manifests retain exact image IDs. Resume identity compares content layers and
+runtime configuration while excluding only Compose's per-project image label,
+which changes the image config ID without changing its filesystem or execution.
+
+Smoke runs are correctness checks and may use an explicitly marked dirty source;
+they are never publication timing evidence. Full studies require clean committed
+inputs. Interrupt with Ctrl-C/SIGTERM for bounded owned cleanup. A hard process/
+host kill can leave resources: inspect its private run evidence and clean only
+that project, rather than using a global prune or measuring over an abandoned run.
+Full timing studies stay out of ordinary CI; CI exercises the small study and
+real recovery correctness cases.

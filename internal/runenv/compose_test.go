@@ -79,3 +79,8 @@ exit 0
 		})
 	}
 }
+
+func TestRunenvRejectsUnownedConsumerKill(t *testing.T) {
+	s := &Stack{Project: "ingestkit-unowned"}
+	require.Error(t, s.KillConsumer(context.Background()))
+}

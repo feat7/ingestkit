@@ -20,3 +20,6 @@ coverage.*
 **/*.db-*
 **/*.sqlite
 **/*.sqlite-*
+# Private environment variants; checked-in examples remain public.
+**/.env.*
+!**/.env.example

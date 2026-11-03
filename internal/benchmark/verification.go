@@ -24,12 +24,26 @@ func VerifyPipelineRows(ctx context.Context, p *pgxpool.Pool, tenant string, exp
 	if len(expected) == 0 {
 		return v, errors.New("no expected pipeline dataset")
 	}
-	want := expectedEvents(expected)
-	ids := make([]uuid.UUID, 0, len(want))
-	for id := range want {
-		ids = append(ids, id)
+	ids := make([]uuid.UUID, len(expected))
+	for i, e := range expected {
+		ids[i] = e.EventID
 	}
-	rows, err := p.Query(ctx, "SELECT event_id,event_type,occurred_at,payload FROM ingestkit.events WHERE tenant_id=$1 AND (event_type=$2 OR event_id=ANY($3::uuid[]))", tenant, expected[0].EventType, ids)
+	return verifySelectedRows(ctx, p, expected, required, "SELECT event_id,event_type,occurred_at,payload FROM ingestkit.events WHERE tenant_id=$1 AND (event_type=$2 OR event_id=ANY($3::uuid[]))", tenant, expected[0].EventType, ids)
+}
+func VerifyOutboxRows(ctx context.Context, p *pgxpool.Pool, tenant, prefix string, expected []event.Envelope, required []uuid.UUID) (PipelineVerification, error) {
+	if len(expected) == 0 || prefix == "" {
+		return PipelineVerification{}, errors.New("missing outbox namespace")
+	}
+	ids := make([]uuid.UUID, len(expected))
+	for i, e := range expected {
+		ids[i] = e.EventID
+	}
+	return verifySelectedRows(ctx, p, expected, required, "SELECT event_id,event_type,occurred_at,payload FROM ingestkit.events WHERE tenant_id=$1 AND (event_id=ANY($2::uuid[]) OR left(payload->>'order_id',char_length($3))=$3)", tenant, ids, prefix)
+}
+func verifySelectedRows(ctx context.Context, p *pgxpool.Pool, expected []event.Envelope, required []uuid.UUID, query string, args ...any) (PipelineVerification, error) {
+	var v PipelineVerification
+	want := expectedEvents(expected)
+	rows, err := p.Query(ctx, query, args...)
 	if err != nil {
 		return v, err
 	}

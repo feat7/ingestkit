@@ -73,7 +73,7 @@ func (s *Stack) prepareDeployment(ctx context.Context, o Options) error {
 		reservations = append(reservations, l)
 		ports[i] = l.Addr().(*net.TCPAddr).Port
 	}
-	s.env = []string{fmt.Sprintf("INGESTKIT_HTTP_PORT=%d", ports[0]), fmt.Sprintf("INGESTKIT_HTTPS_PORT=%d", ports[1]), fmt.Sprintf("POSTGRES_PORT=%d", ports[2]), fmt.Sprintf("METRICS_PORT=%d", ports[3]), fmt.Sprintf("INGESTKIT_BROKER_PORT=%d", ports[4]), "INGESTKIT_REPO_ROOT=" + s.root, "INGESTKIT_RUN_ID=" + s.token}
+	s.env = []string{fmt.Sprintf("INGESTKIT_HTTP_PORT=%d", ports[0]), fmt.Sprintf("INGESTKIT_HTTPS_PORT=%d", ports[1]), fmt.Sprintf("POSTGRES_PORT=%d", ports[2]), fmt.Sprintf("METRICS_PORT=%d", ports[3]), fmt.Sprintf("INGESTKIT_BROKER_PORT=%d", ports[4]), "INGESTKIT_REPO_ROOT=" + s.root, "INGESTKIT_RUN_ID=" + s.token, "RATE_LIMIT_RPS=10000", "LOG_LEVEL=info", "RETENTION_MS=604800000", "CONSUMER_GROUP=ingestkit-consumer"}
 	cfg = append(cfg, []byte(strings.Join(s.env, "\n")+"\n")...)
 	if err = os.WriteFile(filepath.Join(s.Directory, "run.env"), cfg, 0600); err != nil {
 		return err

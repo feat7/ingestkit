@@ -1,7 +1,7 @@
 # Local service, demonstration and experiment commands.
 .PHONY: help up down logs test test-integration
 help:
-	@echo "make up | down | logs | test | test-integration | demo | demo-recovery | bench-db | bench-pipeline"
+	@echo "make up | down | logs | test | test-integration | demo | demo-recovery | bench-db | bench-pipeline | bench-study | bench-study-smoke"
 up:
 	docker compose up -d --build --wait
 down:
@@ -26,3 +26,9 @@ bench-db:
 .PHONY: bench-pipeline
 bench-pipeline:
 	go run ./cmd/bench -mode pipeline $(BENCH_FLAGS)
+
+.PHONY: bench-study bench-study-smoke
+bench-study:
+	go run ./cmd/bench -mode study $(STUDY_FLAGS)
+bench-study-smoke:
+	go run ./cmd/bench -mode study -smoke $(STUDY_FLAGS)
