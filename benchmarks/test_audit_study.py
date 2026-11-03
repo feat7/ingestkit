@@ -61,6 +61,20 @@ class ArtifactAuditTests(unittest.TestCase):
         changed=copy.deepcopy(rows);changed[-1]['Case']['RestoreAt']=1
         with self.assertRaises(audit.AuditError): audit.validate_registry(changed,'full')
 
+    def test_runtime_controls_reject_relaxed_durability_or_route(self):
+        m=dict(source_sha='a'*40,broker_fsync_bypass=False,
+               database=dict(fsync='on',synchronous_commit='on',full_page_writes='on',server_version='18.6'),
+               settings=dict(api_tls=True,api_route='https_gateway',tls_version='TLS 1.3',
+                             api_rate_limit_rps=10000,api_log_level='info',redpanda_memory='1G',redpanda_smp=1),
+               TopicConfiguration='NAME ingestkit.events PARTITIONS 3 REPLICAS 1\nwrite.caching false\nretention.ms 604800000\nNAME ingestkit.dlq PARTITIONS 1 REPLICAS 1\nwrite.caching false\nretention.ms 604800000\n')
+        audit.validate_manifest(m,dict(SourceSHA='a'*40))
+        for field,value in [('broker_fsync_bypass',True),('TopicConfiguration',m['TopicConfiguration'].replace('write.caching false','write.caching true',1))]:
+            bad=copy.deepcopy(m);bad[field]=value
+            with self.assertRaises(audit.AuditError):audit.validate_manifest(bad,dict(SourceSHA='a'*40))
+        for group,field,value in [('settings','api_route','direct_http'),('settings','api_tls',False),('database','synchronous_commit','off')]:
+            bad=copy.deepcopy(m);bad[group][field]=value
+            with self.assertRaises(audit.AuditError):audit.validate_manifest(bad,dict(SourceSHA='a'*40))
+
     def test_population_indices(self):
         group={'Namespace':'n','Seed':42,'Count':2,'Indices':{'accepted':[0,1]}}
         self.assertEqual(len(audit.populations(group)['accepted']),2)

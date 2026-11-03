@@ -1,5 +1,7 @@
 # Experiments
 
+Read the [corrected self-hosted study](results/selfhost-2026-11-04/README.md) for all25 configurations, all repetitions and explicit limits, including ambiguous outcomes. The [earlier COPY-writer reference](results/selfhost-copy-2026-11-04/README.md) is preserved separately.
+
 Run `make bench-db` with Docker running. Each invocation creates and destroys its own local stack, prints an evidence directory, and writes every measured repetition to JSON/CSV. No external database is accepted by the CLI.
 
 Defaults: 10,000 submitted events, 256-byte JSON payload, 10% duplicate submissions, batch size 100, three repetitions after warm-up. Override via `BENCH_FLAGS='-count 1000 -batch 50 -duplicates 0'`. Single INSERT commits every row; batch INSERT and the explicit COPY/staging/merge reference commit every batch. All use the same table, indexes, conflict policy and database settings. These transaction boundaries are part of the experiment.

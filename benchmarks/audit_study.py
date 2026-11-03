@@ -145,6 +145,26 @@ def registered_cases(mode):
 def validate_registry(rows, mode):
     check([r['Case'] for r in rows]==registered_cases(mode),'registered cases or controls differ')
 
+def validate_manifest(value, identity):
+    check(value['source_sha']==identity['SourceSHA'] and value['broker_fsync_bypass'] is False,
+          'manifest revision/durability differs')
+    settings=value['settings']
+    check(settings['api_tls'] is True and settings['api_route']=='https_gateway'
+          and settings['tls_version'] in ('TLS 1.2','TLS 1.3')
+          and settings['redpanda_memory']=='1G' and settings['redpanda_smp']==1
+          and settings['api_rate_limit_rps']==10000 and settings['api_log_level']=='info',
+          'runtime controls differ')
+    check(all(value['database'][key]=='on' for key in ('fsync','synchronous_commit','full_page_writes'))
+          and value['database']['server_version']=='18.6','database durability/version differs')
+    topics=value['TopicConfiguration']
+    caching=re.findall(r'^write\.caching\s+(\S+)',topics,re.M)
+    retention=re.findall(r'^retention\.ms\s+(\S+)',topics,re.M)
+    check(len(caching)>=2 and set(caching)=={'false'},'topic write caching differs')
+    check(len(retention)>=2 and set(retention)=={'604800000'},'topic retention differs')
+    for name,partitions in (('ingestkit.events',3),('ingestkit.dlq',1)):
+        check(re.search(r'NAME\s+'+re.escape(name)+r'\s+PARTITIONS\s+'+str(partitions)+r'\s+REPLICAS\s+1',topics),
+              'topic partition/replica controls differ')
+
 def audit(directory, allow_smoke=False, secrets=()):
     root=Path(directory);index=json.loads((root/"index.json").read_text())
     check(index["Schema"]==1 and index["Status"]=="complete", "study is incomplete")
@@ -158,9 +178,7 @@ def audit(directory, allow_smoke=False, secrets=()):
     for ref in index["MetadataArtifacts"]+index["Resources"]:
         value=read_artifact(root,ref,secrets)
         if ref.get("Codec")=="json":
-            check(value["source_sha"]==identity["SourceSHA"] and value["broker_fsync_bypass"] is False, "manifest revision/durability differs")
-            check(value["settings"]["api_tls"] is True and value["settings"]["redpanda_memory"]=="1G" and value["settings"]["redpanda_smp"]==1, "runtime controls differ")
-            check(all(value["database"][key]=="on" for key in ("fsync","synchronous_commit")), "database durability differs")
+            validate_manifest(value,identity)
     cases=index["Cases"];validate_registry(cases,mode);check(len(cases)==(25 if mode=="full" else 2), "registry cardinality differs")
     check(len({row["Case"]["ID"] for row in cases})==len(cases), "duplicate case ID")
     totals={"database_runs":0,"pipeline_runs":0,"recovery_runs":0,"limited_cases":0}
