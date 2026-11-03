@@ -71,5 +71,12 @@ func run(ctx context.Context) error {
 	}
 	end, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return service.Drain(end, func(c context.Context) error { _ = listener.Close(); return app.ShutdownWithContext(c) }, p.Flush, p.Close)
+	return service.Drain(end, func(c context.Context) error {
+		err := app.ShutdownWithContext(c)
+		_ = listener.Close()
+		if errors.Is(err, net.ErrClosed) {
+			return nil
+		}
+		return err
+	}, p.Flush, p.Close)
 }

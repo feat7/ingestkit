@@ -22,3 +22,9 @@ func TestRunenvDiscoversDynamicPorts(t *testing.T) {
 	require.Equal(t, "http://127.0.0.1:12345", apiAddress("127.0.0.1:12345\n"))
 	require.NotEqual(t, projectName("test"), projectName("test"))
 }
+
+func TestRunenvRejectsChangedProjectIdentity(t *testing.T) {
+	s := &Stack{Project: "ingestkit-other", identity: "ingestkit-original", token: "owner", owned: true}
+	_, err := s.Compose(context.Background(), "logs")
+	require.ErrorContains(t, err, "identity")
+}

@@ -57,7 +57,7 @@ func NewReader(c ReaderConfig, s BatchStore, m *telemetry.Metrics) (*Reader, err
 	if len(c.Brokers) == 0 || c.Topic == "" || c.DLQTopic == "" || c.GroupID == "" || s == nil || c.BatchSize < 1 || c.BatchSize > 500 || c.AttemptTimeout <= 0 || c.RetryWindow <= 0 || c.RetryWindow > 15*time.Second || c.BackoffMin <= 0 || c.BackoffMax < c.BackoffMin {
 		return nil, errors.New("invalid reader configuration")
 	}
-	client, err := kgo.NewClient(kgo.SeedBrokers(c.Brokers...), kgo.ConsumerGroup(c.GroupID), kgo.ConsumeTopics(c.Topic), kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()), kgo.DisableAutoCommit(), kgo.BlockRebalanceOnPoll(), kgo.RebalanceTimeout(60*time.Second), kgo.FetchMaxBytes(4<<20), kgo.FetchMaxPartitionBytes(4<<20), kgo.MaxConcurrentFetches(1))
+	client, err := kgo.NewClient(kgo.SeedBrokers(c.Brokers...), kgo.ConsumerGroup(c.GroupID), kgo.ConsumeTopics(c.Topic), kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()), kgo.DisableAutoCommit(), kgo.BlockRebalanceOnPoll(), kgo.RebalanceTimeout(60*time.Second), kgo.SessionTimeout(10*time.Second), kgo.FetchMaxBytes(4<<20), kgo.FetchMaxPartitionBytes(4<<20), kgo.MaxConcurrentFetches(1))
 	if err != nil {
 		return nil, err
 	}
