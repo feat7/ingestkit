@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "event_id": "00000000-0000-4000-8000-000000000001",
+      "event_type": "product_viewed",
+      "occurred_at": "2026-11-03T00:00:00Z",
+      "payload": {
+        "session_id": "checkout-1",
+        "product_id": "book",
+        "amount": 25
+      }
+    },
+    {
+      "event_id": "00000000-0000-4000-8000-000000000002",
+      "event_type": "checkout_started",
+      "occurred_at": "2026-11-03T00:00:00Z",
+      "payload": {
+        "session_id": "checkout-1",
+        "product_id": "book",
+        "amount": 25
+      }
+    },
+    {
+      "event_id": "00000000-0000-4000-8000-000000000003",
+      "event_type": "order_completed",
+      "occurred_at": "2026-11-03T00:00:00Z",
+      "payload": {
+        "session_id": "checkout-1",
+        "product_id": "book",
+        "amount": 25
+      }
+    }
+  ]
+}
