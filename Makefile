@@ -18,3 +18,7 @@ demo:
 	scripts/demo.sh $(DEMO_FLAGS)
 demo-recovery:
 	scripts/demo-recovery.sh $(DEMO_FLAGS)
+
+.PHONY: bench-db
+bench-db:
+	go run ./cmd/bench $(BENCH_FLAGS)

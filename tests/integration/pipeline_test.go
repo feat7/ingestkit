@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 		code = 1
 	} else {
 		root, _ := runenv.Root()
-		cmd := exec.CommandContext(ctx, "go", "test", "-race", "-tags=integration", "./internal/persistence", "./internal/messaging", "-count=1")
+		cmd := exec.CommandContext(ctx, "go", "test", "-race", "-tags=integration", "./internal/persistence", "./internal/messaging", "./internal/benchmark", "-count=1")
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "INGESTKIT_TEST_DATABASE_URL="+stack.DatabaseURL, "INGESTKIT_TEST_BROKER="+stack.Brokers)
 		out, e := cmd.CombinedOutput()
