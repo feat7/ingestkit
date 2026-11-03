@@ -10,7 +10,7 @@
 
 **Spec:** docs/superpowers/specs/2026-11-03-self-hosted-ingestion-design.md (approved 4 November 2026; native execution already selected).
 
-**Status:** Ready for native execution in the existing feat/self-hosted-ingestion worktree. The fsync correction and historical-results erratum are already committed in3ca1a41, followed by reviewed design641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
+**Status:** Ready for native execution in the existing feat/self-hosted-ingestion worktree. The fsync correction and historical-results erratum are already committed in 3ca1a41, followed by reviewed design 641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
 
 ## Global Constraints
 
@@ -41,7 +41,7 @@
 - internal/benchmark/: deterministic profiles/namespace, incremental observer, valid rate accounting,25-case registry, journal, compressed artifacts and recovery orchestration.
 - cmd/bench/: existing single-run modes plus study CLI; docs/assets + figure sources: derived outputs; docs/: short reader paths and article.
 
-### Task1: Safe first-use deployment configuration
+### Task 1: Safe first-use deployment configuration
 
 **Files:** Create deploy/configure.sh, deploy/.env.example, deploy/README.md, internal/runenv/deployment_config.go and deployment_config_test.go; update .gitignore/.dockerignore if needed.
 
@@ -53,7 +53,7 @@
 - [ ] **4. Verify:** go test -race ./internal/runenv and go test -race ./...; expected all pass. Inspect generated non-secret field names, never dump credentials. Document configuration command only; full deployment commands arrive with Task2.
 - [ ] **5. Commit:** feat: generate safe self-hosted deployment configuration.
 
-### Task2: Actual HTTPS deployment, private services and restricted writer
+### Task 2: Actual HTTPS deployment, private services and restricted writer
 
 **Files:** Create deploy/compose.yml, deploy/Caddyfile, deploy/roles.sql; extend internal/runenv/compose.go, create deployment.go and deployment integration checks under tests/integration/deployment_test.go; add owned override fixtures under tests/fixtures/deployment/; update deploy/README.md and CI test invocation/time budget as required.
 
@@ -65,7 +65,7 @@
 - [ ] **4. Verify** complete real integration suite, unit/race, vet/build, real rendered Compose config and image-build context exclusion using a nested credential canary. No manual source-text assertion replaces actual published-port/role/TLS checks. Document clone→configure→up→send→SQL verification→volume-preserving down and the public-domain80/443 prerequisite.
 - [ ] **5. Commit:** feat: deploy the collector behind HTTPS with private dependencies.
 
-### Task3: Operator diagnostics, credential refresh and verified restore
+### Task 3: Operator diagnostics, credential refresh and verified restore
 
 **Files:** Create internal/service/diagnostics.go/diagnostics_test.go; wire cmd/consumer/main.go; extend tests/integration/deployment_test.go; create docs/operations.md; finish deployment operator links.
 
@@ -77,7 +77,7 @@
 - [ ] **4. Verify** targeted tests plus full integration and race suite. Exercise the written backup/restore and configuration-recreate commands on owned resources. Preserve existing supervisor/drain semantics.
 - [ ] **5. Commit:** feat: expose safe operation diagnostics and verified recovery procedures.
 
-### Task4: Importable application HTTP clients and API guide
+### Task 4: Importable application HTTP clients and API guide
 
 **Files:** Create examples/checkout/ingest_client.py, ingest-client.mjs and standard-library tests; refactor send.py/send.mjs; add minimal Python package markers as needed; create docs/integration.md and docs/api.md; update examples/README.md, checkout README and CI.
 
@@ -89,7 +89,7 @@
 - [ ] **4. Verify** both language suites, real integration contract checks, Go race suite and documented import/CLI commands. CI runs language suites after installing its existing Node version.
 - [ ] **5. Commit:** feat: provide reusable Python and Node ingestion clients.
 
-### Task5: Durable application outbox example
+### Task 5: Durable application outbox example
 
 **Files:** Create examples/outbox/{app.py,__main__.py,__init__.py,schema.sql,test_outbox.py,README.md}; add tests/integration/outbox_test.go and test-only crash wrapper; extend integration guide.
 
@@ -101,7 +101,7 @@
 - [ ] **4. Verify** Python/client suites, Go race and full real integration; run documented order→dispatch→collector SQL workflow over HTTPS with the private CA.
 - [ ] **5. Commit:** feat: demonstrate durable application delivery with a transactional outbox.
 
-### Task6: Measurement integrity before scaling experiments
+### Task 6: Measurement integrity before scaling experiments
 
 **Files:** Extend internal/benchmark/workload.go, database.go, pipeline.go/results.go/manifest.go and tests; create observer.go/observer_integration_test.go; update benchmark methodology.
 
@@ -113,7 +113,7 @@
 - [ ] **4. Verify** full Go race/vet/build and real observer/pipeline correctness checks. Capture no credentials when inspecting actual settings. Maintain historical report readers; do not edit historical raw captures.
 - [ ] **5. Commit:** fix: make expanded ingestion measurements reproducible and commit-aware.
 
-### Task7: Owned25-case study runner, journal and recovery experiments
+### Task 7: Owned25-case study runner, journal and recovery experiments
 
 **Files:** Create internal/benchmark/{cases,study,recovery,artifacts}.go and tests; extend cmd/bench/main.go and Makefile; add small integration smoke and benchmark guide.
 
@@ -125,7 +125,7 @@
 - [ ] **4. Verify** registry/journal/artifact unit tests, race suite, full integration including new study smoke and all three recovery cases. Document full versus smoke commands and resume behavior. Commit the entire harness before measurements.
 - [ ] **5. Commit:** feat: run reproducible self-hosted ingestion studies and recovery experiments.
 
-### Task8: Execute and audit corrected experimental evidence
+### Task 8: Execute and audit corrected experimental evidence
 
 **Files:** Add bounded captures under benchmarks/results/selfhost-2026-11-04/ with index, manifests, raw artifacts, checksums and methodology; update results links only after validation.
 
@@ -137,7 +137,7 @@
 - [ ] **4. Verify** study artifacts against raw samples and manifest schema; integration/measurement code remains tested. No headline capacity, cost, public-TLS issuance or production-adoption claims. Old development-mode captures remain historical.
 - [ ] **5. Commit:** bench: record corrected self-hosted ingestion experiments.
 
-### Task9: Readable code-backed diagrams and evidence figures
+### Task 9: Readable code-backed diagrams and evidence figures
 
 **Files:** Add figure sources under docs/figures/, generated deployment.svg, delivery.svg, database-batching.svg, pipeline-load.svg and recovery.svg under docs/assets/; refactor benchmarks/plot_results.py to consume the study index and write reproducible SVG/PNG. Keep Archify candidate/HTML evidence in ignored artifact folders unless a small source is needed for reproduction.
 
@@ -149,7 +149,7 @@
 - [ ] **4. Verify** deterministic regeneration, SVG validity and relevant artifact/browser gates. Editorial/generated-asset work earns visual/data checks rather than source-text unit tests.
 - [ ] **5. Commit:** docs: illustrate deployment integration and ingestion tradeoffs clearly.
 
-### Task10: Reader documentation, article and final branch review
+### Task 10: Reader documentation, article and final branch review
 
 **Files:** Rewrite README.md, docs/{architecture,delivery,development,integration,api,operations,article}.md, deploy/README.md, examples docs, benchmarks guide and publication/resume drafts; update plan/spec verification notes.
 

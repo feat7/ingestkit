@@ -11,3 +11,7 @@ bin/
 *.log
 coverage.*
 .DS_Store
+# Self-hosted private runtime/configuration data
+**/backups/
+**/private/
+.archify/

@@ -1,6 +1,6 @@
 # Self-hosted IngestKit: deployment, integration and experimental evidence
 
-Status: approved4November2026. Native execution remains the user's chosen method.
+Status: approved 4 November 2026. Native execution remains the user's chosen method.
 This extends the completed showcase rather than replacing the collector again.
 
 ## Intent and user decisions

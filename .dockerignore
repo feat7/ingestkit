@@ -13,3 +13,9 @@ tests
 examples
 scripts
 bin
+**/.env
+**/.env.*
+**/backups
+**/private
+.archify
+.worktrees
