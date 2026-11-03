@@ -1,0 +1,121 @@
+name: ingestkit
+x-labels: &labels
+  io.ingestkit.run: ${INGESTKIT_RUN_ID:-manual}
+services:
+  gateway:
+    image: caddy:2.11.7-alpine
+    labels: *labels
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN required; run deploy/configure.sh}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+  postgres:
+    image: postgres:18.6-alpine
+    labels: *labels
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ingestkit_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD required}
+      POSTGRES_DB: ingestkit
+    volumes: ["postgres_data:/var/lib/postgresql"]
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, ingestkit_admin, -d, ingestkit]
+      interval: 1s
+      timeout: 2s
+      retries: 40
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.6
+    labels: *labels
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --unsafe-bypass-fsync=false
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --kafka-addr=internal://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:9092
+    volumes: ["redpanda_data:/var/lib/redpanda/data"]
+    healthcheck:
+      test: [CMD, rpk, cluster, info, -X, brokers=localhost:9092]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+  topics:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.6
+    labels: *labels
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - rpk topic create ingestkit.events --if-not-exists -p 3 -r 1 -c write.caching=false -c retention.ms=${RETENTION_MS:-604800000} -c max.message.bytes=524288 -X brokers=redpanda:9092 && rpk topic create ingestkit.dlq --if-not-exists -p 1 -r 1 -c write.caching=false -c retention.ms=${RETENTION_MS:-604800000} -c max.message.bytes=2097152 -X brokers=redpanda:9092 && rpk topic alter-config ingestkit.events ingestkit.dlq --set write.caching=false -X brokers=redpanda:9092
+    depends_on:
+      redpanda: {condition: service_healthy}
+  migrate:
+    image: migrate/migrate:v4.20.1
+    labels: *labels
+    volumes: ["../migrations/showcase:/migrations:ro"]
+    command: ["-path=/migrations", "-database=postgres://ingestkit_admin:${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD required}@postgres:5432/ingestkit?sslmode=disable&search_path=public&x-migrations-table=ingestkit_schema_migrations", up]
+    depends_on:
+      postgres: {condition: service_healthy}
+  roles:
+    image: postgres:18.6-alpine
+    labels: *labels
+    environment:
+      PGPASSWORD: ${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD required}
+      POSTGRES_WRITER_PASSWORD: ${POSTGRES_WRITER_PASSWORD:?POSTGRES_WRITER_PASSWORD required}
+    volumes: ["./roles.sql:/roles.sql:ro"]
+    entrypoint: [psql, -h, postgres, -U, ingestkit_admin, -d, ingestkit, -v, ON_ERROR_STOP=1, -f, /roles.sql]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  api:
+    build: {context: .., dockerfile: Dockerfile.api}
+    labels: *labels
+    restart: unless-stopped
+    environment:
+      HTTP_ADDR: :8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      BROKERS: redpanda:9092
+      API_KEYS: ${API_KEYS:?API_KEYS required}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-10000}
+    depends_on:
+      topics: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, /api, check]
+      interval: 1s
+      timeout: 3s
+      retries: 40
+    stop_grace_period: 12s
+  consumer:
+    build: {context: .., dockerfile: Dockerfile.consumer}
+    labels: *labels
+    restart: unless-stopped
+    environment:
+      METRICS_ADDR: :8081
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      BROKERS: redpanda:9092
+      DATABASE_URL: postgres://ingestkit_writer:${POSTGRES_WRITER_PASSWORD:?POSTGRES_WRITER_PASSWORD required}@postgres:5432/ingestkit?sslmode=disable
+    depends_on:
+      topics: {condition: service_completed_successfully}
+      roles: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, /consumer, check]
+      interval: 1s
+      timeout: 3s
+      retries: 40
+    stop_grace_period: 12s
+volumes:
+  postgres_data:
+    labels: *labels
+  redpanda_data:
+    labels: *labels
+  caddy_data:
+    labels: *labels
+  caddy_config:
+    labels: *labels

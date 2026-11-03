@@ -16,12 +16,17 @@ import (
 	"time"
 )
 
-type Options struct{ Purpose, OutputDirectory string }
+type Options struct {
+	Purpose, OutputDirectory, Profile string
+	ExposeDependencies                bool
+}
 type Stack struct {
 	APIURL, ConsumerURL, DatabaseURL, Brokers, Project, Directory string
 	root, token, identity                                         string
 	env                                                           []string
 	owned                                                         bool
+	profile, caPath                                               string
+	exposeDependencies                                            bool
 }
 
 func projectName(purpose string) string {
@@ -52,6 +57,12 @@ func Root() (string, error) {
 }
 func (s *Stack) composeArgs(args ...string) []string {
 	base := []string{"compose", "--project-directory", s.root, "-p", s.Project, "-f", filepath.Join(s.root, "docker-compose.yml")}
+	if s.profile == "selfhost" {
+		base = []string{"compose", "--project-directory", filepath.Join(s.root, "deploy"), "-p", s.Project, "-f", filepath.Join(s.root, "deploy/compose.yml"), "-f", filepath.Join(s.root, "tests/fixtures/deployment/local.yml")}
+		if s.exposeDependencies {
+			base = append(base, "-f", filepath.Join(s.root, "tests/fixtures/deployment/probes.yml"))
+		}
+	}
 	if s.Directory != "" {
 		base = append(base, "--env-file", filepath.Join(s.Directory, "run.env"))
 	}
@@ -61,6 +72,14 @@ func (s *Stack) docker(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	cmd.Dir = s.root
 	cmd.Env = append(os.Environ(), s.env...)
+	if s.profile == "selfhost" {
+		cfg, e := ReadDeploymentConfig(filepath.Join(s.Directory, "run.env"))
+		if e != nil {
+			return "", e
+		}
+		keys, _ := json.Marshal(cfg.APIKeys)
+		cmd.Env = append(cmd.Env, "DOMAIN="+cfg.Domain, "API_KEYS="+string(keys), "POSTGRES_ADMIN_PASSWORD="+cfg.AdminPassword, "POSTGRES_WRITER_PASSWORD="+cfg.WriterPassword)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		tail := string(out)
@@ -81,6 +100,12 @@ func (s *Stack) Compose(ctx context.Context, args ...string) (string, error) {
 var errStartupCleanup = errors.New("startup cleanup failed")
 
 func Start(ctx context.Context, o Options) (*Stack, error) {
+	if o.Profile != "" && o.Profile != "development" && o.Profile != "selfhost" {
+		return nil, errors.New("unsupported deployment profile")
+	}
+	if o.ExposeDependencies && o.Profile != "selfhost" {
+		return nil, errors.New("dependency probes require selfhost profile")
+	}
 	root, err := Root()
 	if err != nil {
 		return nil, err
@@ -127,6 +152,17 @@ func startAttempt(ctx context.Context, root string, o Options) (result *Stack, e
 	}
 	if err = os.MkdirAll(s.Directory, 0700); err != nil {
 		return nil, err
+	}
+	if o.Profile == "selfhost" {
+		if err = s.prepareDeployment(ctx, o); err != nil {
+			return nil, err
+		}
+		resourcesMayExist = true
+		err = s.startDeployment(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s, nil
 	}
 	var reservations []net.Listener
 	var ports []int

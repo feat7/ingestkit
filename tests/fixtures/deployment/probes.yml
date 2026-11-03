@@ -1,0 +1,18 @@
+# Loopback observers for owned tests and measurements only.
+services:
+  postgres:
+    ports: ["127.0.0.1:${POSTGRES_PORT}:5432"]
+  consumer:
+    ports: ["127.0.0.1:${METRICS_PORT}:8081"]
+  redpanda:
+    command: !override
+      - redpanda
+      - start
+      - --overprovisioned
+      - --unsafe-bypass-fsync=false
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:${INGESTKIT_BROKER_PORT}
+    ports: ["127.0.0.1:${INGESTKIT_BROKER_PORT}:19092"]
