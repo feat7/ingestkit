@@ -1,184 +1,69 @@
 # IngestKit
 
-> **High-Performance Event Ingestion System**
+A small event pipeline in Go for exploring acknowledgement, batching, duplicate
+delivery, and recovery.
 
-[![Release](https://img.shields.io/github/v/release/feat7/ingestkit)](https://github.com/feat7/ingestkit/releases)
-[![CI](https://github.com/feat7/ingestkit/actions/workflows/release.yml/badge.svg)](https://github.com/feat7/ingestkit/actions)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/ingestkit)](https://pypi.org/project/ingestkit/)
-[![npm](https://img.shields.io/npm/v/ingestkit)](https://www.npmjs.com/package/ingestkit)
+Send an event over HTTP, buffer it in Redpanda, and store it in PostgreSQL with
+the same UUID. The interesting part is what happens when a dependency fails.
 
-Handle **30k+ events/sec** on a $14 server with zero data loss. Schema-first design with auto-generated type-safe SDKs.
+~~~mermaid
+flowchart LR
+  A[Application] -->|JSON + stable UUID| B[Go API]
+  B -->|broker acknowledgement| C[Redpanda]
+  C --> D[Go consumer]
+  D -->|COPY + idempotent merge| E[(PostgreSQL)]
+  D -->|invalid broker record| F[Quarantine topic]
+~~~
 
----
+## Run locally
 
-## Quick Start
+Requires Docker with Compose v2. Go 1.24+ is needed for development and the
+automated demonstrations.
 
-### Install
-
-```bash
-pip install ingestkit
-```
-Or: `npm install -g ingestkit`
-
-### Run Server
-
-```bash
-ingestkit init --server
-ingestkit server start
-```
-
-That's it! Server running at `http://localhost:8080`
-
-### Send Events
-
-```bash
-curl -X POST http://localhost:8080/v1/events/user_signup \
-  -H "Authorization: Bearer dev_key_1234567890" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "123", "email": "user@example.com"}'
-```
-
----
-
-## Features
-
-- **30,000+ RPS** on a single $14/month server
-- **Zero Data Loss** with Kafka-compatible buffering (Redpanda)
-- **Schema-First** - Define events in YAML, get type-safe SDKs
-- **Multi-Tenant** - Built-in API key management and data isolation
-- **Observability** - Prometheus metrics and structured logging
-
----
-
-## Define Your Events
-
-Edit `schema/events.yaml`:
-
-```yaml
-events:
-  user_signup:
-    fields:
-      user_id:
-        type: string
-        required: true
-      email:
-        type: string
-        required: true
-      plan:
-        type: string
-        values: [free, pro, enterprise]
-```
-
-Apply changes:
-
-```bash
-ingestkit schema apply
-```
-
----
-
-## Type-Safe SDKs
-
-Generate clients for your app:
-
-```bash
-# Python
-ingestkit init --python
-ingestkit generate --schema-url http://localhost:8080/schema
-```
-
-Use the generated client:
-
-```python
-from ingestkit import Client
-
-client = Client()
-client.user_signup.send(user_id="123", email="user@example.com")
-```
-
-```typescript
-// TypeScript
-import { Client } from './ingestkit';
-
-const client = new Client();
-await client.userSignup.send({ userId: "123", email: "user@example.com" });
-```
-
----
-
-## Server Commands
-
-| Command | Description |
-|---------|-------------|
-| `ingestkit server start` | Start server (Docker) |
-| `ingestkit server stop` | Stop server |
-| `ingestkit server logs` | View logs |
-| `ingestkit server status` | Check status |
-| `ingestkit schema apply` | Apply schema changes |
-
----
-
-## Architecture
-
-```
-Client App → IngestKit API → Redpanda (Kafka) → Consumer → PostgreSQL
-```
-
-- **API**: Validates events, publishes to Kafka
-- **Consumer**: Batches events, writes to PostgreSQL with COPY protocol
-- **PostgreSQL**: Partitioned tables per tenant
-
----
-
-## Configuration
-
-Environment variables (set in `.env`):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_PORT` | `8080` | API server port |
-| `API_KEY_1` | `dev_key:default` | API key (format: `key:tenant`) |
-| `CONSUMER_WORKERS` | `4` | Parallel workers |
-| `CONSUMER_BATCH_SIZE` | `500` | Events per batch |
-
----
-
-## Benchmarks
-
-Tested on Hetzner CAX31 ($14/mo: 8 vCPU, 16GB RAM):
-
-| Metric | Result |
-|--------|--------|
-| Throughput | 30,000 RPS |
-| Latency (p95) | < 15ms |
-| Data Loss | 0% |
-
----
-
-## Documentation
-
-- [Project Overview](PROJECT_OVERVIEW.md)
-- [SDK Generation](docs/sdk-generation.md)
-- [Docker Deployment](docs/docker-deployment.md)
-- [Development Guide](docs/development.md)
-
----
-
-## Development
-
-For contributors building from source:
-
-```bash
+~~~sh
 git clone https://github.com/feat7/ingestkit.git
 cd ingestkit
-make setup && make start
-```
+make up
+~~~
 
-See [Development Guide](docs/development.md) for details.
+Then send an event:
 
----
+~~~sh
+curl --fail-with-body http://localhost:8080/v1/events \
+  -H 'Authorization: Bearer local-demo-key' \
+  -H 'Content-Type: application/json' \
+  -d '{"event_id":"00000000-0000-4000-8000-000000000001","event_type":"order_completed","occurred_at":"2026-11-03T00:00:00Z","payload":{"order_id":"order-1","amount":25}}'
+~~~
 
-## License
+**202 means the broker acknowledged the event.** Database persistence happens
+afterward. Retry an uncertain request with the same event ID; storage keeps one
+row per tenant and ID. An HTTP batch can partially reach the broker on failure.
 
-Apache 2.0 - See [LICENSE](LICENSE)
+~~~sh
+docker compose exec postgres psql -U ingestkit -d ingestkit_test \
+  -c "SELECT event_id, event_type, payload FROM ingestkit.events;"
+make down
+~~~
+
+Stopping preserves volumes. The local stack uses a separate ingestkit-showcase
+project, local-only credentials, and loopback ports.
+
+## What is verified
+
+Tests cover validation, bounded publishing, duplicate storage, database and broker
+outages, a crash between database and offset commits, quarantine failures,
+rebalance, and shutdown. Run make test and make test-integration.
+
+This is an engineering reference project. The local broker has one replica;
+disk loss and outages beyond broker retention are outside its recovery guarantee.
+There is no unconditional zero-loss or exactly-once claim. New benchmark results
+are not published until the reproducible measurement work is complete.
+
+Read [architecture](docs/architecture.md), [delivery semantics](docs/delivery.md),
+or [development instructions](docs/development.md).
+
+The previous compiler, generated SDKs, registry installers and event-specific
+endpoints have been retired. Existing package releases and legacy data are not
+deleted or automatically migrated.
+
+Apache 2.0 — [LICENSE](LICENSE).

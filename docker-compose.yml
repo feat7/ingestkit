@@ -55,6 +55,7 @@ services:
     labels: *labels
     environment:
       HTTP_ADDR: :8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       BROKERS: redpanda:9092
       API_KEYS: ${API_KEYS:-{"local-demo-key":"demo"}}
       RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-10000}
@@ -72,6 +73,7 @@ services:
     labels: *labels
     environment:
       METRICS_ADDR: :8081
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       BROKERS: redpanda:9092
       DATABASE_URL: postgres://ingestkit:${POSTGRES_PASSWORD:-local-test-only}@postgres:5432/${POSTGRES_DB:-ingestkit_test}?sslmode=disable
     ports: ["127.0.0.1:${METRICS_PORT:-8081}:8081"]

@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-03-ingestkit-showcase-design.md` (approved 2026-11-03).
 
-**Status:** Native execution in progress; tasks 1–7 verified. Failure recovery, cleanup, demonstrations, benchmarks and writing follow. Git history and the execution ledger contain test evidence.
+**Status:** Native execution in progress; tasks 1–9 verified. Demonstrations, benchmarks and writing follow. Git history and the execution ledger contain test evidence.
 
 ## Global Constraints
 
@@ -205,11 +205,11 @@ Both command packages expose an internal `run(ctx context.Context) error` so `ma
 
 **Interfaces:** Consume the complete stack and direct kgo/pgx clients. Helpers `waitForIDs(ctx, pool, tenant, ids) error`, `committedOffset(ctx, brokers, group, topic, partition) (int64,error)`, and `assertNoUnexpectedRows(...)` reconcile concrete sets, not just row totals. All test deadlines are bounded; readiness polling replaces fixed sleeps.
 
-- [ ] **1. Write failing tests:** `TestDatabaseOutageRecovery`, `TestCrashBetweenDatabaseAndOffsetCommit`, `TestMalformedRecordQuarantine`, `TestFailedQuarantineCannotSkipSource`, `TestBrokerOutageAndStableIDRetry`, `TestConsumerRebalanceRecovery`, `TestGracefulAndForcedShutdown`, `TestIntegrationMissingConfigurationFails`. Force the relevant boundary rather than hoping a race occurs. For failure-before-offset commit, run the real reader/store in a test helper process whose store wrapper signals after commit and blocks before returning, then terminate it and restart the normal consumer. Assert acknowledged IDs equal stored IDs, one row per tenant/ID, exact committed-prefix behaviour, successful quarantine preserves raw bytes/source metadata, and restored service readiness.
-- [ ] **2. Run red:** run each new test against isolated services and confirm it detects the injected failure if the relevant safety condition is deliberately broken in a temporary local patch; restore that patch immediately. Never weaken the test to accept data loss.
-- [ ] **3. Implement/fix** only proven gaps in the new core. Broker quarantine failure is induced with a missing/unavailable DLQ topic and automatic topic creation disabled; restore it and prove eventual progress. Database outage remains valid-event retry, not quarantine. Record tested outage durations and retention settings.
-- [ ] **4. Run green:** `scripts/test-integration.sh` plus `go test -race ./...`. Require zero skipped safety tests and no unexplained IDs. Save failure diagnostics on test failure; test cleanup unpauses/restores its owned services before destroying its own stack.
-- [ ] **5. Commit:** `test: prove ingestion recovery and safe source progress`.
+- [x] **1. Write failing tests:** `TestDatabaseOutageRecovery`, `TestCrashBetweenDatabaseAndOffsetCommit`, `TestMalformedRecordQuarantine`, `TestFailedQuarantineCannotSkipSource`, `TestBrokerOutageAndStableIDRetry`, `TestConsumerRebalanceRecovery`, `TestGracefulAndForcedShutdown`, `TestIntegrationMissingConfigurationFails`. Force the relevant boundary rather than hoping a race occurs. For failure-before-offset commit, run the real reader/store in a test helper process whose store wrapper signals after commit and blocks before returning, then terminate it and restart the normal consumer. Assert acknowledged IDs equal stored IDs, one row per tenant/ID, exact committed-prefix behaviour, successful quarantine preserves raw bytes/source metadata, and restored service readiness.
+- [x] **2. Run red:** run each new test against isolated services and confirm it detects the injected failure if the relevant safety condition is deliberately broken in a temporary local patch; restore that patch immediately. Never weaken the test to accept data loss.
+- [x] **3. Implement/fix** only proven gaps in the new core. Broker quarantine failure is induced with a missing/unavailable DLQ topic and automatic topic creation disabled; restore it and prove eventual progress. Database outage remains valid-event retry, not quarantine. Record tested outage durations and retention settings.
+- [x] **4. Run green:** `scripts/test-integration.sh` plus `go test -race ./...`. Require zero skipped safety tests and no unexplained IDs. Save failure diagnostics on test failure; test cleanup unpauses/restores its owned services before destroying its own stack.
+- [x] **5. Commit:** `test: prove ingestion recovery and safe source progress`.
 
 ### Task 9: Remove the superseded platform and consolidate CI/documentation
 
@@ -217,11 +217,11 @@ Both command packages expose an internal `run(ctx context.Context) error` so `ma
 
 **Interfaces:** The only public commands are `make help`, `make up`, `make down`, `make logs`, `make test`, `make test-integration`, later demo and bench targets, and documented direct Go builds. `make up` waits for healthy services and fails on initialization problems. CI runs unit/race checks, `go vet`, builds, and real full-stack integration. Later tasks add demo smoke checks. No compiler, registry installer, generated file, or existing external release is needed.
 
-- [ ] **1. Establish pre-cut proof:** `go test -race ./...`, full integration suite, and fresh image builds must pass on the replacement path. Record the new packages' import graph; confirm no production imports use `generated`, schema compiler, CLI project detection, or old messaging types.
-- [ ] **2. Remove only obsolete paths** from the approved cut list. Remove old migration files from the repository only after the new ledger/path preservation test passes; never remove tables/volumes/remote packages. Remove repeated unsupported performance and zero-loss copy while replacing the public README in the same commit, so it never points at removed commands.
-- [ ] **3. Implement CI/Make/docs changes**, run `go mod tidy`, and remove dependencies solely used by deleted code (`lib/pq`, schema YAML, etc., when no remaining imports need them). Pin CI action versions and image patches after checking official compatibility; avoid unsolicited toolchain upgrades. Keep the spec/plan as historical internal records, excluded from public stale-command checks.
-- [ ] **4. Verify:** unit/race suite, `go vet ./...`, build all commands, full integration, Docker build without `generated/`, fresh-start README commands, and `rg` for removed imports/commands throughout maintained code/docs/workflows. Review the diff as a deletion manifest and compare with every keep/remove row in the spec; account for each path. No source-text unit tests for this reversible cleanup.
-- [ ] **5. Commit:** `refactor: remove compiler distributions and obsolete platform scaffolding`.
+- [x] **1. Establish pre-cut proof:** `go test -race ./...`, full integration suite, and fresh image builds must pass on the replacement path. Record the new packages' import graph; confirm no production imports use `generated`, schema compiler, CLI project detection, or old messaging types.
+- [x] **2. Remove only obsolete paths** from the approved cut list. Remove old migration files from the repository only after the new ledger/path preservation test passes; never remove tables/volumes/remote packages. Remove repeated unsupported performance and zero-loss copy while replacing the public README in the same commit, so it never points at removed commands.
+- [x] **3. Implement CI/Make/docs changes**, run `go mod tidy`, and remove dependencies solely used by deleted code (`lib/pq`, schema YAML, etc., when no remaining imports need them). Pin CI action versions and image patches after checking official compatibility; avoid unsolicited toolchain upgrades. Keep the spec/plan as historical internal records, excluded from public stale-command checks.
+- [x] **4. Verify:** unit/race suite, `go vet ./...`, build all commands, full integration, Docker build without `generated/`, fresh-start README commands, and `rg` for removed imports/commands throughout maintained code/docs/workflows. Review the diff as a deletion manifest and compare with every keep/remove row in the spec; account for each path. No source-text unit tests for this reversible cleanup.
+- [x] **5. Commit:** `refactor: remove compiler distributions and obsolete platform scaffolding`.
 
 ### Task 10: Provide one deterministic demo and two tiny reusable callers
 

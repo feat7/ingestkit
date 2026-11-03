@@ -8,7 +8,7 @@ import (
 	"github.com/feat7/ingestkit/internal/messaging"
 	"github.com/feat7/ingestkit/internal/service"
 	"github.com/feat7/ingestkit/internal/telemetry"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -17,6 +17,7 @@ import (
 )
 
 func main() {
+	service.ConfigureLogging()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	if len(os.Args) == 2 && os.Args[1] == "check" {
@@ -32,7 +33,7 @@ func main() {
 		return
 	}
 	if err := run(ctx); err != nil {
-		log.Print("API stopped with an error: ", err)
+		slog.Error("API stopped", "error", err)
 		os.Exit(1)
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/feat7/ingestkit/internal/service"
 	"github.com/feat7/ingestkit/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +20,7 @@ import (
 )
 
 func main() {
+	service.ConfigureLogging()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	if len(os.Args) == 2 && os.Args[1] == "check" {
@@ -35,7 +36,7 @@ func main() {
 		return
 	}
 	if err := run(ctx); err != nil {
-		log.Print("consumer stopped with an error")
+		slog.Error("consumer stopped")
 		os.Exit(1)
 	}
 }

@@ -6,14 +6,11 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.23.2
-	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	github.com/twmb/franz-go v1.20.3
 	github.com/twmb/franz-go/pkg/kmsg v1.12.0
 	github.com/valyala/fasthttp v1.51.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -45,4 +42,5 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

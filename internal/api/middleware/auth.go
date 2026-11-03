@@ -3,7 +3,6 @@
 // Middleware components:
 //   - API Key Authentication: Maps API keys to tenant IDs
 //   - Rate Limiting: Token bucket algorithm per tenant
-//   - CORS: Cross-origin resource sharing configuration
 //   - Request ID: Unique ID tracking for each request
 //   - Error Handling: Standardized JSON error responses
 //

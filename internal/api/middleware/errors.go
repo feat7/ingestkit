@@ -16,13 +16,12 @@ type ErrorResponse struct {
 
 // ErrorCode constants for common errors
 const (
-	ErrCodeValidation    = "validation_failed"
-	ErrCodeAuth          = "authentication_failed"
-	ErrCodeRateLimit     = "rate_limit_exceeded"
-	ErrCodeInternal      = "internal_error"
-	ErrCodeBadRequest    = "bad_request"
-	ErrCodeNotFound      = "not_found"
-	ErrCodeUnknownEvent  = "unknown_event_type"
+	ErrCodeValidation = "validation_failed"
+	ErrCodeAuth       = "authentication_failed"
+	ErrCodeRateLimit  = "rate_limit_exceeded"
+	ErrCodeInternal   = "internal_error"
+	ErrCodeBadRequest = "bad_request"
+	ErrCodeNotFound   = "not_found"
 )
 
 // SendError sends a standardized error response
@@ -39,23 +38,4 @@ func SendError(c *fiber.Ctx, status int, code string, message string) error {
 		RequestID: reqID,
 		Timestamp: time.Now(),
 	})
-}
-
-// ErrorHandler is a middleware that catches panics and converts them to error responses
-func ErrorHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		err := c.Next()
-
-		if err != nil {
-			// Check if it's a Fiber error
-			if e, ok := err.(*fiber.Error); ok {
-				return SendError(c, e.Code, ErrCodeInternal, e.Message)
-			}
-
-			// Default to 500 internal server error
-			return SendError(c, fiber.StatusInternalServerError, ErrCodeInternal, err.Error())
-		}
-
-		return nil
-	}
 }

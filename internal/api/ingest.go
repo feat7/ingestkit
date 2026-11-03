@@ -5,6 +5,7 @@ import (
 	"github.com/feat7/ingestkit/internal/api/middleware"
 	"github.com/feat7/ingestkit/internal/event"
 	"github.com/gofiber/fiber/v2"
+	"log/slog"
 	"time"
 )
 
@@ -45,6 +46,9 @@ func ingest(publisher EventPublisher, timeout time.Duration, batch bool) fiber.H
 		defer cancel()
 		if err = publisher.Publish(ctx, events); err != nil {
 			return middleware.SendError(c, 503, "unavailable", "delivery is uncertain; retry with the same event IDs")
+		}
+		for _, id := range ids {
+			slog.Debug("event acknowledged by broker", "event_id", id, "request_id", c.Locals("request_id"))
 		}
 		return c.Status(202).JSON(fiber.Map{"status": "accepted", "event_ids": ids, "request_id": c.Locals("request_id")})
 	}
