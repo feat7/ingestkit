@@ -32,10 +32,15 @@ func deployment(t *testing.T, probes bool) (*runenv.Stack, context.Context) {
 	s, err := runenv.Start(ctx, runenv.Options{Purpose: "selfhost-test", Profile: "selfhost", ExposeDependencies: probes})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		c, end := context.WithTimeout(context.Background(), 35*time.Second)
-		defer end()
-		require.NoError(t, s.CollectEvidence(c, s.Directory))
-		require.NoError(t, s.Destroy(c))
+		evidence, finishEvidence := context.WithTimeout(context.Background(), 10*time.Second)
+		evidenceErr := s.CollectEvidence(evidence, s.Directory)
+		finishEvidence()
+		cleanup, finishCleanup := context.WithTimeout(context.Background(), 30*time.Second)
+		cleanupErr := s.Destroy(cleanup)
+		finishCleanup()
+		// Evidence failure must not skip cleanup or consume its time budget.
+		require.NoError(t, evidenceErr)
+		require.NoError(t, cleanupErr)
 	})
 	return s, ctx
 }
