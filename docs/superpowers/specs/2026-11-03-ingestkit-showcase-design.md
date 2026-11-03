@@ -382,8 +382,9 @@ benchmark load tool. These choices must serve the contract above and avoid new
 platform work. Dependency/image versions must be checked against primary
 documentation at implementation time instead of guessed from old files.
 
-Important unverified conditions: full-stack operation has not been tested in
-this session, Docker daemon access requires sandbox permission, no valid new
-performance number exists, and no external-user/data inventory has been
-established. Preserve data and external artifacts by default. These limitations
-are work to verify, not reasons to manufacture successful results.
+Verification update (3 November 2026): real isolated integration/recovery tests,
+normal and outage demos, and four benchmark configurations now run successfully.
+Recorded source and raw evidence are under benchmarks/results/local-2026-11-03.
+These local measurements do not establish maximum capacity, production deployment
+readiness, disk-loss tolerance or external adoption. Existing external releases
+and legacy data remain preserved; no automatic import was added.

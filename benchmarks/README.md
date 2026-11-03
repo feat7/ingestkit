@@ -11,3 +11,8 @@ Run `make bench-pipeline` for three measured windows after warm-up. `BENCH_FLAGS
 HTTP acknowledgement latency is one sample per successful request. Storage latency is one sample per observed event: API receipt to first SQL observation after commit, including 50 ms polling and query delay. It is an upper bound, not a physical commit timer. Persisted throughput divides unique observed events by the complete window plus request tail/drain; acceptance throughput divides accepted events by the requested window. Raw samples and backlog observations are retained. Acknowledged missing IDs, unexpected IDs or duplicate physical rows fail reconciliation. Ambiguous HTTP delivery is reported separately. The driver does not retry requests.
 
 The CLI requires committed source and records that revision, image content IDs/repository digests, database durability/index settings, complete topic configuration, host/VM versions and coarse Docker resource snapshots. It removes only its owned stack. Local credentials remain in a private ignored run directory; public reports contain a whitelisted configuration. Database resets use a random tenant; pipeline cleanup names only generated IDs and refuses existing-ID collisions. Both run on the same host as their generator and observer. These experiments do not estimate maximum capacity or cloud cost.
+
+[Recorded local experiments](results/local-2026-11-03/README.md) include every
+repetition, exact configuration and the observed COPY/staging disadvantage.
+The optional figure generator is `python3 benchmarks/plot_results.py` with
+matplotlib installed; it reads these captures and writes docs/assets/experiments.svg.

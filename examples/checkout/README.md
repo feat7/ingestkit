@@ -22,3 +22,15 @@ node examples/checkout/send.mjs
 Both read events.json and retain its IDs on retry. Running both against the same
 stack still stores three logical events. Supply API_URL and INGESTKIT_API_KEY
 to use the same contract from another application. The included key is local only.
+
+Both callers default to the batch endpoint. Use `SEND_MODE=single` to send the
+same fixture as individual requests, or `EVENTS_FILE=/path/to/events.json` for
+your own `{ "events": [...] }` fixture with stable explicit IDs. For example:
+
+~~~sh
+SEND_MODE=single python3 examples/checkout/send.py
+SEND_MODE=single node examples/checkout/send.mjs
+~~~
+
+Each event or batch keeps identical serialized bytes across its bounded retries.
+A 202 acknowledges broker delivery; verify storage separately.

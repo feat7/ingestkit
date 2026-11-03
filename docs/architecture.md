@@ -37,3 +37,13 @@ PostgreSQL writes; the benchmark experiment compares the relevant write methods.
 internal/persistence owns the new store. The API, messaging, and event packages
 do not depend on generated code. internal/runenv is local test/demo
 orchestration, not a runtime service dependency.
+
+## What measurement changed
+
+The [local comparison](../benchmarks/results/local-2026-11-03/README.md) found
+batch INSERT faster than COPY/stage/merge at batch size 100. The current store
+keeps the latter implementation as a visible experiment; it is not justified
+as a small-batch performance optimization. Larger batches, different payloads
+or a direct PostgreSQL-only path need their own measurements. Generic JSONB
+storage avoids generated schemas, but its cost relative to typed columns was
+not measured.

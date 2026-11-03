@@ -1,7 +1,7 @@
-# Supported replacement workflow; legacy helpers are removed after recovery verification.
+# Local service, demonstration and experiment commands.
 .PHONY: help up down logs test test-integration
 help:
-	@echo "make up | down | logs | test | test-integration | demo | demo-recovery"
+	@echo "make up | down | logs | test | test-integration | demo | demo-recovery | bench-db | bench-pipeline"
 up:
 	docker compose up -d --build --wait
 down:

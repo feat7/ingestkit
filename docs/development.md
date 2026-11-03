@@ -53,3 +53,17 @@ Do not run global Docker prune commands or reset other projects.
   quarantine. An API acknowledgement alone is not a storage check.
 - Migration error: inspect the actual error/ledger; do not force a version or
   discard a volume to conceal it.
+
+## Demonstrations and measurements
+
+`make demo` and `make demo-recovery` create independent stacks and verify the
+checkout IDs. Both stop their services and preserve volumes by default; the
+printed cleanup command names only that run. For disposable smoke runs use
+`make demo DEMO_FLAGS=-cleanup`. The [checkout callers](../examples/checkout/README.md)
+use only language standard libraries.
+
+`make bench-db` and `make bench-pipeline` run expensive local measurements;
+[options and definitions](../benchmarks/README.md) are separate from normal CI.
+They require committed source and destroy their own stacks after saving reports.
+Do not run them concurrently when comparing timings. Normal CI runs only small
+benchmark correctness checks as part of integration testing.
