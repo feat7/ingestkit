@@ -116,3 +116,15 @@ func TestAmbiguousAbsenceIsUnknownAtDeadline(t *testing.T) {
 	require.Equal(t, 1, r.AmbiguousUnobserved)
 	require.GreaterOrEqual(t, r.DrainNS, int64(c.DrainDeadline))
 }
+
+func TestSlowObserverReportsLatePolls(t *testing.T) {
+	c := PipelineConfig{Rate: 10, Concurrency: 1, Duration: 100 * time.Millisecond, DrainDeadline: 20 * time.Millisecond, PollInterval: time.Millisecond, BatchSize: 1, PayloadBytes: 64, Pattern: "steady"}
+	r, e := runPipelineSample(context.Background(), c, 1, func(context.Context, []uuid.UUID) sendResult { return sendResult{Accepted: true} }, func(_ context.Context, ids []uuid.UUID) ([]StoredObservation, error) {
+		time.Sleep(5 * time.Millisecond)
+		return []StoredObservation{{ID: ids[0], ReceivedAt: time.Now().Add(-time.Second)}}, nil
+	})
+	require.NoError(t, e)
+	require.Positive(t, r.ObserverLatePolls)
+	require.GreaterOrEqual(t, r.ObserverMaxGapNS, int64(5*time.Millisecond))
+	require.Equal(t, "limited", r.Outcome)
+}

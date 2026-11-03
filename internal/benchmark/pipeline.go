@@ -59,6 +59,7 @@ type BacklogSample struct {
 type PipelineRun struct {
 	AttemptedInWindow, AttemptedAfterWindow, AcceptedInWindow, AcceptedAfterWindow               int
 	ObserverPolls, ObserverQueries, ObserverQueryNS                                              int64
+	ObserverLatePolls, ObserverMaxGapNS                                                          int64
 	ObservedEvents                                                                               int
 	VerificationNS                                                                               int64
 	AmbiguousUnobserved, ContentMismatch                                                         int
@@ -131,7 +132,7 @@ func (r *PipelineRun) Reconcile() error {
 	for _, limit := range []struct {
 		count  int
 		reason string
-	}{{r.GeneratorMissed, "generator_missed_events"}, {r.LateSchedules, "late_schedules"}, {r.Rejected, "http_rejections"}, {r.Ambiguous, "ambiguous_delivery"}, {r.AttemptedAfterWindow, "request_queue_tail"}, {r.AcceptedAfterWindow, "late_acknowledgements"}} {
+	}{{r.GeneratorMissed, "generator_missed_events"}, {r.LateSchedules, "late_schedules"}, {r.Rejected, "http_rejections"}, {r.Ambiguous, "ambiguous_delivery"}, {r.AttemptedAfterWindow, "request_queue_tail"}, {r.AcceptedAfterWindow, "late_acknowledgements"}, {int(r.ObserverLatePolls), "observer_poll_delays"}} {
 		if limit.count > 0 {
 			r.LimitReasons = append(r.LimitReasons, limit.reason)
 		}
@@ -245,7 +246,17 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 	observedAt := map[uuid.UUID]time.Time{}
 	// Every observation follows a completed SQL query on committed rows. The query
 	// end minus received_at is an upper bound, including polling and query delay.
+	var previousPoll time.Time
 	sample := func() error {
+		pollStarted := time.Now()
+		if !previousPoll.IsZero() {
+			gap := pollStarted.Sub(previousPoll).Nanoseconds()
+			r.ObserverMaxGapNS = max(r.ObserverMaxGapNS, gap)
+			if gap > int64(2*c.PollInterval) {
+				r.ObserverLatePolls++
+			}
+		}
+		previousPoll = pollStarted
 		r.ObserverPolls++
 		queryStarted := time.Now()
 		found, e := observe(ctx, ids)
