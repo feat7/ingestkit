@@ -87,3 +87,6 @@ allocation, one core, overprovisioned scheduling and explicit
 for why development defaults must be examined. PostgreSQL retains its normal
 fsync and synchronous commit settings. These settings do not provide replication
 or protection from losing this host.
+
+See [operating the collector](../docs/operations.md) for readiness, disk growth,
+key rotation, backup/restore and upgrade procedures.

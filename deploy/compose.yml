@@ -100,6 +100,7 @@ services:
       METRICS_ADDR: :8081
       LOG_LEVEL: ${LOG_LEVEL:-info}
       BROKERS: redpanda:9092
+      CONSUMER_GROUP: ${CONSUMER_GROUP:-ingestkit-consumer}
       DATABASE_URL: postgres://ingestkit_writer:${POSTGRES_WRITER_PASSWORD:?POSTGRES_WRITER_PASSWORD required}@postgres:5432/ingestkit?sslmode=disable
     depends_on:
       topics: {condition: service_completed_successfully}

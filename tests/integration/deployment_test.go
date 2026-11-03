@@ -243,3 +243,117 @@ func TestDeploymentBuildContextExcludesNestedSecrets(t *testing.T) {
 	require.NoError(t, cmd.Wait())
 	require.True(t, found, "positive context control must be copied")
 }
+
+func TestWriteDeniedMakesDeploymentUnready(t *testing.T) {
+	s, ctx := deployment(t, true)
+	p := deploymentPool(t, ctx, s)
+	_, e := p.Exec(ctx, "REVOKE INSERT ON ingestkit.events FROM ingestkit_writer")
+	require.NoError(t, e)
+	t.Cleanup(func() {
+		c, end := context.WithTimeout(context.Background(), 5*time.Second)
+		defer end()
+		_, _ = p.Exec(c, "GRANT INSERT ON ingestkit.events TO ingestkit_writer")
+	})
+	a := freshEvent()
+	a.Payload = json.RawMessage(`{"private":"payload-secret-canary"}`)
+	require.Equal(t, 202, deploymentSend(t, s, "/v1/events", s.APIKey(), a))
+	require.NoError(t, waitStatus(ctx, s.ConsumerURL+"/ready", 503))
+	cfg, e := runenv.ReadDeploymentConfig(filepath.Join(s.Directory, "run.env"))
+	require.NoError(t, e)
+	u, e := url.Parse(s.DatabaseURL)
+	require.NoError(t, e)
+	u.User = url.UserPassword("ingestkit_writer", cfg.WriterPassword)
+	writer, e := pgxpool.New(ctx, u.String())
+	require.NoError(t, e)
+	defer writer.Close()
+	require.NoError(t, writer.Ping(ctx))
+	var n int
+	require.NoError(t, p.QueryRow(ctx, "SELECT count(*) FROM ingestkit.events WHERE event_id=$1", a.EventID.String()).Scan(&n))
+	require.Zero(t, n)
+	logs, e := s.Compose(ctx, "logs", "--no-color", "consumer")
+	require.NoError(t, e)
+	require.Contains(t, logs, `"sqlstate":"42501"`)
+	for _, secret := range []string{s.APIKey(), cfg.WriterPassword, cfg.AdminPassword, "payload-secret-canary"} {
+		require.NotContains(t, logs, secret)
+	}
+	_, e = p.Exec(ctx, "GRANT INSERT ON ingestkit.events TO ingestkit_writer")
+	require.NoError(t, e)
+	require.NoError(t, waitForIDs(ctx, p, "default", []uuid.UUID{a.EventID}))
+	require.NoError(t, waitStatus(ctx, s.ConsumerURL+"/ready", 200))
+}
+func replaceDeploymentKeys(t *testing.T, s *runenv.Stack, keys map[string]string) {
+	t.Helper()
+	path := filepath.Join(s.Directory, "run.env")
+	raw, e := os.ReadFile(path)
+	require.NoError(t, e)
+	encoded, e := json.Marshal(keys)
+	require.NoError(t, e)
+	lines := strings.Split(string(raw), "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "API_KEYS=") {
+			lines[i] = "API_KEYS=" + string(encoded)
+		}
+	}
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600))
+}
+func TestCredentialOverlapAndRefresh(t *testing.T) {
+	s, ctx := deployment(t, true)
+	p := deploymentPool(t, ctx, s)
+	old := s.APIKey()
+	newKey := strings.ReplaceAll(uuid.NewString()+uuid.NewString(), "-", "")
+	a, b := freshEvent(), freshEvent()
+	require.Equal(t, 202, deploymentSend(t, s, "/v1/events", old, a))
+	replaceDeploymentKeys(t, s, map[string]string{old: "default", newKey: "default"})
+	_, e := s.Compose(ctx, "up", "-d", "--no-deps", "--force-recreate", "--wait", "api")
+	require.NoError(t, e)
+	require.Equal(t, 202, deploymentSend(t, s, "/v1/events", old, a))
+	require.Equal(t, 202, deploymentSend(t, s, "/v1/events", newKey, b))
+	replaceDeploymentKeys(t, s, map[string]string{newKey: "default"})
+	_, e = s.Compose(ctx, "up", "-d", "--no-deps", "--force-recreate", "--wait", "api")
+	require.NoError(t, e)
+	require.Equal(t, 401, deploymentSend(t, s, "/v1/events", old, a))
+	require.Equal(t, 202, deploymentSend(t, s, "/v1/events", newKey, b))
+	require.NoError(t, waitForIDs(ctx, p, "default", []uuid.UUID{a.EventID, b.EventID}))
+}
+func TestBackupRestoresIntoOwnedReplacement(t *testing.T) {
+	source, ctx := deployment(t, true)
+	sourcePool := deploymentPool(t, ctx, source)
+	a := freshEvent()
+	require.Equal(t, 202, deploymentSend(t, source, "/v1/events", source.APIKey(), a))
+	require.NoError(t, waitForIDs(ctx, sourcePool, "default", []uuid.UUID{a.EventID}))
+	dump, e := source.Compose(ctx, "exec", "-T", "postgres", "pg_dump", "-U", "ingestkit_admin", "-d", "ingestkit", "-Fc")
+	require.NoError(t, e)
+	require.True(t, strings.HasPrefix(dump, "PGDMP"))
+	replacement, replacementCtx := deployment(t, true)
+	p := deploymentPool(t, replacementCtx, replacement)
+	require.NotEqual(t, source.Project, replacement.Project)
+	require.NoError(t, replacement.SetServiceRunning(replacementCtx, "consumer", false))
+	var n int
+	require.NoError(t, p.QueryRow(replacementCtx, "SELECT count(*) FROM ingestkit.events").Scan(&n))
+	require.Zero(t, n, "restore target must be an owned empty replacement")
+	// Recreate only this test-owned empty database so the documented restore is
+	// exercised without --clean or a pre-existing migration/table scaffold.
+	p.Close()
+	_, e = replacement.Compose(replacementCtx, "exec", "-T", "postgres", "psql", "-U", "ingestkit_admin", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", "DROP DATABASE ingestkit WITH (FORCE)")
+	require.NoError(t, e)
+	_, e = replacement.Compose(replacementCtx, "exec", "-T", "postgres", "psql", "-U", "ingestkit_admin", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", "CREATE DATABASE ingestkit OWNER ingestkit_admin")
+	require.NoError(t, e)
+	p = deploymentPool(t, replacementCtx, replacement)
+
+	path := filepath.Join(t.TempDir(), "snapshot.dump")
+	require.NoError(t, os.WriteFile(path, []byte(dump), 0600))
+	_, e = replacement.Compose(replacementCtx, "cp", path, "postgres:/tmp/snapshot.dump")
+	require.NoError(t, e)
+	_, e = replacement.Compose(replacementCtx, "exec", "-T", "postgres", "pg_restore", "-U", "ingestkit_admin", "-d", "ingestkit", "--exit-on-error", "/tmp/snapshot.dump")
+	require.NoError(t, e)
+	require.NoError(t, replacement.SetServiceRunning(replacementCtx, "consumer", true))
+	b := freshEvent()
+	require.Equal(t, 202, deploymentSend(t, replacement, "/v1/events/batch", replacement.APIKey(), map[string]any{"events": []event.Input{a, b}}))
+	require.NoError(t, waitForIDs(replacementCtx, p, "default", []uuid.UUID{a.EventID, b.EventID}))
+	var payload string
+	require.NoError(t, p.QueryRow(replacementCtx, "SELECT payload->>'amount' FROM ingestkit.events WHERE event_id=$1", a.EventID.String()).Scan(&payload))
+	require.Equal(t, "25", payload)
+	require.NoError(t, waitForIDs(ctx, sourcePool, "default", []uuid.UUID{a.EventID}))
+	require.NoError(t, sourcePool.QueryRow(ctx, "SELECT count(*) FROM ingestkit.events WHERE event_id=$1", b.EventID.String()).Scan(&n))
+	require.Zero(t, n)
+}

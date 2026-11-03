@@ -36,7 +36,7 @@ func main() {
 		return
 	}
 	if err := run(ctx); err != nil {
-		slog.Error("consumer stopped")
+		service.NewDiagnostics(slog.Default(), 10*time.Second).Report("startup", "", -1, -1, err)
 		os.Exit(1)
 	}
 }
@@ -56,6 +56,7 @@ func run(ctx context.Context) error {
 	mux.Handle("/metrics", metrics.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
 	health := service.NewProcessingHealth()
+	diagnostics := service.NewDiagnostics(slog.Default(), 10*time.Second)
 	mux.HandleFunc("/ready", readiness(health, store.Ping, func(c context.Context) error {
 		reader := current.Load()
 		if reader == nil {
@@ -77,14 +78,19 @@ func run(ctx context.Context) error {
 			probe, end := context.WithTimeout(c, time.Second)
 			err := store.Ping(probe)
 			end()
+			diagnostics.Report("startup", "", -1, -1, err)
 			if err != nil {
 				return err
 			}
 			if ctx.Err() != nil {
 				return nil
 			}
-			reader, err := messaging.NewReader(messaging.ReaderConfig{OnOperation: func(op messaging.Operation) { health.Observe(op.Kind, op.Err) }, Brokers: cfg.Brokers, Topic: cfg.EventTopic, DLQTopic: cfg.DLQTopic, GroupID: cfg.GroupID}, store, metrics)
+			reader, err := messaging.NewReader(messaging.ReaderConfig{OnOperation: func(op messaging.Operation) {
+				health.Observe(op.Kind, op.Err)
+				diagnostics.Report(op.Kind, op.Topic, op.Partition, op.Offset, op.Err)
+			}, Brokers: cfg.Brokers, Topic: cfg.EventTopic, DLQTopic: cfg.DLQTopic, GroupID: cfg.GroupID}, store, metrics)
 			if err != nil {
+				diagnostics.Report("startup", "", -1, -1, err)
 				return err
 			}
 			defer reader.Close()
