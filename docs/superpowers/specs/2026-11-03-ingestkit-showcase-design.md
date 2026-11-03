@@ -1,7 +1,7 @@
 # IngestKit engineering showcase design
 
 Date: 2026-11-03
-Status: Proposed; awaiting user approval before implementation planning.
+Status: Approved by the user on 2026-11-03; implementation planning authorized.
 Repository baseline: `c6952ca` on `main`.
 
 Design check: an independent Go/backend reviewer found no important unanswered
@@ -20,8 +20,8 @@ HTTP.
 
 The user chose this general direction over building a broad ingestion product.
 They explicitly questioned the value of the existing schema compiler. The
-architecture and individual cuts below are proposed engineering decisions, not
-separately approved user requirements.
+architecture and individual cuts below were proposed engineering decisions and
+were approved together with this document on 2026-11-03.
 
 Working description: **A small event ingestion pipeline in Go, with reproducible
 experiments showing its performance and behaviour under failure.**
