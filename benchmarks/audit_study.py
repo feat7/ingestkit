@@ -111,6 +111,40 @@ def stripped(report, kind):
             if run.get("Pipeline"): strip(run["Pipeline"])
     return summary
 
+def registered_cases(mode):
+    """An independent transcription of the approved fixed experimental design."""
+    zero=dict(ID='',Kind='',Recovery='',Pattern='',PayloadProfile='varied',Count=0,
+              BatchSize=0,PayloadBytes=0,Rate=0,Concurrency=0,Repetitions=3,
+              DuplicateFraction=0,Window=0,Warmup=0,Drain=0,Poll=0,FaultAt=0,RestoreAt=0)
+    def case(**changes): return dict(zero,**changes)
+    if mode=='smoke':
+        return [case(ID='smoke-database',Kind='database',Count=100,BatchSize=10,PayloadBytes=256),
+                case(ID='smoke-pipeline',Kind='pipeline',Pattern='steady',Count=10,BatchSize=2,
+                     PayloadBytes=256,Rate=20,Concurrency=2,Window=500_000_000,Warmup=100_000_000,
+                     Drain=5_000_000_000,Poll=25_000_000)]
+    check(mode=='full','unknown study mode')
+    db=case(Kind='database',Count=5000,BatchSize=100,PayloadBytes=256)
+    result=[dict(db,ID=f'db-batch-{b}',BatchSize=b) for b in (1,10,50,100,500,1000)]
+    result += [dict(db,ID=f'db-payload-{p}',PayloadBytes=p) for p in (1024,16384)]
+    result += [dict(db,ID=f'db-duplicates-{d}',DuplicateFraction=d/100) for d in (10,50,90)]
+    base=case(Kind='pipeline',Pattern='steady',Count=10000,BatchSize=100,PayloadBytes=256,
+              Rate=1000,Concurrency=32,Window=10_000_000_000,Warmup=2_000_000_000,
+              Drain=30_000_000_000,Poll=50_000_000)
+    result += [dict(base,ID=f'pipeline-batch-{b}',BatchSize=b) for b in (1,10,100)]
+    result += [dict(base,ID=f'pipeline-rate-{r}',Count=r*10,Rate=r) for r in (100,5000,10000)]
+    result += [dict(base,ID=f'pipeline-payload-{p}',PayloadBytes=p,BatchSize=10) for p in (1024,16384)]
+    result += [dict(base,ID='pipeline-burst',Pattern='burst')]
+    result += [dict(base,ID=f'pipeline-concurrency-{c}',Concurrency=c,BatchSize=1) for c in (8,64)]
+    for name,restore in (('database',8),('consumer',5)):
+        result.append(dict(base,ID='recovery-'+name,Kind='recovery',Recovery=name,Rate=500,
+                           Count=7500,Window=15_000_000_000,FaultAt=3_000_000_000,RestoreAt=restore*1_000_000_000))
+    result.append(case(ID='recovery-outbox',Kind='recovery',Recovery='outbox',Count=100,
+                       BatchSize=100,PayloadBytes=256,RestoreAt=8_000_000_000,Drain=30_000_000_000,Poll=50_000_000))
+    return result
+
+def validate_registry(rows, mode):
+    check([r['Case'] for r in rows]==registered_cases(mode),'registered cases or controls differ')
+
 def audit(directory, allow_smoke=False, secrets=()):
     root=Path(directory);index=json.loads((root/"index.json").read_text())
     check(index["Schema"]==1 and index["Status"]=="complete", "study is incomplete")
@@ -120,13 +154,14 @@ def audit(directory, allow_smoke=False, secrets=()):
     for key in ("SourceFingerprint","ControlsFingerprint","ImagesFingerprint","ConfigFingerprint"):
         check(re.fullmatch(r"[0-9a-f]{64}",identity[key]) is not None, "invalid provenance fingerprint")
     check(re.fullmatch(r"[0-9a-f]{40}",identity["SourceSHA"]) is not None, "invalid source revision")
+    check(bool(index["MetadataArtifacts"]) and bool(index["Resources"]), "provenance/resources missing")
     for ref in index["MetadataArtifacts"]+index["Resources"]:
         value=read_artifact(root,ref,secrets)
         if ref.get("Codec")=="json":
             check(value["source_sha"]==identity["SourceSHA"] and value["broker_fsync_bypass"] is False, "manifest revision/durability differs")
             check(value["settings"]["api_tls"] is True and value["settings"]["redpanda_memory"]=="1G" and value["settings"]["redpanda_smp"]==1, "runtime controls differ")
             check(all(value["database"][key]=="on" for key in ("fsync","synchronous_commit")), "database durability differs")
-    cases=index["Cases"];check(len(cases)==(25 if mode=="full" else 2), "registry cardinality differs")
+    cases=index["Cases"];validate_registry(cases,mode);check(len(cases)==(25 if mode=="full" else 2), "registry cardinality differs")
     check(len({row["Case"]["ID"] for row in cases})==len(cases), "duplicate case ID")
     totals={"database_runs":0,"pipeline_runs":0,"recovery_runs":0,"limited_cases":0}
     for row in cases:

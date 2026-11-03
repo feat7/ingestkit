@@ -50,6 +50,17 @@ class ArtifactAuditTests(unittest.TestCase):
         bad=copy.deepcopy(r);bad['request_samples'][0]['FinishedNS']=101;bad['request_samples'][0]['ElapsedNS']=101
         with self.assertRaises(audit.AuditError): audit.pipeline(bad,group,case)
 
+    def test_registry_rejects_missing_or_changed_controls(self):
+        cases=audit.registered_cases('full')
+        self.assertEqual(len(cases),25)
+        rows=[{'Case':c} for c in cases]
+        audit.validate_registry(rows,'full')
+        with self.assertRaises(audit.AuditError): audit.validate_registry(rows[:-1],'full')
+        changed=copy.deepcopy(rows);changed[0]['Case']['PayloadBytes']=512
+        with self.assertRaises(audit.AuditError): audit.validate_registry(changed,'full')
+        changed=copy.deepcopy(rows);changed[-1]['Case']['RestoreAt']=1
+        with self.assertRaises(audit.AuditError): audit.validate_registry(changed,'full')
+
     def test_population_indices(self):
         group={'Namespace':'n','Seed':42,'Count':2,'Indices':{'accepted':[0,1]}}
         self.assertEqual(len(audit.populations(group)['accepted']),2)
