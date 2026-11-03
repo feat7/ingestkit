@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/feat7/ingestkit/internal/benchmark"
 	"github.com/feat7/ingestkit/internal/event"
 	"github.com/feat7/ingestkit/internal/runenv"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -195,4 +197,38 @@ func TestBrokerAcknowledgementsUseDiskFlush(t *testing.T) {
 		}
 		require.True(t, found, "topic durability configuration must be observable")
 	}
+}
+
+func TestBrokerDoesNotBypassFsync(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Inspect the running broker, since the dev-container mode adds flags that do
+	// not appear literally in Compose or in the topic configuration response.
+	command := `for p in /proc/[0-9]*; do case "$(readlink "$p/exe" 2>/dev/null)" in */redpanda) cat "$p/cmdline"; exit 0;; esac; done; exit 1`
+	raw, err := stack.Compose(ctx, "exec", "-T", "redpanda", "sh", "-c", command)
+	require.NoError(t, err)
+	args := strings.Split(strings.TrimRight(raw, "\x00"), "\x00")
+	require.NotEmpty(t, args)
+	require.True(t, strings.HasSuffix(args[0], "/redpanda"))
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "--unsafe-bypass-fsync=") {
+			require.Contains(t, []string{"false", "0"}, strings.TrimPrefix(arg, "--unsafe-bypass-fsync="), "broker acknowledgements must not bypass fsync")
+		}
+		if arg == "--unsafe-bypass-fsync" {
+			require.Less(t, i+1, len(args))
+			require.Contains(t, []string{"false", "0"}, args[i+1])
+		}
+	}
+}
+
+func TestBenchmarkManifestRecordsBrokerFsync(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	manifest, err := benchmark.CaptureManifest(ctx, stack, pool)
+	require.NoError(t, err)
+	raw, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	require.Equal(t, false, fields["broker_fsync_bypass"], "future performance captures must include the effective broker fsync state")
 }

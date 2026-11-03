@@ -1,6 +1,6 @@
 # Publication drafts — prepare only
 
-These drafts are unpublished. Replace the article URL after choosing a home for it. Review the first-person voice and add only personal context that actually happened.
+These drafts are unpublished. The historical broker fsync-bypass finding requires corrected pipeline measurements and an updated article before any submission. Replace the article URL after choosing a home for it. Review the first-person voice and add only personal context that actually happened.
 
 ## Primary article
 

@@ -1,5 +1,12 @@
 # Building an event pipeline in Go—and testing what survives a crash
 
+> **Draft correction:** the historical pipeline figures below used a Redpanda
+> development-mode process with fsync bypass enabled. Disabling topic write
+> caching did not disable this separate process flag. The configuration has
+> been corrected; new pipeline measurements are required before publication.
+> The PostgreSQL-only comparison retains its recorded database durability.
+
+
 An HTTP 202 response is easy to produce. Explaining what it means after a
 process dies is harder.
 
@@ -171,7 +178,9 @@ capacity or long-term latency guarantees.
 Everything ran on a shared Apple M1 Max with OrbStack. The host generator and SQL
 observer compete with the services. PostgreSQL had fsync, synchronous commit and
 full-page writes enabled. The single Redpanda broker had three event partitions,
-one replica, seven-day retention and write caching explicitly disabled. Image
+one replica, seven-day retention and write caching explicitly disabled. Its
+development-mode process nevertheless bypassed fsync, so these historical
+pipeline timings are not evidence for the corrected broker configuration. Image
 digests, runtime settings and coarse resource snapshots are saved with the data.
 
 A single broker does not survive loss of its only disk. An outage beyond retention

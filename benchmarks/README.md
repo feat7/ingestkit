@@ -4,7 +4,7 @@ Run `make bench-db` with Docker running. Each invocation creates and destroys it
 
 Defaults: 10,000 submitted events, 256-byte JSON payload, 10% duplicate submissions, batch size 100, three repetitions after warm-up. Override via `BENCH_FLAGS='-count 1000 -batch 50 -duplicates 0'`. Single INSERT commits every row; batch INSERT and the production COPY/staging/merge store commit every batch. All use the same table, indexes, conflict policy and database settings. These transaction boundaries are part of the experiment.
 
-Workload generation, cleanup and exact ID/payload verification are outside the timer. Each repetition rotates method order. A random tenant scopes cleanup; no global truncation or schema changes. A missing row, mismatched payload, partial SQL failure or incomplete report fails the command. Raw per-call latency samples are in JSON; medians summarize repetitions. Performance evidence will be added after the harness is committed.
+Workload generation, cleanup and exact ID/payload verification are outside the timer. Each repetition rotates method order. A random tenant scopes cleanup; no global truncation or schema changes. A missing row, mismatched payload, partial SQL failure or incomplete report fails the command. Raw per-call latency samples are in JSON; medians summarize repetitions. Historical captures are retained below; their broker durability correction is documented with the results.
 
 Run `make bench-pipeline` for three measured windows after warm-up. `BENCH_FLAGS='-pattern burst -rate 1000 -duration 10s -batch 100 -concurrency 8'` offers the same total event count in the first quarter of each window. Steady load spreads it across the whole window. Rates are targets; inspect attempted events, queue misses, late schedules, HTTP failures and resource snapshots before interpreting a run.
 
@@ -16,3 +16,10 @@ The CLI requires committed source and records that revision, image content IDs/r
 repetition, exact configuration and the observed COPY/staging disadvantage.
 The optional figure generator is `python3 benchmarks/plot_results.py` with
 matplotlib installed; it reads these captures and writes docs/assets/experiments.svg.
+
+
+**Durability correction:** the historical pipeline captures used a broker with
+process-level fsync bypass enabled by dev-container mode. They do not establish
+performance for the corrected configuration. The current stack explicitly disables
+that bypass, and new manifests record the effective running-process setting.
+Rerun before making deployment-throughput claims; do not rewrite old raw samples.

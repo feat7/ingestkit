@@ -23,6 +23,7 @@ services:
       - redpanda
       - start
       - --mode=dev-container
+      - --unsafe-bypass-fsync=false
       - --smp=1
       - --memory=512M
       - --reserve-memory=0M

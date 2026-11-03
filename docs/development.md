@@ -76,3 +76,9 @@ ten-second drain budget for current work; exceeding it exits with failure.
 Processing-health failure is intentionally latched: an unrelated successful
 operation does not clear it. If no matching operation occurs after recovery,
 readiness stays false until that operation succeeds or the process restarts.
+
+
+The development broker explicitly disables its process-level fsync bypass as well
+as topic write caching. Inspect both when changing startup modes. Historical
+pipeline measurements predating that correction are marked as development-mode
+captures and require replacement before deployment-performance claims.

@@ -58,17 +58,20 @@ without installing a generated SDK.
 
 ## Evidence, including the awkward result
 
-On a shared M1 Max / OrbStack setup, three steady runs each accepted and stored
-10,000 distinct events at an offered 1,000 events/s. HTTP ACK p95 was 27–31ms;
-receipt-to-visible-storage p95 was 73–85ms, including SQL polling. Burst
-repetitions varied more. These are load points, **not a maximum-capacity claim**.
+The historical pipeline timings used Redpanda development mode with a process-
+level fsync bypass. Topic write caching was disabled, but that did not disable
+this separate bypass. The configuration has now been corrected; replacement
+pipeline measurements are pending. The old timings do not establish performance
+for the corrected broker configuration.
 
 The database comparison also found batch INSERT faster than the service's
 COPY/staging/merge path at batch size 100: median 0.492s versus 1.011s for
 10,000 unique submissions. Staging and replay handling have costs. All samples,
 settings, source revision and caveats are in [the local results](benchmarks/results/local-2026-11-03/README.md).
 
-![Database timings and storage visibility for every measured repetition](docs/assets/experiments.svg)
+Historical figure: its pipeline panel uses the earlier fsync-bypassed broker.
+
+![Historical database timings and development-mode pipeline visibility](docs/assets/experiments.svg)
 
 ~~~sh
 make test

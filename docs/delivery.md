@@ -49,7 +49,10 @@ requests; they are not a hard process-memory ceiling.
 
 The local broker has one replica and seven-day retention. Both event and
 quarantine topics explicitly disable write caching, including the development
-container's relaxed default. PostgreSQL fsync and synchronous commit stay enabled.
+container's relaxed default. The broker process also explicitly disables
+unsafe-bypass-fsync; topic configuration alone is insufficient to establish that.
+A real runtime test inspects the broker arguments. PostgreSQL fsync and
+synchronous commit stay enabled.
 These settings do not protect against loss of the only disk or an outage beyond
 retention. Tenant key scoping is not database row-level isolation.
 
