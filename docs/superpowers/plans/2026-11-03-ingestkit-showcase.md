@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-03-ingestkit-showcase-design.md` (approved 2026-11-03).
 
-**Status:** Ready for user review and execution-method selection. No implementation tasks have started.
+**Status:** Native execution approved; tasks 1–3 complete, task 4 verified and being committed. Progress evidence is recorded in the execution ledger and Git history.
 
 ## Global Constraints
 
@@ -52,7 +52,7 @@ internal/messaging/publisher.go   bounded acknowledged publishing
 internal/messaging/reader.go      poll/process/commit lifecycle
 internal/messaging/process.go     ordered segment storage and quarantine
 internal/messaging/quarantine.go  raw record preservation and acknowledged write
-internal/storage/events.go        transactional COPY + idempotent merge
+internal/persistence/events.go        transactional COPY + idempotent merge
 internal/telemetry/metrics.go     private Prometheus registry and observations
 internal/runenv/                  isolated Compose runner for tests/demo/bench
 internal/benchmark/               seeded workloads, write-method and pipeline experiments
@@ -105,7 +105,7 @@ Primary references used for these choices:
 
 **Interfaces:** Produce `Input{EventID uuid.UUID, EventType string, OccurredAt time.Time, Payload json.RawMessage}`, `Envelope{Input, TenantID string, ReceivedAt time.Time}`, `DecodeInput(raw []byte) (Input, error)`, `DecodeBatch(raw []byte) ([]Input, error)`, `Accept(input Input, tenant string, receivedAt time.Time) (Envelope, error)`, `EncodeEnvelope(envelope Envelope) ([]byte,error)`, and `DecodeEnvelope(raw []byte) (Envelope, error)`. Export `MaxEventBytes=256<<10`, `MaxEnvelopeBytes=MaxEventBytes+4096`, `MaxRequestBytes=1<<20`, `MaxBatchEvents=100`, and a typed validation error distinguishing too-large from malformed input. JSON field names match the spec. Decode exactly one JSON document and disallow unknown envelope-level fields; payload contents remain application-owned. Broker envelopes get the explicit metadata allowance so a legal maximum-sized HTTP event is not rejected after adding server fields; encode without HTML escaping to avoid expanding otherwise valid payloads beyond that allowance.
 
-- [ ] **1. Write failing tests:** `TestDecodeValidEvent`, `TestDecodeRejectsInvalidEnvelope` (missing/nil UUID, empty/129-byte event type, bad timestamp, null/array/scalar payload, trailing JSON, tenant/received-at injection), `TestEventByteLimits`, `TestBatchLimitsAndValidation`, `TestAcceptUsesServerIdentity`, and `TestDecodeBrokerEnvelope`. Representative assertions:
+- [x] **1. Write failing tests:** `TestDecodeValidEvent`, `TestDecodeRejectsInvalidEnvelope` (missing/nil UUID, empty/129-byte event type, bad timestamp, null/array/scalar payload, trailing JSON, tenant/received-at injection), `TestEventByteLimits`, `TestBatchLimitsAndValidation`, `TestAcceptUsesServerIdentity`, and `TestDecodeBrokerEnvelope`. Representative assertions:
   ```go
   require.Error(t, errForPayload(`{"payload":null}`))
   require.Len(t, decodedInputsForExactly100ValidEvents, 100)
@@ -114,22 +114,22 @@ Primary references used for these choices:
   require.Equal(t, receiptTime, accepted.ReceivedAt)
   ```
   Build UTF-8 fixtures that cross 256 KiB in bytes while remaining under the character count; validate per-event byte limits inside batches and the 1 MiB aggregate limit. `TestEnvelopeEncodingAtInputLimit` round-trips a valid 256 KiB input containing many `<>&` characters through encode/decode with metadata and verifies the broker-size bound. Reject zero tenant/receipt metadata on broker envelopes. Fix fixture times/IDs; no sleeps.
-- [ ] **2. Run red:** `go test ./internal/event -count=1`; expect missing types/functions or failing contract assertions.
-- [ ] **3. Implement** the defined types/decoders/encoder and three-event checkout fixture. Canonicalize UUIDs via `uuid.UUID`; preserve payload contents (insignificant JSON whitespace may be normalized); assign one receipt time at ingress. Use `json.Encoder.SetEscapeHTML(false)` for broker encoding. Do not introduce a schema DSL or validate application-specific payload fields.
-- [ ] **4. Run green:** `go test -race ./internal/event ./internal/api/middleware`; expect all tests pass and legacy build unaffected.
-- [ ] **5. Commit:** `feat: define explicit ingestion event contract`.
+- [x] **2. Run red:** `go test ./internal/event -count=1`; expect missing types/functions or failing contract assertions.
+- [x] **3. Implement** the defined types/decoders/encoder and three-event checkout fixture. Canonicalize UUIDs via `uuid.UUID`; preserve payload contents (insignificant JSON whitespace may be normalized); assign one receipt time at ingress. Use `json.Encoder.SetEscapeHTML(false)` for broker encoding. Do not introduce a schema DSL or validate application-specific payload fields.
+- [x] **4. Run green:** `go test -race ./internal/event ./internal/api/middleware`; expect all tests pass and legacy build unaffected.
+- [x] **5. Commit:** `feat: define explicit ingestion event contract`.
 
 ### Task 2: Build isolated migration and idempotent storage verification
 
-**Files:** Create `migrations/showcase/000001_events.up.sql`, `internal/storage/events.go`, `internal/storage/events_integration_test.go`, `tests/compose.yml` (temporary infrastructure-only test base), and `scripts/test-storage.sh`. Modify existing storage files only if a name conflict requires it; retain legacy paths until Task 9.
+**Files:** Create `migrations/showcase/000001_events.up.sql`, `internal/persistence/events.go`, `internal/persistence/events_integration_test.go`, `tests/compose.yml` (temporary infrastructure-only test base), and `scripts/test-storage.sh`. Modify existing storage files only if a name conflict requires it; retain legacy paths until Task 9.
 
 **Interfaces:** Consume Task 1 envelopes. Produce `NewEventStore(pool *pgxpool.Pool) *EventStore`, `WriteBatch(ctx context.Context, events []event.Envelope) (WriteResult, error)`, `WriteResult{Inserted int64, Duplicates int64}`, and `Ping(ctx context.Context) error`. The caller owns the pool. Expose no public database reset method.
 
-- [ ] **1. Write failing real-PostgreSQL tests:** `TestWriteBatchPreservesEnvelope`, `TestWriteBatchDeduplicatesWithinAndAcrossBatches`, `TestWriteBatchScopesIDsByTenant`, `TestWriteBatchRollsBackOnFailure`, `TestWriteBatchCancellation`, and `TestMigrationPreservesLegacyTablesAndLedger`. Assert returned IDs/payload/time round-trip, `Inserted=1`/`Duplicates=1` for two copies of one ID, two rows for one ID in two tenants, and zero newly visible rows after a cancelled/failed transaction. Create legacy sentinel table/ledger rows and assert unchanged after migration.
-- [ ] **2. Run red:** start only a uniquely named test PostgreSQL/migration stack with dynamic loopback ports; run `go test -tags=integration ./internal/storage -count=1`. Missing implementation/schema must fail; unavailable DB must fail rather than skip. Confirm image manifests and daemon capability before proceeding.
-- [ ] **3. Implement** the migration and transactional temporary staging (`ON COMMIT DROP`), `CopyFrom`, and `INSERT ... ON CONFLICT DO NOTHING`. Primary key is `(tenant_id,event_id)`; `payload` is constrained to an object. Count inserts from command results and duplicates from submitted count minus inserts. Use `persisted_at DEFAULT clock_timestamp()` as a database insertion timestamp, explicitly not a measurement of physical commit completion. Keep transaction/commit errors observable and roll back on every failure. Record inspected legacy ledger names without modifying them.
-- [ ] **4. Run green:** `scripts/test-storage.sh`; then `go test ./...` and `git diff --check`. A failed migration must fail the runner. Keep all old tables/volumes intact. Record actual image digests.
-- [ ] **5. Commit:** `feat: persist events with transactional copy and deduplication`.
+- [x] **1. Write failing real-PostgreSQL tests:** `TestWriteBatchPreservesEnvelope`, `TestWriteBatchDeduplicatesWithinAndAcrossBatches`, `TestWriteBatchScopesIDsByTenant`, `TestWriteBatchRollsBackOnFailure`, `TestWriteBatchCancellation`, and `TestMigrationPreservesLegacyTablesAndLedger`. Assert returned IDs/payload/time round-trip, `Inserted=1`/`Duplicates=1` for two copies of one ID, two rows for one ID in two tenants, and zero newly visible rows after a cancelled/failed transaction. Create legacy sentinel table/ledger rows and assert unchanged after migration.
+- [x] **2. Run red:** start only a uniquely named test PostgreSQL/migration stack with dynamic loopback ports; run `go test -tags=integration ./internal/persistence -count=1`. Missing implementation/schema must fail; unavailable DB must fail rather than skip. Confirm image manifests and daemon capability before proceeding.
+- [x] **3. Implement** the migration and transactional temporary staging (`ON COMMIT DROP`), `CopyFrom`, and `INSERT ... ON CONFLICT DO NOTHING`. Primary key is `(tenant_id,event_id)`; `payload` is constrained to an object. Count inserts from command results and duplicates from submitted count minus inserts. Use `persisted_at DEFAULT clock_timestamp()` as a database insertion timestamp, explicitly not a measurement of physical commit completion. Keep transaction/commit errors observable and roll back on every failure. Record inspected legacy ledger names without modifying them.
+- [x] **4. Run green:** `scripts/test-storage.sh`; then `go test ./...` and `git diff --check`. A failed migration must fail the runner. Keep all old tables/volumes intact. Record actual image digests.
+- [x] **5. Commit:** `feat: persist events with transactional copy and deduplication`.
 
 ### Task 3: Add bounded, accurate service telemetry
 
@@ -137,11 +137,11 @@ Primary references used for these choices:
 
 **Interfaces:** Produce `New() *Metrics`, `Handler() http.Handler`, `ObserveHTTP(route, status string, duration time.Duration)`, `ObservePublish(outcome string, duration time.Duration)`, `ObserveWrite(result storage.WriteResult, received []time.Time, duration time.Duration)`, `ObserveRetry()`, and `ObserveQuarantine(outcome string)`. A private registry belongs to each instance; do not mutate the global registry. Runtime readiness is handled separately, not inferred from event counts.
 
-- [ ] **1. Write failing tests:** `TestMetricsIndependentRegistries`, `TestMetricsCountersAndHistogramBuckets`, `TestMetricsHaveBoundedLabels`, `TestReceiptLatencyObservedAfterCommit`. Assert exact counter increments for known operations and histogram sample counts, no invented events/sec gauge, and no labels populated from tenant IDs, event IDs, or arbitrary event types. Use controlled receipt times and successful store completion, not event occurred-at time.
-- [ ] **2. Run red:** `go test ./internal/telemetry -count=1`; expect missing package/functions.
-- [ ] **3. Implement** Prometheus counters/histograms with fixed route/outcome/status classes. Ignore/clamp negative measured receipt durations defensively and document the same-host clock assumption. Do not add dashboards or a Prometheus-server container.
-- [ ] **4. Run green:** `go test -race ./internal/telemetry`; `go test ./...`. Verify the pinned dependency supports the module's Go version; do not broadly upgrade dependencies.
-- [ ] **5. Commit:** `feat: expose reliable ingestion counters and latency histograms`.
+- [x] **1. Write failing tests:** `TestMetricsIndependentRegistries`, `TestMetricsCountersAndHistogramBuckets`, `TestMetricsHaveBoundedLabels`, `TestReceiptLatencyObservedAfterCommit`. Assert exact counter increments for known operations and histogram sample counts, no invented events/sec gauge, and no labels populated from tenant IDs, event IDs, or arbitrary event types. Use controlled receipt times and successful store completion, not event occurred-at time.
+- [x] **2. Run red:** `go test ./internal/telemetry -count=1`; expect missing package/functions.
+- [x] **3. Implement** Prometheus counters/histograms with fixed route/outcome/status classes. Ignore/clamp negative measured receipt durations defensively and document the same-host clock assumption. Do not add dashboards or a Prometheus-server container.
+- [x] **4. Run green:** `go test -race ./internal/telemetry`; `go test ./...`. Verify the pinned dependency supports the module's Go version; do not broadly upgrade dependencies.
+- [x] **5. Commit:** `feat: expose reliable ingestion counters and latency histograms`.
 
 ### Task 4: Implement acknowledged publishing with real backpressure
 

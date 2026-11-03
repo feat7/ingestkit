@@ -2,7 +2,7 @@
 package telemetry
 
 import (
-	"github.com/feat7/ingestkit/internal/storage"
+	storage "github.com/feat7/ingestkit/internal/persistence"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"

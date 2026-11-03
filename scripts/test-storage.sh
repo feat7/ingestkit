@@ -9,4 +9,4 @@ trap '"${compose[@]}" down -v --remove-orphans >/dev/null' EXIT
 "${compose[@]}" run --rm migrate
 port=$("${compose[@]}" port postgres 5432)
 export INGESTKIT_TEST_DATABASE_URL="postgres://ingestkit:local-test-only@${port}/ingestkit_test?sslmode=disable"
-go test -tags=integration ./internal/storage -count=1 "$@"
+go test -tags=integration ./internal/persistence -count=1 "$@"

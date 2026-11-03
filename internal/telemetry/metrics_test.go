@@ -1,7 +1,7 @@
 package telemetry
 
 import (
-	"github.com/feat7/ingestkit/internal/storage"
+	storage "github.com/feat7/ingestkit/internal/persistence"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http/httptest"

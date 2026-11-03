@@ -18,5 +18,31 @@ services:
     command: ["-path=/migrations", "-database=postgres://ingestkit:local-test-only@postgres:5432/ingestkit_test?sslmode=disable&x-migrations-table=ingestkit_schema_migrations", up]
     depends_on:
       postgres: {condition: service_healthy}
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.6
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:${INGESTKIT_BROKER_PORT}
+    ports: ["127.0.0.1:${INGESTKIT_BROKER_PORT}:19092"]
+    volumes: ["redpanda_data:/var/lib/redpanda/data"]
+    healthcheck:
+      test: [CMD, rpk, cluster, info, -X, brokers=localhost:9092]
+      interval: 1s
+      timeout: 3s
+      retries: 40
+  topics:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.6
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - rpk topic create ingestkit.events --if-not-exists -p 3 -r 1 -c retention.ms=604800000 -c max.message.bytes=524288 -X brokers=redpanda:9092 && rpk topic create ingestkit.dlq --if-not-exists -p 1 -r 1 -c retention.ms=604800000 -c max.message.bytes=2097152 -X brokers=redpanda:9092
+    depends_on:
+      redpanda: {condition: service_healthy}
 volumes:
+  redpanda_data:
   postgres_data:
