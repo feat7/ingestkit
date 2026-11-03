@@ -4,10 +4,12 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -90,4 +92,26 @@ func TestGracefulAndForcedShutdown(t *testing.T) {
 	require.Equal(t, 202, send(t, queued, "local-demo-key"))
 	require.NoError(t, stack.SetServiceRunning(ctx, "consumer", true))
 	require.NoError(t, waitForIDs(ctx, pool, "demo", []uuid.UUID{e.EventID, queued.EventID}))
+}
+
+func TestConsumerGracefulStopExitsSuccessfully(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	e := freshEvent()
+	require.Equal(t, 202, send(t, e, "local-demo-key"))
+	require.NoError(t, waitForIDs(ctx, pool, "demo", []uuid.UUID{e.EventID}))
+	require.NoError(t, stack.SetServiceRunning(ctx, "consumer", false))
+	t.Cleanup(func() { restoreService(t, "consumer") })
+	out, err := stack.Compose(ctx, "ps", "-a", "--format", "{{.ExitCode}}", "consumer")
+	require.NoError(t, err)
+	require.Equal(t, "0", strings.TrimSpace(out))
+	require.NoError(t, stack.SetServiceRunning(ctx, "consumer", true))
+	require.NoError(t, waitStatus(ctx, stack.ConsumerURL+"/ready", 200))
+}
+func TestHTTPRejectsUnstoreableJSON(t *testing.T) {
+	for _, payload := range []string{`{"s":"\u0000"}`, `{"s":"\ud800"}`, `{"n":1e1000000}`} {
+		e := freshEvent()
+		e.Payload = json.RawMessage(payload)
+		require.Equal(t, 400, send(t, e, "local-demo-key"))
+	}
 }

@@ -27,18 +27,34 @@ func Drain(ctx context.Context, stop, flush func(context.Context) error, close f
 	}
 }
 func closeChannel(c chan struct{}) { close(c) }
-func Supervise(ctx context.Context, attempt func(context.Context) error, backoff time.Duration) error {
-	for ctx.Err() == nil {
-		_ = attempt(ctx)
+
+// Supervise stops new attempts on stopCtx, while workCtx bounds active work.
+func Supervise(stopCtx, workCtx context.Context, attempt func(context.Context) error, backoff time.Duration) error {
+	for {
+		if workCtx.Err() != nil {
+			return workCtx.Err()
+		}
+		if stopCtx.Err() != nil {
+			return nil
+		}
+		err := attempt(workCtx)
+		if workCtx.Err() != nil {
+			return errors.Join(err, workCtx.Err())
+		}
+		if stopCtx.Err() != nil {
+			return err
+		}
 		timer := time.NewTimer(backoff)
 		select {
-		case <-ctx.Done():
+		case <-stopCtx.Done():
 			timer.Stop()
-			return ctx.Err()
+			return err
+		case <-workCtx.Done():
+			timer.Stop()
+			return workCtx.Err()
 		case <-timer.C:
 		}
 	}
-	return ctx.Err()
 }
 func Check(ctx context.Context, address string) error {
 	host, port, err := net.SplitHostPort(address)

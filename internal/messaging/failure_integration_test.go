@@ -164,7 +164,11 @@ func TestCrashBetweenDatabaseAndOffsetCommit(t *testing.T) {
 	<-done
 	r.Close()
 }
-func exerciseQuarantine(t *testing.T, missing bool) {
+func exerciseQuarantine(t *testing.T, missing bool, override ...[]byte) {
+	poison := []byte("not-json")
+	if len(override) > 0 {
+		poison = override[0]
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	client := integrationClient(t)
@@ -173,7 +177,7 @@ func exerciseQuarantine(t *testing.T, missing bool) {
 	first, last := publisherEvent(), publisherEvent()
 	a, _ := event.EncodeEnvelope(first)
 	b, _ := event.EncodeEnvelope(last)
-	require.NoError(t, client.ProduceSync(ctx, &kgo.Record{Topic: topic, Value: a}, &kgo.Record{Topic: topic, Value: []byte("not-json"), Key: []byte("original")}, &kgo.Record{Topic: topic, Value: b}).FirstErr())
+	require.NoError(t, client.ProduceSync(ctx, &kgo.Record{Topic: topic, Value: a}, &kgo.Record{Topic: topic, Value: poison, Key: []byte("original")}, &kgo.Record{Topic: topic, Value: b}).FirstErr())
 	pool := integrationPool(t)
 	store := persistence.NewEventStore(pool)
 	cfg := ReaderConfig{Brokers: []string{brokerAddr(t)}, Topic: topic, DLQTopic: dlq, GroupID: group}
@@ -218,7 +222,7 @@ func exerciseQuarantine(t *testing.T, missing bool) {
 	require.NotEmpty(t, records)
 	var quarantined QuarantinedRecord
 	require.NoError(t, json.Unmarshal(records[0].Value, &quarantined))
-	require.Equal(t, []byte("not-json"), quarantined.Value)
+	require.Equal(t, poison, quarantined.Value)
 	require.Equal(t, []byte("original"), quarantined.Key)
 	require.EqualValues(t, 1, quarantined.Offset)
 }
@@ -272,4 +276,14 @@ func TestConsumerRebalanceRecovery(t *testing.T) {
 	cancel()
 	<-secondDone
 	second.Close()
+}
+
+func TestUnstoreableJSONQuarantineAndProgress(t *testing.T) {
+	for _, payload := range []string{`{"s":"\u0000"}`, `{"s":"\ud800"}`, `{"n":1e1000000}`} {
+		e := publisherEvent()
+		e.Payload = json.RawMessage(payload)
+		raw, err := json.Marshal(e)
+		require.NoError(t, err)
+		exerciseQuarantine(t, false, raw)
+	}
 }

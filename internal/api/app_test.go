@@ -199,3 +199,16 @@ func TestMetricsHTTPErrorStatus(t *testing.T) {
 	b, _ := io.ReadAll(res.Body)
 	require.Contains(t, string(b), `route="other",status="404"`)
 }
+
+func TestIncompatiblePayloadRejectedBeforePublish(t *testing.T) {
+	p := &fakePublisher{}
+	a := appForTest(t, p)
+	for _, payload := range []string{`{"s":"\u0000"}`, `{"s":"\ud800"}`, `{"n":1e1000000}`} {
+		body := strings.Replace(validEvent, `{"amount":25}`, payload, 1)
+		res := request(t, a, "/v1/events", body, "test-key")
+		require.Equal(t, 400, res.StatusCode)
+	}
+	require.Empty(t, p.events)
+	_, _, e := NewApp(Config{APIKeys: map[string]string{"key": "bad\x00tenant"}, RateLimitRPS: 1, PublishTimeout: time.Second}, p, nil)
+	require.Error(t, e)
+}

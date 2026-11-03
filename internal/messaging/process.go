@@ -15,12 +15,14 @@ func (r *Reader) processPartition(ctx context.Context, records []*kgo.Record) er
 		if len(source) == 0 {
 			return nil
 		}
-		if err := r.persist(ctx, valid); err != nil {
+		if err := r.persist(ctx, valid, source[0]); err != nil {
 			return err
 		}
 		commitCtx, cancel := context.WithTimeout(ctx, r.config.AttemptTimeout)
 		defer cancel()
-		if err := r.commit(commitCtx, source...); err != nil {
+		err := r.commit(commitCtx, source...)
+		r.notify("progress", source[len(source)-1], err)
+		if err != nil {
 			return fmt.Errorf("commit source progress: %w", err)
 		}
 		valid = nil
@@ -36,11 +38,14 @@ func (r *Reader) processPartition(ctx context.Context, records []*kgo.Record) er
 			if err := flush(); err != nil {
 				return err
 			}
-			if err := r.quarantine(ctx, rec, err); err != nil {
-				return err
+			quarantineErr := r.quarantine(ctx, rec, err)
+			r.notify("quarantine", rec, quarantineErr)
+			if quarantineErr != nil {
+				return quarantineErr
 			}
 			commitCtx, cancel := context.WithTimeout(ctx, r.config.AttemptTimeout)
 			err = r.commit(commitCtx, rec)
+			r.notify("progress", rec, err)
 			cancel()
 			if err != nil {
 				return err
@@ -57,7 +62,7 @@ func (r *Reader) processPartition(ctx context.Context, records []*kgo.Record) er
 	}
 	return flush()
 }
-func (r *Reader) persist(ctx context.Context, events []event.Envelope) error {
+func (r *Reader) persist(ctx context.Context, events []event.Envelope, source *kgo.Record) error {
 	window, cancel := context.WithTimeout(ctx, r.config.RetryWindow)
 	defer cancel()
 	backoff := r.config.BackoffMin
@@ -68,6 +73,7 @@ func (r *Reader) persist(ctx context.Context, events []event.Envelope) error {
 		attempt, end := context.WithTimeout(window, r.config.AttemptTimeout)
 		start := time.Now()
 		res, err := r.store.WriteBatch(attempt, events)
+		r.notify("storage", source, err)
 		end()
 		if err == nil {
 			if r.metrics != nil {

@@ -1,6 +1,6 @@
 # Local experiments — 3 November 2026
 
-Measured source: [deefc8162504fa482c19c63edda05c1c1a4c2ae7](https://github.com/feat7/ingestkit/tree/deefc8162504fa482c19c63edda05c1c1a4c2ae7). All four manifests record clean source at this revision. This branch must be pushed before that GitHub revision link resolves; the commit is available locally now.
+Measured source: [deefc8162504fa482c19c63edda05c1c1a4c2ae7](https://github.com/feat7/ingestkit/tree/deefc8162504fa482c19c63edda05c1c1a4c2ae7). All four manifests record clean source at this revision. Subsequent validation/lifecycle fixes are regression-tested but these timing captures have not been rerun on those later revisions. This branch must be pushed before that GitHub revision link resolves; the commit is available locally now.
 
 Apple M1 Max, 10 logical CPUs, 64 GiB physical memory; OrbStack Docker VM with 10 CPUs and about 15.7 GiB reported memory. Go generator 1.26.5; container builds 1.26.10. PostgreSQL 18.6, Redpanda 26.2.6, one broker/replica, event topic three partitions, one consumer. PostgreSQL fsync/synchronous_commit/full_page_writes were on; topic write.caching was false, retention seven days. Exact versions, image hashes, indexes and topic settings are in each manifest. Host, generator, observer and services share resources. The manifest's generic caveat says “Docker Desktop”; its actual runtime fields identify OrbStack. The numbers below describe this local VM.
 

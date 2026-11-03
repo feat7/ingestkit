@@ -31,7 +31,7 @@ func NewApp(config Config, publisher EventPublisher, metrics *telemetry.Metrics)
 	}
 	keys := middleware.NewAPIKeyConfig()
 	for key, tenant := range config.APIKeys {
-		if key == "" || len(tenant) < 1 || len(tenant) > 128 {
+		if key == "" || !event.ValidTenant(tenant) {
 			return nil, nil, errors.New("invalid API key mapping")
 		}
 		keys.AddKey(key, tenant)

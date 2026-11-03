@@ -10,6 +10,9 @@ func decode(raw []byte, dst any, max int) error {
 	if len(raw) > max {
 		return &ValidationError{Message: "event or request exceeds byte limit", TooLarge: true}
 	}
+	if !validUnicodeJSON(raw) {
+		return invalid("JSON text must be valid Unicode without NUL")
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(dst); err != nil {

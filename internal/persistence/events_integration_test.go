@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -93,4 +94,23 @@ func TestMigrationPreservesLegacyTablesAndLedger(t *testing.T) {
 	var n int
 	require.NoError(t, p.QueryRow(context.Background(), "SELECT count(*) FROM ingestkit_schema_migrations WHERE version=1 AND NOT dirty").Scan(&n))
 	require.Equal(t, 1, n)
+}
+
+func TestSupportedJSONBRepresentationsReallyPersist(t *testing.T) {
+	p := testPool(t)
+	for _, payload := range []string{`{"s":"\ud83d\ude00"}`, `{"s":"\\u0000"}`, `{"n":1e131071}`, `{"n":1e-16383}`, `{"a":` + strings.Repeat("[", 63) + "0" + strings.Repeat("]", 63) + "}"} {
+		e := testEvent(t)
+		e.Payload = json.RawMessage(payload)
+		_, err := event.Accept(e.Input, e.TenantID, e.ReceivedAt)
+		require.NoError(t, err)
+		r, err := NewEventStore(p).WriteBatch(context.Background(), []event.Envelope{e})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, r.Inserted)
+	}
+	for _, payload := range []string{`{"s":"\u0000"}`, `{"s":"\ud800"}`, `{"n":1e1000000}`} {
+		e := testEvent(t)
+		e.Payload = json.RawMessage(payload)
+		_, err := NewEventStore(p).WriteBatch(context.Background(), []event.Envelope{e})
+		require.Error(t, err, "database rejects inputs the API must catch")
+	}
 }

@@ -23,7 +23,7 @@ func TestShutdownTimeoutIsFailure(t *testing.T) {
 func TestConsumerSupervisorRejoinsAfterFailure(t *testing.T) {
 	ctx, c := context.WithCancel(context.Background())
 	attempts := 0
-	err := Supervise(ctx, func(context.Context) error {
+	err := Supervise(ctx, ctx, func(context.Context) error {
 		attempts++
 		if attempts == 2 {
 			c()

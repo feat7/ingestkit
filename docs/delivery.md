@@ -68,3 +68,20 @@ Decode and repair the envelope, then resubmit through the authenticated API with
 the original event ID. Invalid IDs require an explicit operator choice of a new
 ID. Never bulk-replay unchecked quarantine into the broker or skip source offsets
 to hide a failure.
+
+## Representable payloads and processing health
+
+Payloads must fit PostgreSQL JSONB: valid UTF-8 and paired Unicode surrogate
+escapes, no NUL characters in strings or object keys, and numeric representations
+within 131,072 integer digits and 16,383 fractional digits. The payload root counts
+as level one of a conservative 64-level nesting limit. Envelope text and tenant
+IDs also reject NUL and invalid Unicode. These checks run before HTTP publishing
+and during broker decoding, so incompatible broker records enter acknowledged
+quarantine rather than retrying storage forever. See [PostgreSQL's JSON restrictions](https://www.postgresql.org/docs/18/datatype-json.html).
+
+Consumer readiness also tracks storage, quarantine and offset-commit failures.
+A reader restart or successful connectivity probe cannot clear such a failure;
+the corresponding operation must succeed. During shutdown the consumer stops
+polling, permits the current batch to finish within its ten-second drain budget,
+and reports failure if it must cancel unfinished work. It does not drain every
+record remaining in the broker; unhandled records remain replayable.

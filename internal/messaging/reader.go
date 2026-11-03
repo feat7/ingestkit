@@ -8,6 +8,7 @@ import (
 	"github.com/feat7/ingestkit/internal/persistence"
 	"github.com/feat7/ingestkit/internal/telemetry"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"sync"
 	"time"
 )
 
@@ -16,13 +17,22 @@ var ErrRetryExhausted = errors.New("storage retry window exhausted")
 type BatchStore interface {
 	WriteBatch(context.Context, []event.Envelope) (persistence.WriteResult, error)
 }
+type Operation struct {
+	Kind, Topic string
+	Partition   int32
+	Offset      int64
+	Err         error
+}
 type ReaderConfig struct {
+	OnOperation                                         func(Operation)
 	Brokers                                             []string
 	Topic, DLQTopic, GroupID                            string
 	BatchSize                                           int
 	AttemptTimeout, RetryWindow, BackoffMin, BackoffMax time.Duration
 }
 type Reader struct {
+	stop       chan struct{}
+	stopOnce   sync.Once
 	client     *kgo.Client
 	publisher  *Publisher
 	config     ReaderConfig
@@ -67,18 +77,58 @@ func NewReader(c ReaderConfig, s BatchStore, m *telemetry.Metrics) (*Reader, err
 		return nil, err
 	}
 	q := &Quarantine{publisher: pub, metrics: m}
-	return &Reader{client: client, publisher: pub, config: c, store: s, metrics: m, poll: client.PollRecords, commit: client.CommitRecords, allow: client.AllowRebalance, quarantine: q.Write}, nil
+	return &Reader{stop: make(chan struct{}), client: client, publisher: pub, config: c, store: s, metrics: m, poll: client.PollRecords, commit: client.CommitRecords, allow: client.AllowRebalance, quarantine: q.Write}, nil
+}
+
+// StopPolling interrupts an idle poll without cancelling the current write.
+func (r *Reader) StopPolling() {
+	r.stopOnce.Do(func() {
+		if r.stop != nil {
+			close(r.stop)
+		}
+	})
+}
+func (r *Reader) stopping() bool {
+	select {
+	case <-r.stop:
+		return true
+	default:
+		return false
+	}
+}
+func (r *Reader) notify(kind string, rec *kgo.Record, err error) {
+	if r.config.OnOperation != nil {
+		r.config.OnOperation(Operation{Kind: kind, Topic: rec.Topic, Partition: rec.Partition, Offset: rec.Offset, Err: err})
+	}
 }
 func (r *Reader) Run(ctx context.Context) error {
+	pollCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-r.stop:
+			cancel()
+		case <-pollCtx.Done():
+		}
+	}()
 	for ctx.Err() == nil {
-		fetches := r.poll(ctx, r.config.BatchSize)
-		if err := r.processFetch(ctx, fetches); err != nil {
+		if r.stopping() {
+			return nil
+		}
+		fetches := r.poll(pollCtx, r.config.BatchSize)
+		if err := r.processFetched(ctx, fetches, r.stopping()); err != nil {
 			return err
+		}
+		if r.stopping() {
+			return nil
 		}
 	}
 	return ctx.Err()
 }
 func (r *Reader) processFetch(ctx context.Context, f kgo.Fetches) error {
+	return r.processFetched(ctx, f, false)
+}
+func (r *Reader) processFetched(ctx context.Context, f kgo.Fetches, ignorePollCancel bool) error {
 	defer r.allow()
 	cycle, cancel := context.WithTimeout(ctx, r.config.RetryWindow)
 	defer cancel()
@@ -94,8 +144,11 @@ func (r *Reader) processFetch(ctx context.Context, f kgo.Fetches) error {
 	if result != nil {
 		return result
 	}
-	if errs := f.Errors(); len(errs) > 0 {
-		return fmt.Errorf("fetch failure: %w", errs[0].Err)
+	for _, fetchErr := range f.Errors() {
+		if ignorePollCancel && errors.Is(fetchErr.Err, context.Canceled) && ctx.Err() == nil {
+			continue
+		}
+		return fmt.Errorf("fetch failure: %w", fetchErr.Err)
 	}
 	return ctx.Err()
 }

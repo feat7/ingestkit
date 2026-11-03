@@ -13,14 +13,18 @@ These are newly performed local experiments, not a production success story or
 a historical sequence of optimizations. The measured code is
 [deefc8162504fa482c19c63edda05c1c1a4c2ae7](https://github.com/feat7/ingestkit/tree/deefc8162504fa482c19c63edda05c1c1a4c2ae7).
 [Raw results and environment manifests](../benchmarks/results/local-2026-11-03/README.md)
-are part of the repository.
+are part of the repository. Later validation and lifecycle fixes are covered by
+regression tests; these captures remain evidence for the exact recorded revision,
+rather than a new measurement of every subsequent change.
 
 ## Start with the promise
 
 A caller supplies an event UUID, event type, occurrence timestamp and JSON object.
 The API key determines the tenant; the caller cannot choose another tenant in
 the envelope. The API supplies a receipt timestamp and validates the complete
-request before publishing it.
+request before publishing it. Payload validation includes PostgreSQL JSONB
+representation limits and a conservative nesting bound; syntactically valid JSON
+is not always a value PostgreSQL can store.
 
 ~~~json
 {"event_id":"00000000-0000-4000-8000-000000000003","event_type":"order_completed","occurred_at":"2026-11-03T00:00:00Z","payload":{"order_id":"order-1","amount":25}}

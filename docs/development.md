@@ -67,3 +67,12 @@ use only language standard libraries.
 They require committed source and destroy their own stacks after saving reports.
 Do not run them concurrently when comparing timings. Normal CI runs only small
 benchmark correctness checks as part of integration testing.
+
+Consumer readiness includes processing health, so a successful database Ping is
+insufficient after a failed write. Correct the dependency/permission problem and
+allow the pending operation to succeed. Shutdown stops new polls and has a
+ten-second drain budget for current work; exceeding it exits with failure.
+
+Processing-health failure is intentionally latched: an unrelated successful
+operation does not clear it. If no matching operation occurs after recovery,
+readiness stays false until that operation succeeds or the process restarts.

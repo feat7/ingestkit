@@ -77,78 +77,110 @@ func (s *Stack) Compose(ctx context.Context, args ...string) (string, error) {
 	}
 	return s.docker(ctx, s.composeArgs(args...)...)
 }
+
+var errStartupCleanup = errors.New("startup cleanup failed")
+
 func Start(ctx context.Context, o Options) (*Stack, error) {
 	root, err := Root()
 	if err != nil {
 		return nil, err
 	}
+	var last error
 	for attempt := 0; attempt < 3; attempt++ {
-		s := &Stack{root: root, Project: projectName(o.Purpose), token: uuid.NewString(), owned: true}
-		s.identity = s.Project
-		s.Directory = o.OutputDirectory
-		if s.Directory == "" {
-			s.Directory = filepath.Join(root, "tmp", "runs", s.Project)
+		s, e := startAttempt(ctx, root, o)
+		if e == nil {
+			return s, nil
 		}
-		s.Directory, err = filepath.Abs(s.Directory)
-		if err != nil {
-			return nil, err
+		last = e
+		if !strings.Contains(e.Error(), "address already in use") || errors.Is(e, errStartupCleanup) {
+			return nil, e
 		}
-		if err = os.MkdirAll(s.Directory, 0700); err != nil {
-			return nil, err
+	}
+	return nil, last
+}
+func startAttempt(ctx context.Context, root string, o Options) (result *Stack, err error) {
+	s := &Stack{root: root, Project: projectName(o.Purpose), token: uuid.NewString(), owned: true}
+
+	resourcesMayExist := false
+	defer func() {
+		if err == nil || !resourcesMayExist {
+			return
 		}
-		var reservations []net.Listener
-		var ports []int
-		for i := 0; i < 4; i++ {
-			listener, e := net.Listen("tcp", "127.0.0.1:0")
-			if e != nil {
-				for _, open := range reservations {
-					open.Close()
-				}
-				return nil, e
+		cleanup, end := context.WithTimeout(context.Background(), 20*time.Second)
+		defer end()
+		evidenceErr := s.CollectEvidence(cleanup, s.Directory)
+		destroyErr := s.Destroy(cleanup)
+		if destroyErr != nil {
+			destroyErr = errors.Join(errStartupCleanup, destroyErr)
+		}
+		err = fmt.Errorf("start %s failed; evidence %s: %w", s.Project, s.Directory, errors.Join(err, evidenceErr, destroyErr))
+		result = nil
+	}()
+	s.identity = s.Project
+	s.Directory = o.OutputDirectory
+	if s.Directory == "" {
+		s.Directory = filepath.Join(root, "tmp", "runs", s.Project)
+	}
+	s.Directory, err = filepath.Abs(s.Directory)
+	if err != nil {
+		return nil, err
+	}
+	if err = os.MkdirAll(s.Directory, 0700); err != nil {
+		return nil, err
+	}
+	var reservations []net.Listener
+	var ports []int
+	for i := 0; i < 4; i++ {
+		listener, e := net.Listen("tcp", "127.0.0.1:0")
+		if e != nil {
+			for _, open := range reservations {
+				open.Close()
 			}
-			reservations = append(reservations, listener)
-			ports = append(ports, listener.Addr().(*net.TCPAddr).Port)
+			return nil, e
 		}
-		port := ports[0]
-		s.env = []string{fmt.Sprintf("INGESTKIT_BROKER_PORT=%d", port), fmt.Sprintf("API_PORT=%d", ports[1]), fmt.Sprintf("METRICS_PORT=%d", ports[2]), fmt.Sprintf("POSTGRES_PORT=%d", ports[3]), "POSTGRES_DB=ingestkit_test", "POSTGRES_PASSWORD=local-test-only", "API_KEYS={\"local-demo-key\":\"demo\",\"local-second-key\":\"second\"}", "INGESTKIT_RUN_ID=" + s.token}
-		if err = os.WriteFile(filepath.Join(s.Directory, "run.env"), []byte(strings.Join(s.env, "\n")+"\n"), 0600); err != nil {
-			for _, reservation := range reservations {
-				reservation.Close()
-			}
-			return nil, err
-		}
+		reservations = append(reservations, listener)
+		ports = append(ports, listener.Addr().(*net.TCPAddr).Port)
+	}
+	port := ports[0]
+	s.env = []string{fmt.Sprintf("INGESTKIT_BROKER_PORT=%d", port), fmt.Sprintf("API_PORT=%d", ports[1]), fmt.Sprintf("METRICS_PORT=%d", ports[2]), fmt.Sprintf("POSTGRES_PORT=%d", ports[3]), "POSTGRES_DB=ingestkit_test", "POSTGRES_PASSWORD=local-test-only", "API_KEYS={\"local-demo-key\":\"demo\",\"local-second-key\":\"second\"}", "INGESTKIT_RUN_ID=" + s.token}
+	if err = os.WriteFile(filepath.Join(s.Directory, "run.env"), []byte(strings.Join(s.env, "\n")+"\n"), 0600); err != nil {
 		for _, reservation := range reservations {
 			reservation.Close()
 		}
-		_, err = s.Compose(ctx, "up", "-d", "--build", "--wait", "--wait-timeout", "90")
-		if err != nil {
-			cleanup, end := context.WithTimeout(context.Background(), 20*time.Second)
-			_ = s.CollectEvidence(cleanup, s.Directory)
-			_ = s.Destroy(cleanup)
-			end()
-			if strings.Contains(err.Error(), "address already in use") {
-				continue
-			}
-			return nil, err
-		}
-		endpoints := make(map[string]string)
-		for service, containerPort := range map[string]string{"api": "8080", "consumer": "8081", "postgres": "5432"} {
-			out, e := s.Compose(ctx, "port", service, containerPort)
-			if e != nil {
-				return nil, e
-			}
-			endpoints[service] = strings.TrimSpace(out)
-		}
-		s.APIURL = apiAddress(endpoints["api"])
-		s.ConsumerURL = apiAddress(endpoints["consumer"])
-		s.DatabaseURL = "postgres://ingestkit:local-test-only@" + endpoints["postgres"] + "/ingestkit_test?sslmode=disable"
-		s.Brokers = fmt.Sprintf("127.0.0.1:%d", port)
-		manifest, _ := json.MarshalIndent(map[string]string{"project": s.Project, "api_url": s.APIURL, "consumer_url": s.ConsumerURL, "broker": s.Brokers}, "", "  ")
-		_ = os.WriteFile(filepath.Join(s.Directory, "stack.json"), manifest, 0600)
-		return s, nil
+		return nil, err
 	}
-	return nil, errors.New("could not reserve a broker port after three attempts")
+	for _, reservation := range reservations {
+		reservation.Close()
+	}
+	resourcesMayExist = true
+	_, err = s.Compose(ctx, "up", "-d", "--build", "--wait", "--wait-timeout", "90")
+	if err != nil {
+		return nil, err
+	}
+
+	endpoints := make(map[string]string)
+	for service, containerPort := range map[string]string{"api": "8080", "consumer": "8081", "postgres": "5432"} {
+		out, e := s.Compose(ctx, "port", service, containerPort)
+		if e != nil {
+			return nil, e
+		}
+		endpoints[service] = strings.TrimSpace(out)
+	}
+	s.APIURL = apiAddress(endpoints["api"])
+	s.ConsumerURL = apiAddress(endpoints["consumer"])
+	s.DatabaseURL = "postgres://ingestkit:local-test-only@" + endpoints["postgres"] + "/ingestkit_test?sslmode=disable"
+	s.Brokers = fmt.Sprintf("127.0.0.1:%d", port)
+	manifest, err := json.MarshalIndent(map[string]string{"project": s.Project, "api_url": s.APIURL, "consumer_url": s.ConsumerURL, "broker": s.Brokers}, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err = os.WriteFile(filepath.Join(s.Directory, "stack.json"), manifest, 0600); err != nil {
+		return nil, err
+	}
+	return s, nil
+
 }
+
 func (s *Stack) verifyOwner(ctx context.Context) error {
 	if !s.owned || s.token == "" || !strings.HasPrefix(s.Project, "ingestkit-") {
 		return errors.New("refusing unowned resource operation")
