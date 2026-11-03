@@ -131,6 +131,7 @@ type PipelineReport struct {
 type StoredObservation struct {
 	ID         uuid.UUID
 	ReceivedAt time.Time
+	ObservedAt time.Time // SQL clock after the committed-row result has been read.
 }
 type sendResult struct {
 	IDs                 []uuid.UUID
@@ -229,7 +230,11 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 				seen[v.ID] = true
 				observedAt[v.ID] = now
 				r.StoredIDs = append(r.StoredIDs, v.ID)
-				lat := now.Sub(v.ReceivedAt).Nanoseconds()
+				observedClock := v.ObservedAt
+				if observedClock.IsZero() {
+					observedClock = now
+				} // Injected observers may share the host clock.
+				lat := observedClock.Sub(v.ReceivedAt).Nanoseconds()
 				if lat < 0 {
 					return errors.New("negative visibility latency: clocks disagree")
 				}
@@ -323,7 +328,7 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 	return r, errors.Join(result, observationError, reconcileErr)
 }
 func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) {
-	r := PipelineReport{Kind: "pipeline", Config: PublicPipelineConfig(c), Notes: []string{"Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.", "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries.", "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound; includes SQL query and polling delay. Same-host clocks assumed; persisted_at is not used.", "PersistedEPS = all observed unique rows / (measured window plus request tail and drain); accepted EPS uses the measured window. See raw durations.", "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+	r := PipelineReport{Kind: "pipeline", Config: PublicPipelineConfig(c), Notes: []string{"Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.", "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries.", "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.", "PersistedEPS = all observed unique rows / (measured window plus request tail and drain); accepted EPS uses the measured window. See raw durations.", "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
 		"Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."}}
 	if c.Pool == nil || c.Rate <= 0 || c.Concurrency <= 0 || c.Concurrency > 1000 || c.Duration <= 0 || c.DrainDeadline <= 0 || c.PollInterval <= 0 || c.BatchSize <= 0 || c.BatchSize > 100 || c.Repetitions < 3 || c.Tenant == "" || (c.Pattern != "steady" && c.Pattern != "burst") {
 		return r, errors.New("invalid pipeline configuration")
@@ -346,7 +351,21 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			}
 			out = append(out, v)
 		}
-		return out, rows.Err()
+
+		if e = rows.Err(); e != nil {
+			return nil, e
+		}
+		rows.Close()
+		if len(out) > 0 {
+			var observedClock time.Time
+			if e = c.Pool.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&observedClock); e != nil {
+				return nil, e
+			}
+			for i := range out {
+				out[i].ObservedAt = observedClock
+			}
+		}
+		return out, nil
 	}
 	run := func(cfg PipelineConfig, rep int) (PipelineRun, error) {
 		es, e := Workload(WorkloadConfig{Seed: cfg.Seed + int64(rep), Count: int(float64(cfg.Rate) * cfg.Duration.Seconds()), PayloadBytes: cfg.PayloadBytes})

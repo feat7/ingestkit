@@ -56,3 +56,16 @@ func TestPipelineDrainDeadlineFails(t *testing.T) {
 	require.Equal(t, 1, r.Missing)
 	require.GreaterOrEqual(t, r.TotalNS, r.WindowNS)
 }
+
+func TestVisibilityUsesObserverClockDomain(t *testing.T) {
+	c := PipelineConfig{Rate: 10, Concurrency: 1, Duration: 100 * time.Millisecond, DrainDeadline: 20 * time.Millisecond, PollInterval: time.Millisecond, BatchSize: 1, PayloadBytes: 64, Pattern: "steady"}
+	// The Docker VM clock may be ahead of the host. Receipt and SQL observation
+	// use that VM clock; the host clock still schedules load and backlog samples.
+	receipt := time.Now().Add(time.Hour)
+	r, e := runPipelineSample(context.Background(), c, 1, func(_ context.Context, ids []uuid.UUID) sendResult { return sendResult{Accepted: true} }, func(_ context.Context, ids []uuid.UUID) ([]StoredObservation, error) {
+		return []StoredObservation{{ID: ids[0], ReceivedAt: receipt, ObservedAt: receipt.Add(7 * time.Millisecond)}}, nil
+	})
+	require.NoError(t, e)
+	require.True(t, r.Correct)
+	require.Equal(t, []int64{int64(7 * time.Millisecond)}, r.VisibilityNS)
+}
