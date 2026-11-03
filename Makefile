@@ -22,3 +22,7 @@ demo-recovery:
 .PHONY: bench-db
 bench-db:
 	go run ./cmd/bench $(BENCH_FLAGS)
+
+.PHONY: bench-pipeline
+bench-pipeline:
+	go run ./cmd/bench -mode pipeline $(BENCH_FLAGS)

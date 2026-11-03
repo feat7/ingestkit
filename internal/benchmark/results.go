@@ -58,6 +58,18 @@ func WriteReport(dir string, report any) error {
 	name := "report"
 	var records [][]string
 	switch r := report.(type) {
+	case PipelineReport:
+		if len(r.Runs) < 3 {
+			return errors.New("pipeline report requires three repetitions")
+		}
+		name = "pipeline"
+		records = append(records, []string{"repetition", "planned", "attempted", "accepted", "persisted", "generator_missed", "ambiguous", "rejected", "window_ns", "total_ns", "drain_ns", "ack_p95_ns", "visibility_p95_ns", "correct"})
+		for _, v := range r.Runs {
+			if !v.Correct {
+				return errors.New("incorrect pipeline run")
+			}
+			records = append(records, []string{strconv.Itoa(v.Repetition), strconv.Itoa(v.Planned), strconv.Itoa(v.Attempted), strconv.Itoa(v.Accepted), strconv.Itoa(v.Persisted), strconv.Itoa(v.GeneratorMissed), strconv.Itoa(v.Ambiguous), strconv.Itoa(v.Rejected), strconv.FormatInt(v.WindowNS, 10), strconv.FormatInt(v.TotalNS, 10), strconv.FormatInt(v.DrainNS, 10), strconv.FormatInt(v.Ack.P95, 10), strconv.FormatInt(v.Visibility.P95, 10), strconv.FormatBool(v.Correct)})
+		}
 	case DatabaseReport:
 		if e := r.Validate(); e != nil {
 			return e
