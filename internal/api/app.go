@@ -46,6 +46,9 @@ func NewApp(config Config, publisher EventPublisher, metrics *telemetry.Metrics)
 			status = fe.Code
 		}
 		ensureRequestID(c)
+		if c.Locals("metrics_observed") != true {
+			metrics.ObserveHTTP("other", strconv.Itoa(status), 0)
+		}
 		return middleware.SendError(c, status, "request_failed", "request could not be processed")
 	}})
 	app.Use(middleware.RequestID(), recover.New())
@@ -65,7 +68,16 @@ func NewApp(config Config, publisher EventPublisher, metrics *telemetry.Metrics)
 		case "/metrics":
 			route = "metrics"
 		}
-		metrics.ObserveHTTP(route, strconv.Itoa(c.Response().StatusCode()), time.Since(start))
+		status := c.Response().StatusCode()
+		if err != nil {
+			status = 500
+			var fe *fiber.Error
+			if errors.As(err, &fe) {
+				status = fe.Code
+			}
+		}
+		c.Locals("metrics_observed", true)
+		metrics.ObserveHTTP(route, strconv.Itoa(status), time.Since(start))
 		return err
 	})
 	app.Get("/health", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "alive"}) })

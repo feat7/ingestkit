@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,9 +10,13 @@ import (
 	"github.com/feat7/ingestkit/internal/telemetry"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -50,7 +56,17 @@ func request(t *testing.T, a *fiber.App, path, body, key string) *http.Response 
 	if key != "" {
 		r.Header.Set("Authorization", "Bearer "+key)
 	}
-	res, err := a.Test(r, -1)
+	r.Close = true
+	r.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	dump, err := httputil.DumpRequest(r, true)
+	require.NoError(t, err)
+	conn := &memoryConn{input: bytes.NewReader(dump)}
+	a.Handler()
+	err = a.Server().ServeConn(conn)
+	if !errors.Is(err, fasthttp.ErrBodyTooLarge) {
+		require.NoError(t, err)
+	}
+	res, err := http.ReadResponse(bufio.NewReader(&conn.output), r)
 	require.NoError(t, err)
 	t.Cleanup(func() { res.Body.Close() })
 	return res
@@ -159,4 +175,27 @@ func TestMetricsRoute(t *testing.T) {
 	b, _ := io.ReadAll(res.Body)
 	require.Contains(t, string(b), "ingestkit_stored_total")
 	require.Equal(t, 404, request(t, a, "/v1/events/user_signup", validEvent, "test-key").StatusCode)
+}
+
+type memoryConn struct {
+	input  *bytes.Reader
+	output bytes.Buffer
+}
+
+func (c *memoryConn) Read(b []byte) (int, error)       { return c.input.Read(b) }
+func (c *memoryConn) Write(b []byte) (int, error)      { return c.output.Write(b) }
+func (c *memoryConn) Close() error                     { return nil }
+func (c *memoryConn) LocalAddr() net.Addr              { return &net.TCPAddr{} }
+func (c *memoryConn) RemoteAddr() net.Addr             { return &net.TCPAddr{} }
+func (c *memoryConn) SetDeadline(time.Time) error      { return nil }
+func (c *memoryConn) SetReadDeadline(time.Time) error  { return nil }
+func (c *memoryConn) SetWriteDeadline(time.Time) error { return nil }
+func TestMetricsHTTPErrorStatus(t *testing.T) {
+	a := appForTest(t, &fakePublisher{})
+	require.Equal(t, 404, request(t, a, "/unknown", validEvent, "test-key").StatusCode)
+	res, err := a.Test(httptest.NewRequest("GET", "/metrics", nil))
+	require.NoError(t, err)
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	require.Contains(t, string(b), `route="other",status="404"`)
 }
