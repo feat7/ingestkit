@@ -15,3 +15,8 @@ coverage.*
 **/backups/
 **/private/
 .archify/
+# Local application outbox databases and journals
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*

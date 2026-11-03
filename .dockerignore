@@ -19,3 +19,7 @@ bin
 **/private
 .archify
 .worktrees
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
