@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/feat7/ingestkit/internal/event"
-	"github.com/feat7/ingestkit/internal/persistence"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"reflect"
@@ -53,7 +53,7 @@ const insertPrefix = "INSERT INTO ingestkit.events(tenant_id,event_id,event_type
 
 func writeMethod(ctx context.Context, p *pgxpool.Pool, method string, es []event.Envelope) (int64, error) {
 	if method == "copy-merge" {
-		r, e := persistence.NewEventStore(p).WriteBatch(ctx, es)
+		r, e := writeCopyMerge(ctx, p, es)
 		return r.Inserted, e
 	}
 	if method == "insert" {
@@ -121,7 +121,7 @@ func verifyDatabase(ctx context.Context, p *pgxpool.Pool, tenant string, es []ev
 	return nil
 }
 func RunDatabase(ctx context.Context, c DatabaseConfig) (DatabaseReport, error) {
-	r := DatabaseReport{Kind: "database", Workload: c.Workload, BatchSize: c.BatchSize, Repetitions: c.Repetitions, Notes: []string{"Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.", "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.", "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."}}
+	r := DatabaseReport{Kind: "database", Workload: c.Workload, BatchSize: c.BatchSize, Repetitions: c.Repetitions, Notes: []string{"Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.", "Single INSERT commits each row; batch INSERT and reference COPY/merge commit each batch. Same table, indexes and conflict policy.", "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."}}
 	if c.Pool == nil || c.BatchSize <= 0 || c.BatchSize > 1000 || c.Repetitions < 3 {
 		return r, errors.New("pool, batch size 1..1000 and at least three repetitions required")
 	}

@@ -30,7 +30,7 @@ in a named volume. Public certificate issuance requires working DNS and external
 reachability; the automated local test uses a private CA instead.
 
 ~~~sh
-git clone git@github.com:feat7/ingestkit.git
+git clone https://github.com/feat7/ingestkit.git
 cd ingestkit
 deploy/configure.sh events.example.com
 docker compose --env-file deploy/.env -f deploy/compose.yml config --quiet
@@ -39,7 +39,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 
 Only the gateway publishes ports. PostgreSQL, Kafka, broker administration and
 service metrics stay on Docker's private network. The consumer uses an
-`ingestkit_writer` login with schema usage, temporary tables, SELECT and INSERT;
+`ingestkit_writer` login with schema usage, SELECT and INSERT (no temporary-table privilege);
 migrations use the separate admin login.
 
 ## Send and verify

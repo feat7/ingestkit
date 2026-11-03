@@ -14,7 +14,7 @@ flowchart LR
   A[Application] -->|JSON + stable UUID| B[Go API]
   B -->|acknowledged append| C[Redpanda]
   C --> D[Go consumer]
-  D -->|COPY staging + merge| E[(PostgreSQL)]
+  D -->|Atomic batch INSERT| E[(PostgreSQL)]
   D -->|malformed envelope| F[Quarantine topic]
   E -. transaction commits before offset .-> C
 ~~~

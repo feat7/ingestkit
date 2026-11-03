@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/feat7/ingestkit/internal/persistence"
 	"github.com/feat7/ingestkit/internal/runenv"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"net"
@@ -92,6 +93,7 @@ func CaptureManifest(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool) (Man
 	if response.TLS != nil {
 		m.Settings["tls_version"] = tls.VersionName(response.TLS.Version)
 	}
+	m.Settings["database_write_method"] = persistence.WriteMethod
 	m.Settings["producer_compression_preference"] = "snappy, none (pinned franz-go source default)"
 	m.Settings["http_request_timeout_ns"] = int64(8 * time.Second)
 	m.Settings["visibility_clock"] = "API receipt and PostgreSQL observation share the deployment clock; host time schedules load"

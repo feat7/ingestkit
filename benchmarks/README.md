@@ -2,7 +2,7 @@
 
 Run `make bench-db` with Docker running. Each invocation creates and destroys its own local stack, prints an evidence directory, and writes every measured repetition to JSON/CSV. No external database is accepted by the CLI.
 
-Defaults: 10,000 submitted events, 256-byte JSON payload, 10% duplicate submissions, batch size 100, three repetitions after warm-up. Override via `BENCH_FLAGS='-count 1000 -batch 50 -duplicates 0'`. Single INSERT commits every row; batch INSERT and the production COPY/staging/merge store commit every batch. All use the same table, indexes, conflict policy and database settings. These transaction boundaries are part of the experiment.
+Defaults: 10,000 submitted events, 256-byte JSON payload, 10% duplicate submissions, batch size 100, three repetitions after warm-up. Override via `BENCH_FLAGS='-count 1000 -batch 50 -duplicates 0'`. Single INSERT commits every row; batch INSERT and the explicit COPY/staging/merge reference commit every batch. All use the same table, indexes, conflict policy and database settings. These transaction boundaries are part of the experiment.
 
 Workload generation, cleanup and exact ID/payload verification are outside the timer. Each repetition rotates method order. A random tenant scopes cleanup; no global truncation or schema changes. A missing row, mismatched payload, partial SQL failure or incomplete report fails the command. Raw per-call latency samples are in JSON; medians summarize repetitions. Historical captures are retained below; their broker durability correction is documented with the results.
 
@@ -72,7 +72,10 @@ The new registry uses deterministic varied ASCII payloads, not repeated padding.
 Every case has its own namespace, recorded seed and exact byte controls. The
 owned profile fixes API rate limit10,000, broker1core/1GiB and seven-day topic
 retention independently of ambient shell variables; manifests verify actual
-settings. No service storage default is changed by the study.
+settings. The first complete study favored batch INSERT in all eleven DB configurations.
+The deployed writer was changed separately with failure/replay tests; final
+pipeline captures are recorded again from that committed code. The COPY reference
+is independent of the current default and remains a distinct method.
 
 During the deliberate database outage, the SQL observer explicitly records an
 unavailable interval. It reconnects with remaining IDs after PostgreSQL returns;
