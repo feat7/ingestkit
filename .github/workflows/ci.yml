@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5.5.0
         with:
           go-version: '1.26.10'
@@ -25,5 +27,7 @@ jobs:
       - run: node --test examples/checkout/*.test.mjs
       - run: python3 -m unittest discover -s examples/outbox -p 'test_*.py'
       - run: python3 -m unittest discover -s benchmarks -p 'test_*.py'
+      - run: python3 -m unittest discover -s scripts -p 'test_archive_benchmark_evidence.py'
+      - run: python3 benchmarks/audit_study.py benchmarks/results/connections-2026-11-04-7b54d30a --repo .
       - run: scripts/test-integration.sh
       - run: make demo DEMO_FLAGS=-cleanup
