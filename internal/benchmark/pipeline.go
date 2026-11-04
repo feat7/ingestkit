@@ -73,6 +73,8 @@ type BacklogSample struct {
 	Accepted, Visible                       int
 }
 type PipelineRun struct {
+	StartedAt time.Time `json:"started_at"`
+
 	Connections                       ConnectionSnapshot        `json:"connections"`
 	GeneratorLimits                   runtimeinfo.ProcessLimits `json:"generator_limits"`
 	DriverPoolBefore, DriverPoolAfter map[string]any
@@ -279,6 +281,7 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 	}
 	started := time.Now()
 	r.started = started
+	r.StartedAt = started.UTC()
 	if c.SampleStarted != nil {
 		c.SampleStarted(rep, started)
 	}

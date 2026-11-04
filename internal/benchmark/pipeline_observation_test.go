@@ -184,3 +184,15 @@ func TestVisibilityFailureSerializesUnavailableAndNoSQLCapacityRate(t *testing.T
 	require.Nil(t, fields["receipt_to_observed_storage_upper_bound"])
 	require.NotContains(t, fields, "PersistedEPS")
 }
+
+func TestRunStartTimeIsPublishedForRuntimeAlignment(t *testing.T) {
+	c := observerConfig()
+	var started time.Time
+	c.SampleStarted = func(_ int, at time.Time) { started = at }
+	r, _ := runPipelineSample(context.Background(), c, 1, func(context.Context, []uuid.UUID) sendResult { return sendResult{Accepted: true} }, func(context.Context, []uuid.UUID) ([]StoredObservation, error) { return nil, nil })
+	raw, err := json.Marshal(r)
+	require.NoError(t, err)
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(raw, &value))
+	require.Equal(t, started.UTC().Format(time.RFC3339Nano), value["started_at"])
+}
