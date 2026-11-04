@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/feat7/ingestkit/internal/runenv"
 	"github.com/feat7/ingestkit/internal/runtimeinfo"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
@@ -103,18 +104,26 @@ func RuntimeSnapshot(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool) map[
 		if err != nil {
 			out["database_sessions"] = map[string]any{"status": "unavailable"}
 		} else {
-			defer rows.Close()
-			groups := []map[string]any{}
-			for rows.Next() {
-				var role, app string
-				var state *string
-				var count int64
-				if rows.Scan(&role, &app, &state, &count) == nil {
-					groups = append(groups, map[string]any{"role": role, "application": app, "state": state, "count": count})
-				}
-			}
-			out["database_sessions"] = map[string]any{"status": "available", "groups": groups}
+			out["database_sessions"] = sessionObservation(rows)
 		}
 	}
 	return out
+}
+
+func sessionObservation(rows pgx.Rows) map[string]any {
+	defer rows.Close()
+	groups := []map[string]any{}
+	for rows.Next() {
+		var role, app string
+		var state *string
+		var count int64
+		if rows.Scan(&role, &app, &state, &count) != nil {
+			return map[string]any{"status": "unavailable"}
+		}
+		groups = append(groups, map[string]any{"role": role, "application": app, "state": state, "count": count})
+	}
+	if rows.Err() != nil {
+		return map[string]any{"status": "unavailable"}
+	}
+	return map[string]any{"status": "available", "groups": groups}
 }

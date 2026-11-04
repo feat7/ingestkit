@@ -21,6 +21,7 @@ import (
 )
 
 type CalibrationReport struct {
+	Status               string `json:"status"`
 	Schema               int
 	Kind                 string
 	SourceSHA, GoVersion string
@@ -42,7 +43,7 @@ type CalibrationRun struct {
 // This sink verifies only driver scheduling, TLS and acknowledgement accounting.
 // It has no database, broker or ingestion durability contract.
 func RunCalibration(ctx context.Context, c PipelineConfig) (CalibrationReport, error) {
-	r := CalibrationReport{Schema: 2, Kind: "tls_driver_calibration", SourceSHA: localOutput(ctx, "git", "rev-parse", "HEAD"), GoVersion: runtime.Version(), Config: PublicPipelineConfig(c), Limits: runtimeinfo.CaptureProcessLimits(), Notes: []string{"Owned local TLS acknowledgement sink only; no broker, database or ingestion capacity measurement.", "Shares the physical host with the driver. Payload generation precedes each measured window; encoding remains in request time."}}
+	r := CalibrationReport{Status: "incomplete", Schema: 2, Kind: "tls_driver_calibration", SourceSHA: localOutput(ctx, "git", "rev-parse", "HEAD"), GoVersion: runtime.Version(), Config: PublicPipelineConfig(c), Limits: runtimeinfo.CaptureProcessLimits(), Notes: []string{"Owned local TLS acknowledgement sink only; no broker, database or ingestion capacity measurement.", "Shares the physical host with the driver. Payload generation precedes each measured window; encoding remains in request time."}}
 	r.Config["https"] = true
 	r.Config["generator_logical_cpus"] = runtime.NumCPU()
 	r.Config["generator_gomaxprocs"] = runtime.GOMAXPROCS(0)
@@ -197,6 +198,7 @@ func RunCalibration(ctx context.Context, c PipelineConfig) (CalibrationReport, e
 			return r, ctx.Err()
 		}
 	}
+	r.Status = "complete"
 	return r, nil
 }
 

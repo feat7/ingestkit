@@ -49,11 +49,18 @@ def _inventory(root, paths):
     return files, directories
 
 
+def _refuse_archive_symlinks(destination):
+    for component in (destination,*destination.parents):
+        if component.is_symlink():
+            raise ValueError("archive path or ancestor is a symlink")
+
+
 def archive_paths(repo_root, archive_root, relative_paths, *, apply=False):
     root, destination = Path(repo_root), Path(archive_root)
     if root.is_symlink() or not root.is_dir():
         raise ValueError("checkout root must be a real directory")
     root, destination = root.resolve(), destination.absolute()
+    _refuse_archive_symlinks(destination)
     if destination.resolve().is_relative_to(root):
         raise ValueError("archive must be outside the checkout")
     if destination.exists() or destination.is_symlink():
@@ -67,6 +74,7 @@ def archive_paths(repo_root, archive_root, relative_paths, *, apply=False):
     manifest = {"schema": 1, "checkout_root": str(root), "source_sha": revision.stdout.strip() if revision.returncode == 0 else None, "paths": relative_paths, "files": list(files.values()), "verified": False, "removed": []}
     if not apply:
         return manifest
+    _refuse_archive_symlinks(destination)
     destination.mkdir(parents=True, mode=0o700, exist_ok=False)
     for name in files:
         target = destination / name
@@ -75,6 +83,7 @@ def archive_paths(repo_root, archive_root, relative_paths, *, apply=False):
         target.chmod(0o600)
         with target.open("rb") as handle:
             os.fsync(handle.fileno())
+    _refuse_archive_symlinks(destination)
     # The second phase starts only after every destination and every source agrees.
     current, _ = _inventory(root, relative_paths)
     if set(current) != set(files):
@@ -82,6 +91,7 @@ def archive_paths(repo_root, archive_root, relative_paths, *, apply=False):
     for name, entry in files.items():
         if current[name]["sha256"] != entry["sha256"] or _hash(destination / name) != entry["sha256"]:
             raise ValueError("evidence checksum differs; originals preserved")
+    _refuse_archive_symlinks(destination)
     manifest["verified"] = True
     record = destination / "manifest.json"
     def save():

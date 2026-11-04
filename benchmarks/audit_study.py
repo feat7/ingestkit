@@ -242,6 +242,20 @@ def verify_calibration_run(run,rate,window):
     hashes=run['IDSetSHA256']
     check(set(hashes)=={'attempted','accepted','sink_received'} and len(set(hashes.values()))==1 and all(re.fullmatch('[0-9a-f]{64}',v) for v in hashes.values()),'calibration ID hashes differ')
 
+# Recorded source did not check terminal SQL row-stream errors. Preserve its
+# immutable bytes, but expose no successful session population from that source.
+UNRELIABLE_SESSION_SOURCES={'043f584cf8638269a53afd5c9ec35a2721bc4148'}
+
+def resource_samples(root,index):
+    samples=[]
+    for ref in index['Resources']:samples.extend(read_artifact(root,ref))
+    if index['Identity']['SourceSHA'] in UNRELIABLE_SESSION_SOURCES:
+        for sample in samples:
+            runtime=sample.get('runtime',{})
+            if 'database_sessions' in runtime:
+                runtime['database_sessions']={'status':'unavailable','reason':'recorded_source_did_not_check_row_stream_errors'}
+    return samples
+
 def verify_connection_evidence(root,index,repo=None):
     verify_inventory(root)
     identity=index['Identity']
@@ -274,6 +288,7 @@ def verify_connection_evidence(root,index,repo=None):
         c=report['Config'];rate=c['target_events_per_second'];rates.append(rate)
         check(report['Schema']==2 and report['Kind']=='tls_driver_calibration' and report['SourceSHA']==identity['SourceSHA'] and c['https'] is True,'calibration identity/transport differs')
         check(c['http_batch_size']==100 and c['payload_bytes']==1024 and c['concurrency']==128 and c['http_max_conns_per_host']==128 and c['http_max_idle_conns_per_host']==128 and c['window_ns']==10_000_000_000,'calibration controls differ')
+        check(report.get('status','complete')=='complete','calibration is incomplete')
         check(len(report['Runs'])==3,'calibration repetitions differ')
         for run in report['Runs']:verify_calibration_run(run,rate,c['window_ns'])
     check(sorted(rates)==[15000,30000,50000],'calibration rate cohort differs')
@@ -337,6 +352,9 @@ def audit(directory, allow_smoke=False, secrets=(), repo=None):
                     sets=populations(group);check(run["Correct"] and set(sets["accepted"])==set(sets["stored"]) and len(sets["stored"])==100, "outbox sets differ")
                     check(run["FirstAttemptNS"]>=5e9 and run["FirstAttemptStatus"] in ("http_503","delivery_uncertain"), "outbox timeout was not established")
                     check(len(sets["ambiguous"])==100 and len(run["Faults"])>=4, "outbox uncertainty/control missing");totals["recovery_runs"]+=1
+    if identity["SourceSHA"] in UNRELIABLE_SESSION_SOURCES:
+        resource_samples(root,index)
+        totals["unavailable_metrics"]=["database_sessions"]
     return totals
 
 if __name__=="__main__":

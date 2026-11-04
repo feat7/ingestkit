@@ -44,8 +44,7 @@ def main():
     plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'svg.hashsalt':'ingestkit-connections-v1','axes.spines.top':False,'axes.spines.right':False,'axes.edgecolor':'#c8d0d8','axes.labelcolor':'#273544','text.color':'#162636','xtick.color':'#415365','ytick.color':'#415365','grid.color':'#e4e9ee','axes.axisbelow':True})
     index=json.loads((args.study/'index.json').read_text())
     captures={row['Case']['ID']:audit_study.read_artifact(args.study,row['Artifact']) for row in index['Cases']}
-    resources=[]
-    for ref in index['Resources']:resources.extend(audit_study.read_artifact(args.study,ref))
+    resources=audit_study.resource_samples(args.study,index)
     args.out.mkdir(parents=True,exist_ok=True)
     if args.preview:args.preview.mkdir(parents=True,exist_ok=True)
     def save(fig,name):

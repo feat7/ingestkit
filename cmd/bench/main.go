@@ -99,13 +99,7 @@ func runArgs(args []string) (result error) {
 			return errors.New("calibration requires -out directory")
 		}
 		r, err := benchmark.RunCalibration(ctx, benchmark.PipelineConfig{Rate: *rate, Duration: *duration, Concurrency: *concurrency, BatchSize: *batch, PayloadBytes: *size, Seed: *seed, Repetitions: 3, HTTPMaxConnsPerHost: *activeCap, HTTPMaxIdleConnsPerHost: *idleCap})
-		if err != nil {
-			return err
-		}
-		if *out == "" {
-			return errors.New("calibration requires -out directory")
-		}
-		return benchmark.WriteJSON(filepath.Join(*out, "calibration.json"), r)
+		return writeCalibrationResult(*out, r, err)
 	}
 	s, e := runenv.Start(ctx, measuredOptions(*mode))
 	if e != nil {
@@ -180,4 +174,11 @@ func runArgs(args []string) (result error) {
 		}
 	}
 	return nil
+}
+
+func writeCalibrationResult(out string, report benchmark.CalibrationReport, runErr error) error {
+	if runErr != nil {
+		report.Status = "incomplete"
+	}
+	return errors.Join(runErr, benchmark.WriteJSON(filepath.Join(out, "calibration.json"), report))
 }

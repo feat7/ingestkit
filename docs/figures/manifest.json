@@ -388,7 +388,7 @@
   "generators": [
     {
       "path": "benchmarks/plot_connections.py",
-      "sha256": "42689ff9ea9154c5dac21d6c7c9213e9cf17c8dc08035bf4bb90dd0b9f28fc90"
+      "sha256": "675a5ece8dc3a7a2c3609f495ac537c106a786c7a0c30c1e5de9303f8dd13a3c"
     },
     {
       "path": "docs/figures/render_story_guides.py",
@@ -406,7 +406,15 @@
     "evidence_manifest_sha256": "f7f88a325c15597e4e4c8141cfc651cb1211b3c7ed531601e7266d202933f10e",
     "pipeline_windows": 36,
     "calibration_windows": 9,
-    "scope": "Local short screening; all repetitions and limited outcomes retained; no sustained maximum-capacity claim."
+    "scope": "Local short screening; all repetitions and limited outcomes retained; no sustained maximum-capacity claim.",
+    "unavailable_metrics": [
+      "database_sessions"
+    ],
+    "validator": {
+      "path": "benchmarks/audit_study.py",
+      "sha256": "0e6b282f3f6d347a0b8e30d5b33922cd8ef1a70b1c61b0a33171ae9d6f60c1c3"
+    },
+    "validity_note": "Recorded session-count queries did not check row-stream errors. Audited resource reads expose them as unavailable; independent pool/HTTP/row/offset measurements and immutable raw bytes are retained."
   },
   "export_tools": {
     "python": "3.12.14",

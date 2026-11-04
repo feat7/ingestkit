@@ -88,6 +88,13 @@ zero or one acquired connection, no cancelled acquisitions, and a constant
 increase during the sampled study. The writer remained serial. Increasing its
 pool limit would have no demonstrated benefit here.
 
+The separate SQL session-count snapshots at recorded source `043f584` did not
+check row-stream errors. Their completeness cannot be established retrospectively,
+so the auditor and plot loader mark them unavailable. The raw capture stays
+unchanged. Pool statistics above come from the consumer's private metrics,
+independently of that query. The current collector checks both row scans and
+terminal stream errors.
+
 The driver descriptor limit was 245,760; its open-descriptor count was unavailable
 on this macOS process and stays null. Service descriptor limits and actual counts
 were sampled privately; the API used at most 113 descriptors in those samples.
@@ -136,6 +143,8 @@ Git objects. The bundle also contains three TLS-driver calibrations, each with
 three windows at 150, 300 and 500 requests/s. They sent the planned work without
 misses; one 300 requests/s window acknowledged 100 events after its end. The sink
 has no broker or database and provides no ingestion durability result.
+Interrupted calibrations now save completed and partial windows with an explicit
+`incomplete` report status; they cannot pass the publication audit.
 
 ~~~sh
 go run ./cmd/bench -mode calibrate -rate 50000 -batch 100 -payload 1024 \

@@ -145,6 +145,19 @@ class ArtifactAuditTests(unittest.TestCase):
         r['backlog']=[dict(elapsed_ns=30,Accepted=1,Visible=2,ObservationAvailable=True,FinalVerification=False)]
         with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
 
+    def test_historical_session_snapshots_are_unavailable_without_editing_raw(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            value=[{'runtime':{'database_sessions':{'status':'available','groups':[{'count':1}]},'consumer':{'status':'available','metrics':{'ingestkit_db_pool_empty_acquires_total':2}}}}]
+            raw=json.dumps(value).encode();data=gzip.compress(raw,mtime=0);(root/'resources.gz').write_bytes(data)
+            ref=dict(Path='resources.gz',Size=len(data),RawBytes=len(raw),SHA256=hashlib.sha256(data).hexdigest(),Codec='gzip')
+            index={'Identity':{'SourceSHA':'043f584cf8638269a53afd5c9ec35a2721bc4148'},'Resources':[ref]}
+            samples=audit.resource_samples(root,index)
+            self.assertEqual(samples[0]['runtime']['database_sessions']['status'],'unavailable')
+            self.assertNotIn('groups',samples[0]['runtime']['database_sessions'])
+            self.assertEqual(samples[0]['runtime']['consumer'],value[0]['runtime']['consumer'])
+            self.assertEqual((root/'resources.gz').read_bytes(),data)
+
     def test_population_indices(self):
         group={'Namespace':'n','Seed':42,'Count':2,'Indices':{'accepted':[0,1]}}
         self.assertEqual(len(audit.populations(group)['accepted']),2)

@@ -11,9 +11,9 @@ class ArchiveEvidenceTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name) / "repo"
+        self.root = Path(self.tmp.name).resolve() / "repo"
         self.root.mkdir()
-        self.target = Path(self.tmp.name) / "archive"
+        self.target = Path(self.tmp.name).resolve() / "archive"
         self.a = self.root / "benchmarks/results/retired/a.json"
         self.b = self.root / "benchmarks/results/retired/b.json"
         self.a.parent.mkdir(parents=True)
@@ -38,6 +38,15 @@ class ArchiveEvidenceTest(unittest.TestCase):
             with self.subTest(paths=paths), self.assertRaises(ValueError):
                 archive.archive_paths(self.root, self.target, paths, apply=True)
         self.assertEqual(outside.read_text(), "keep")
+
+    def test_destination_ancestor_symlink_preserves_all_sources(self):
+        real=self.root.parent/'real-destination';real.mkdir()
+        link=self.root.parent/'destination-link';link.symlink_to(real,target_is_directory=True)
+        for apply in (False,True):
+            with self.subTest(apply=apply),self.assertRaises(ValueError):
+                archive.archive_paths(self.root,link/'nested'/'archive',self.paths,apply=apply)
+        self.assertTrue(self.a.exists());self.assertTrue(self.b.exists())
+        self.assertEqual(list(real.iterdir()),[])
 
     def test_existing_archive_refused(self):
         self.target.mkdir()
