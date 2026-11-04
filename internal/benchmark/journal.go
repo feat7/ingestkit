@@ -42,7 +42,7 @@ type StudyJournal struct {
 }
 
 func (j StudyJournal) Compatible(identity StudyIdentity) error {
-	if j.Schema != 1 {
+	if j.Schema != 2 {
 		return errors.New("unsupported study journal schema")
 	}
 	differences := []string{}

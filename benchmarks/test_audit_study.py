@@ -6,12 +6,56 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import uuid
 
 spec = importlib.util.spec_from_file_location('audit_study', Path(__file__).with_name('audit_study.py'))
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 
 class ArtifactAuditTests(unittest.TestCase):
+    def valid_pipeline(self):
+        group={'Namespace':'n','Seed':42,'Count':1,'Indices':{k:[0] for k in ('attempted','accepted','stored')}}
+        group['Indices']['ambiguous']=[]
+        expected=str(uuid.uuid5(uuid.NAMESPACE_OID,'n/42/0'))
+        digest=hashlib.sha256(expected.encode()).hexdigest()
+        r={k:0 for k in ('Missing','Unexpected','DuplicateRows','ContentMismatch','GeneratorMissed','Ambiguous','Rejected','AttemptedAfterWindow','AcceptedAfterWindow','AmbiguousUnobserved','LateSchedules','ObserverLatePolls','ObserverOutages','ObserverSlowQueries')}
+        r.update(correct=True,Planned=1,Attempted=1,Accepted=1,Persisted=1,ObservedEvents=1,VisibilitySampleCount=1,
+                 AttemptedInWindow=1,AcceptedInWindow=1,WindowNS=100,TotalNS=110,DrainNS=10,
+                 AcceptedEPS=1e7,VerifiedCompletionEPS=1e9/110,outcome='complete',
+                 load_status='met',delivery_status='passed',observation_status='complete',
+                 ack_ns=[10],visibility_ns=[20],backlog=[],id_set_sha256={k:digest for k in ('attempted','accepted','stored')},
+                 request_samples=[dict(StartedNS=0,FinishedNS=10,ElapsedNS=10,Events=1,Accepted=True,Ambiguous=False,Status=202)],
+                 ack_latency={k:10 for k in ('p50_ns','p95_ns','p99_ns')},
+                 receipt_to_observed_storage_upper_bound={k:20 for k in ('p50_ns','p95_ns','p99_ns')})
+        r['id_set_sha256']['ambiguous']=hashlib.sha256(b'').hexdigest()
+        return r,group,{'Count':1,'BatchSize':1}
+
+    def test_failed_visibility_cannot_serialize_a_numeric_percentile(self):
+        r,g,c=self.valid_pipeline();r['observation_status']='failed'
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
+    def test_load_status_cannot_claim_met_when_events_were_unsent(self):
+        r,g,c=self.valid_pipeline();r.update(Planned=2,GeneratorMissed=1,outcome='limited')
+        g['Count']=2;c['Count']=2
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
+    def test_verified_completion_denominator_is_independently_checked(self):
+        r,g,c=self.valid_pipeline();r['VerifiedCompletionEPS']=1000000000
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
+    def test_sample_count_forgery_is_rejected(self):
+        r,g,c=self.valid_pipeline();r['VisibilitySampleCount']=999
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
+    def test_valid_observer_failure_keeps_verified_delivery(self):
+        r,g,c=self.valid_pipeline()
+        r.update(observation_status='failed',outcome='limited',observation_error_class='timeout',receipt_to_observed_storage_upper_bound=None)
+        audit.pipeline(r,g,c)
+
+    def test_altered_stored_id_hash_is_rejected(self):
+        r,g,c=self.valid_pipeline();r['id_set_sha256']['stored']='0'*64
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
     def test_nearest_rank_and_set_hash(self):
         self.assertEqual(audit.percentile(list(range(1, 101)), .95), 95)
         self.assertEqual(audit.percentile([], .99), 0)
@@ -32,18 +76,7 @@ class ArtifactAuditTests(unittest.TestCase):
             with self.assertRaises(audit.AuditError): audit.read_artifact(root,dict(ref,Path='link'))
 
     def test_forged_statistics_and_late_window_are_rejected(self):
-        group={'Namespace':'n','Seed':42,'Count':1,'Indices':{k:[0] for k in ('attempted','accepted','stored')}}
-        group['Indices']['ambiguous']=[]
-        sets=audit.populations(group)
-        r={k:0 for k in ('Missing','Unexpected','DuplicateRows','ContentMismatch','GeneratorMissed','Ambiguous','Rejected','AttemptedAfterWindow','AcceptedAfterWindow','AmbiguousUnobserved','LateSchedules','ObserverLatePolls','ObserverOutages')}
-        r.update(correct=True,Planned=1,Attempted=1,Accepted=1,Persisted=1,ObservedEvents=1,
-                 AttemptedInWindow=1,AcceptedInWindow=1,WindowNS=100,TotalNS=110,DrainNS=10,
-                 AcceptedEPS=1e7,PersistedEPS=1e9/110,outcome='complete',
-                 ack_ns=[10],visibility_ns=[20],backlog=[],id_set_sha256={k:audit.id_hash(v) for k,v in sets.items()},
-                 request_samples=[dict(StartedNS=0,FinishedNS=10,ElapsedNS=10,Events=1,Accepted=True,Ambiguous=False,Status=202)],
-                 ack_latency={k:10 for k in ('p50_ns','p95_ns','p99_ns')},
-                 receipt_to_observed_storage_upper_bound={k:20 for k in ('p50_ns','p95_ns','p99_ns')})
-        case={'Count':1,'BatchSize':1}
+        r,group,case=self.valid_pipeline()
         audit.pipeline(r,group,case)
         bad=copy.deepcopy(r);bad['ack_latency']['p99_ns']=9
         with self.assertRaises(audit.AuditError): audit.pipeline(bad,group,case)

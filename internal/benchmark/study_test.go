@@ -60,7 +60,7 @@ func TestStudyRegistryHas25ControlledCases(t *testing.T) {
 }
 func TestJournalRejectsRevisionOrControlChanges(t *testing.T) {
 	identity := StudyIdentity{SourceSHA: "revision", SourceFingerprint: "source", ControlsFingerprint: "controls", ImagesFingerprint: "images", ConfigFingerprint: "runtime", Seed: 42, Mode: "full"}
-	journal := StudyJournal{Schema: 1, Identity: identity, RunNamespace: "stable", Cases: map[string]CaseProgress{}}
+	journal := StudyJournal{Schema: 2, Identity: identity, RunNamespace: "stable", Cases: map[string]CaseProgress{}}
 	require.NoError(t, journal.Compatible(identity))
 	for _, field := range []string{"source", "controls", "images", "runtime", "revision", "seed", "mode"} {
 		changed := identity

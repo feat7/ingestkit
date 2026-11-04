@@ -82,19 +82,30 @@ def pipeline(run, group, case):
     check(inside==run["AcceptedInWindow"] and starts==run["AttemptedInWindow"], "window classification differs")
     check(run["AcceptedAfterWindow"]==len(accepted)-inside and run["AttemptedAfterWindow"]==len(attempted)-starts, "tail classification differs")
     check(run["ack_ns"]==[q["ElapsedNS"] for q in requests if q["Accepted"]], "ACK samples differ from requests")
-    check(len(run["visibility_ns"])==run["ObservedEvents"], "visibility population differs")
+    check("PersistedEPS" not in run,"legacy ambiguous rate field is not schema2")
+    check(run["VisibilitySampleCount"]==len(run["visibility_ns"])<=run["ObservedEvents"],"visibility sample count differs")
+    observation=run["observation_status"]
+    check(observation in ("complete","partial","failed","not_run"),"invalid observation status")
+    if observation=="complete":
+        check(len(run["visibility_ns"])==run["ObservedEvents"],"complete visibility population differs")
+    if observation!="complete" or not run["visibility_ns"]:
+        check(run["receipt_to_observed_storage_upper_bound"] is None,"unavailable visibility must be null")
+    check(run["delivery_status"]=="passed","delivery was not independently verified")
     for samples,key in ((run["ack_ns"],"ack_latency"),(run["visibility_ns"],"receipt_to_observed_storage_upper_bound")):
         check(all(isinstance(v,int) and v>=0 for v in samples), "invalid latency sample")
+        if key=="receipt_to_observed_storage_upper_bound" and (observation!="complete" or not samples):continue
         for p,name in ((.5,"p50_ns"),(.95,"p95_ns"),(.99,"p99_ns")):
             check(percentile(samples,p)==run[key][name], "latency percentile differs")
     check(run["TotalNS"]>=window and run["DrainNS"]==run["TotalNS"]-window, "complete duration differs")
     check(math.isclose(run["AcceptedEPS"],inside*1e9/window,rel_tol=1e-12), "ACK rate denominator differs")
-    check(math.isclose(run["PersistedEPS"],len(stored)*1e9/run["TotalNS"],rel_tol=1e-12), "storage rate denominator differs")
+    check(math.isclose(run["VerifiedCompletionEPS"],len(stored)*1e9/run["TotalNS"],rel_tol=1e-12), "storage rate denominator differs")
     unknown_count=len(set(ambiguous)-set(stored));check(unknown_count==run["AmbiguousUnobserved"], "unknown-by-verification count differs")
     for point in run["backlog"]:
         expected=sum(q["Events"] for q in requests if q["Accepted"] and q["FinishedNS"]<=point["elapsed_ns"])
         check(point["Accepted"]==expected, "backlog ACK timeline differs")
-    limited=any(run[k] for k in ("GeneratorMissed","LateSchedules","Rejected","Ambiguous","AttemptedAfterWindow","AcceptedAfterWindow","ObserverLatePolls","ObserverOutages"))
+    load_limited=any(run[k] for k in ("GeneratorMissed","LateSchedules","Rejected","Ambiguous","AttemptedAfterWindow","AcceptedAfterWindow"))
+    check(run["load_status"]==("limited" if load_limited else "met"),"load status differs")
+    limited=observation in ("failed","partial") or run["ObserverSlowQueries"]>0 or any(run[k] for k in ("GeneratorMissed","LateSchedules","Rejected","Ambiguous","AttemptedAfterWindow","AcceptedAfterWindow","ObserverLatePolls","ObserverOutages"))
     check(run["outcome"]==("limited" if limited else "complete"), "limit incorrectly labelled")
 
 def stripped(report, kind):
@@ -167,7 +178,7 @@ def validate_manifest(value, identity):
 
 def audit(directory, allow_smoke=False, secrets=()):
     root=Path(directory);index=json.loads((root/"index.json").read_text())
-    check(index["Schema"]==1 and index["Status"]=="complete", "study is incomplete")
+    check(index["Schema"]==2 and index["Status"]=="complete", "study is incomplete")
     identity=index["Identity"];mode=identity["Mode"]
     check(mode=="full" or allow_smoke and mode=="smoke", "smoke is not publication evidence")
     check(mode!="full" or not identity["SourceDirty"], "full study used dirty sources")
@@ -185,6 +196,7 @@ def audit(directory, allow_smoke=False, secrets=()):
     for row in cases:
         c=row["Case"];check(row["Status"] in ("complete","limited"), "case is not complete")
         current=read_artifact(root,row["Artifact"],secrets)
+        check(current["Schema"]==2,"unsupported capture schema")
         check(current["Identity"]==identity and current["Case"]==c and current["Status"]==row["Status"], "capture identity/control differs")
         for history in row["History"]:
             read_artifact(root,history["Artifact"],secrets)

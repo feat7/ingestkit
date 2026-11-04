@@ -238,7 +238,7 @@ func populations(c Case, report any, namespace string, seed int64) []PopulationE
 	return result
 }
 func writeStudyIndex(out string, j StudyJournal, cases []Case, status string) error {
-	index := StudyIndex{Schema: 1, Status: status, Identity: j.Identity, RunNamespace: j.RunNamespace, ManifestFiles: j.ManifestFiles, Resources: j.Resources, MetadataArtifacts: j.MetadataArtifacts, Notes: []string{"Smoke runs verify correctness only. Full runs retain every configured repetition; limited outcomes are not capacity claims.", "Raw captures contain empirical samples and UUID population indices (or explicit outbox UUIDs); gzip mtime=0 with SHA256. Submitted IDs regenerate from namespace/seed/index.", "Failed and interrupted attempts remain in case History. A resumed incomplete case restarts all three repetitions on a fresh owned stack; completed captures are immutable."}}
+	index := StudyIndex{Schema: 2, Status: status, Identity: j.Identity, RunNamespace: j.RunNamespace, ManifestFiles: j.ManifestFiles, Resources: j.Resources, MetadataArtifacts: j.MetadataArtifacts, Notes: []string{"Smoke runs verify correctness only. Full runs retain every configured repetition; limited outcomes are not capacity claims.", "Raw captures contain empirical samples and UUID population indices (or explicit outbox UUIDs); gzip mtime=0 with SHA256. Submitted IDs regenerate from namespace/seed/index.", "Failed and interrupted attempts remain in case History. A resumed incomplete case restarts all three repetitions on a fresh owned stack; completed captures are immutable."}}
 	for _, c := range cases {
 		progress := j.Cases[c.ID]
 		index.Cases = append(index.Cases, StudyCaseResult{Case: c, Status: progress.Status, Attempt: progress.Attempt, Artifact: progress.Artifact, History: progress.History, Summary: progress.Summary})
@@ -307,7 +307,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	}
 	identity := StudyIdentity{SourceSHA: sha, SourceFingerprint: sourceHash, ControlsFingerprint: fingerprint(cases), Mode: mode, Seed: cfg.Seed, SourceDirty: dirty}
 	journalPath := filepath.Join(out, "journal.json")
-	journal := StudyJournal{Schema: 1, Identity: identity, RunNamespace: uuid.NewString(), Cases: map[string]CaseProgress{}}
+	journal := StudyJournal{Schema: 2, Identity: identity, RunNamespace: uuid.NewString(), Cases: map[string]CaseProgress{}}
 	if cfg.Resume {
 		journal, err = readJournal(journalPath)
 		if err != nil {
@@ -503,15 +503,20 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			measurementErr = errors.New("unknown study case")
 		}
 		caseEnd()
-		if measurementErr == nil {
-			measurementErr = validateStudyRepetitions(c, report)
+		if measurementErr == nil || verifiedObservationOnly(c, report, measurementErr) {
+			measurementErr = errors.Join(measurementErr, validateStudyRepetitions(c, report))
 		}
 		progress.CompletedRepetitions = completedRepetitions(report)
 		progress.Status = studyOutcome(report)
+		observationLimited := verifiedObservationOnly(c, report, measurementErr)
 		if measurementErr != nil {
 			_ = os.WriteFile(filepath.Join(s.Directory, fmt.Sprintf("%s-attempt-%d-error.txt", c.ID, progress.Attempt)), []byte(measurementErr.Error()), 0600)
 			progress.Status = "failed"
 			progress.ErrorClass = "measurement_failed"
+			if observationLimited {
+				progress.Status = "limited"
+				progress.ErrorClass = "observation_failed"
+			}
 			if ctx.Err() != nil {
 				progress.Status = "incomplete"
 				progress.ErrorClass = "interrupted"
@@ -522,7 +527,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			return e
 		}
 		progress.Summary = summary
-		capture := StudyCapture{Schema: 1, Identity: identity, Case: c, Namespace: namespace, Status: progress.Status, ErrorClass: progress.ErrorClass, Report: report, Populations: populations(c, report, namespace, cfg.Seed)}
+		capture := StudyCapture{Schema: 2, Identity: identity, Case: c, Namespace: namespace, Status: progress.Status, ErrorClass: progress.ErrorClass, Report: report, Populations: populations(c, report, namespace, cfg.Seed)}
 		path := filepath.Join(rawDir, fmt.Sprintf("%s-attempt-%d.json.gz", c.ID, progress.Attempt))
 		ref, e := WriteCompressed(path, capture)
 		if e != nil {
@@ -539,7 +544,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			return e
 		}
 		fmt.Fprintf(writer, "case %s: %s (%d repetitions retained)\n", c.ID, progress.Status, len(progress.CompletedRepetitions))
-		if measurementErr != nil {
+		if measurementErr != nil && !observationLimited {
 			return fmt.Errorf("case %s failed; retained capture and private evidence", c.ID)
 		}
 	}

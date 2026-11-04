@@ -122,7 +122,11 @@ func run() (result error) {
 			return e
 		}
 		for _, v := range r.Runs {
-			fmt.Printf("rep %d: attempted=%d accepted=%d persisted=%d missed=%d; %.0f persisted/s including drain; ack p95=%.1fms, visibility p95=%.1fms\n", v.Repetition, v.Attempted, v.Accepted, v.Persisted, v.GeneratorMissed, v.PersistedEPS, float64(v.Ack.P95)/1e6, float64(v.Visibility.P95)/1e6)
+			visibility := "unavailable"
+			if v.VisibilityMetric != nil {
+				visibility = fmt.Sprintf("%.1fms", float64(v.VisibilityMetric.P95)/1e6)
+			}
+			fmt.Printf("rep %d: attempted=%d accepted=%d persisted=%d missed=%d; %.0f audit-completion/s; ack p95=%.1fms, visibility p95=%s\n", v.Repetition, v.Attempted, v.Accepted, v.Persisted, v.GeneratorMissed, v.VerifiedCompletionEPS, float64(v.Ack.P95)/1e6, visibility)
 		}
 	}
 	return nil
