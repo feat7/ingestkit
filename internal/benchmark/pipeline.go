@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/feat7/ingestkit/internal/event"
+	"github.com/feat7/ingestkit/internal/runtimeinfo"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
@@ -70,6 +71,10 @@ type BacklogSample struct {
 	Accepted, Visible                       int
 }
 type PipelineRun struct {
+	Connections                       ConnectionSnapshot        `json:"connections"`
+	GeneratorLimits                   runtimeinfo.ProcessLimits `json:"generator_limits"`
+	DriverPoolBefore, DriverPoolAfter map[string]any
+
 	LoadStatus                                                                                   string   `json:"load_status"`
 	DeliveryStatus                                                                               string   `json:"delivery_status"`
 	ObservationStatus                                                                            string   `json:"observation_status"`
@@ -593,6 +598,22 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 	if count <= 0 || count > 1000000 {
 		return r, errors.New("pipeline requires 1..1000000 events per sample")
 	}
+	// Clone once per case so repetitions retain normal keep-alive behavior.
+	client := &http.Client{Timeout: 8 * time.Second}
+	if c.HTTPClient != nil {
+		*client = *c.HTTPClient
+	}
+	transport := http.DefaultTransport.(*http.Transport)
+	if client.Transport != nil {
+		var ok bool
+		transport, ok = client.Transport.(*http.Transport)
+		if !ok {
+			return r, errors.New("pipeline instrumentation requires an HTTP transport")
+		}
+	}
+	recorder := NewConnectionRecorder()
+	client.Transport = recorder.WrapTransport(transport)
+	defer client.CloseIdleConnections()
 	run := func(cfg PipelineConfig, rep int) (runResult PipelineRun, runErr error) {
 		es, e := Workload(WorkloadConfig{Namespace: cfg.Namespace, PayloadProfile: cfg.PayloadProfile, Seed: cfg.Seed + int64(rep), Count: int(float64(cfg.Rate) * cfg.Duration.Seconds()), PayloadBytes: cfg.PayloadBytes})
 		if e != nil {
@@ -622,10 +643,6 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 				runErr = errors.Join(runErr, cfg.SampleFinished(rep))
 			}
 		}()
-		client := cfg.HTTPClient
-		if client == nil {
-			client = &http.Client{Timeout: 8 * time.Second}
-		}
 		send := func(ctx context.Context, ids []uuid.UUID) sendResult {
 			v := sendResult{}
 			inputs := make([]event.Input, len(ids))
@@ -644,7 +661,9 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			}
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+			req, finish := recorder.TraceRequest(req)
 			res, e := client.Do(req)
+			defer func() { finish(res, e) }()
 			if e != nil {
 				v.Ambiguous = true
 				return v
@@ -714,7 +733,14 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			}
 			return rows, err
 		}
+		limits := runtimeinfo.CaptureProcessLimits()
+		before := DriverPoolSnapshot(c.Pool)
+		recorder.BeginWindow()
 		sample, sampleErr := runPipelineSample(ctx, cfg, rep, send, observe)
+		sample.Connections = recorder.Snapshot()
+		sample.GeneratorLimits = limits
+		sample.DriverPoolBefore = before
+		sample.DriverPoolAfter = DriverPoolSnapshot(c.Pool)
 		closeErr := closeObserver()
 		sample.ObserverQueries = totalQueries
 		verificationStarted := time.Now()

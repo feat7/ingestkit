@@ -61,3 +61,12 @@ func TestRuntimeAPISettingsAreAllowlisted(t *testing.T) {
 	require.Error(t, e)
 	require.NotContains(t, e.Error(), "private-api-key")
 }
+
+func TestRuntimeFingerprintExcludesDynamicObservations(t *testing.T) {
+	m := Manifest{Settings: map[string]any{"driver_pool_max_conns": 4}, Observations: map[string]any{"open_fds": 7}}
+	before := runtimeFingerprint(m)
+	m.Observations["open_fds"] = 9
+	require.Equal(t, before, runtimeFingerprint(m))
+	m.Settings["driver_pool_max_conns"] = 8
+	require.NotEqual(t, before, runtimeFingerprint(m))
+}

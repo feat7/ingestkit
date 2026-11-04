@@ -419,7 +419,12 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 		}
 		fmt.Fprintf(writer, "owned stack evidence: %s\n", s.Directory)
 	}()
-	p, err := pgxpool.New(ctx, s.DatabaseURL)
+	poolConfig, err := pgxpool.ParseConfig(s.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	poolConfig.ConnConfig.RuntimeParams["application_name"] = "ingestkit-benchmark"
+	p, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -463,7 +468,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	}
 	sampleCtx, cancel := context.WithCancel(ctx)
 	resourceCancel = cancel
-	resourceDone = SampleResources(sampleCtx, s)
+	resourceDone = SampleResources(sampleCtx, s, p)
 	client, err := s.HTTPClient()
 	if err != nil {
 		return err

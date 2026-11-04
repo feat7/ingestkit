@@ -1,5 +1,7 @@
 # Loopback observers for owned tests and measurements only.
 services:
+  api:
+    ports: ["127.0.0.1:${API_PROBE_PORT}:8080"]
   postgres:
     ports: ["127.0.0.1:${POSTGRES_PORT}:5432"]
   consumer:

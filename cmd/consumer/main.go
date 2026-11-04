@@ -50,6 +50,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	metrics := telemetry.New()
+	metrics.RegisterPool(pool)
 	store := persistence.NewEventStore(pool)
 	var current atomic.Pointer[messaging.Reader]
 	mux := http.NewServeMux()
