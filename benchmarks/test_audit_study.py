@@ -108,6 +108,17 @@ class ArtifactAuditTests(unittest.TestCase):
             bad=copy.deepcopy(m);bad[group][field]=value
             with self.assertRaises(audit.AuditError):audit.validate_manifest(bad,dict(SourceSHA='a'*40))
 
+    def test_connection_registry_and_transport_counts(self):
+        cases=audit.registered_cases('connections')
+        self.assertEqual(len(cases),12)
+        self.assertEqual([c['HTTPMaxConnsPerHost'] for c in cases[:7]],[4,8,16,32,64,128,0])
+        r,g,c=self.valid_pipeline()
+        r['connections']=dict(ActiveRequests=0,PeakActiveRequests=1,OpenTCP=1,PeakOpenTCP=1,Dials=1,Reused=0,ConnectionAcquireNS=1,WaitingForConnection=0,PeakWaitingForConnection=1,MaxConnsPerHost=4,MaxIdleConnsPerHost=128,Protocols={'HTTP/1.1':1},Errors={},TLSVersions={'TLS 1.3':1},TCPTrackingStatus='transport_owned_connected_tcp')
+        c.update(HTTPMaxConnsPerHost=4,HTTPMaxIdleConnsPerHost=128)
+        audit.pipeline(r,g,c)
+        r['connections']['PeakOpenTCP']=5
+        with self.assertRaises(audit.AuditError): audit.pipeline(r,g,c)
+
     def test_population_indices(self):
         group={'Namespace':'n','Seed':42,'Count':2,'Indices':{'accepted':[0,1]}}
         self.assertEqual(len(audit.populations(group)['accepted']),2)

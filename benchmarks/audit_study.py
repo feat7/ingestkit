@@ -76,6 +76,20 @@ def pipeline(run, group, case):
         if request["Accepted"]: acked.extend(ids)
         if request["Ambiguous"]: unknown.extend(ids)
     check(cursor==len(attempted) and acked==accepted and unknown==ambiguous, "request/ID population differs")
+    if 'HTTPMaxConnsPerHost' in case:
+        conn=run['connections']
+        check(conn['ActiveRequests']==0 and conn['WaitingForConnection']==0,'requests still active')
+        check(conn['MaxConnsPerHost']==case['HTTPMaxConnsPerHost'],'active cap differs')
+        idle=case['HTTPMaxIdleConnsPerHost'] or 2
+        check(conn['MaxIdleConnsPerHost']==idle,'idle retention differs')
+        check(conn['TCPTrackingStatus']=='transport_owned_connected_tcp','TCP tracking unavailable')
+        check(conn['PeakOpenTCP']>=conn['OpenTCP']>=0 and conn['PeakActiveRequests']>=0,'socket counts differ')
+        if conn['MaxConnsPerHost']:
+            check(conn['PeakOpenTCP']<=conn['MaxConnsPerHost'],'active TCP cap exceeded')
+        check(conn['ConnectionAcquireNS']>=0,'negative connection duration')
+        check(set(conn['Errors'])<=set(('fd_limit','address_unavailable','connection_refused','cancelled','timeout','dns','other')),'unbounded error labels')
+        check(set(conn['Protocols'])<=set(('HTTP/1.1','HTTP/2.0','HTTP/1.0','other')),'unbounded protocol labels')
+        check(sum(conn['Protocols'].values())<=len(requests),'protocol request counts exceed attempts')
     window=run["WindowNS"]
     inside=sum(q["Events"] for q in requests if q["Accepted"] and q["FinishedNS"]<=window)
     starts=sum(q["Events"] for q in requests if q["StartedNS"]<=window)
@@ -126,13 +140,21 @@ def registered_cases(mode):
     """An independent transcription of the approved fixed experimental design."""
     zero=dict(ID='',Kind='',Recovery='',Pattern='',PayloadProfile='varied',Count=0,
               BatchSize=0,PayloadBytes=0,Rate=0,Concurrency=0,Repetitions=3,
-              DuplicateFraction=0,Window=0,Warmup=0,Drain=0,Poll=0,FaultAt=0,RestoreAt=0)
+              HTTPMaxConnsPerHost=0,HTTPMaxIdleConnsPerHost=0,DuplicateFraction=0,Window=0,Warmup=0,Drain=0,Poll=0,FaultAt=0,RestoreAt=0)
     def case(**changes): return dict(zero,**changes)
     if mode=='smoke':
         return [case(ID='smoke-database',Kind='database',Count=100,BatchSize=10,PayloadBytes=256),
                 case(ID='smoke-pipeline',Kind='pipeline',Pattern='steady',Count=10,BatchSize=2,
                      PayloadBytes=256,Rate=20,Concurrency=2,Window=500_000_000,Warmup=100_000_000,
                      Drain=5_000_000_000,Poll=25_000_000)]
+    if mode=='connections':
+        base=case(Kind='pipeline',Pattern='steady',Count=150000,BatchSize=100,PayloadBytes=1024,
+                  Rate=15000,Concurrency=128,HTTPMaxConnsPerHost=128,HTTPMaxIdleConnsPerHost=128,
+                  Window=10_000_000_000,Warmup=2_000_000_000,Drain=30_000_000_000,Poll=1_000_000_000)
+        result=[dict(base,ID=f'connections-cap-{cap}',HTTPMaxConnsPerHost=cap) for cap in (4,8,16,32,64,128,0)]
+        result += [dict(base,ID=f'connections-rate-{rate}',Rate=rate,Count=rate*10) for rate in (30000,50000)]
+        result += [dict(base,ID=f'connections-payload-{size}',PayloadBytes=size,BatchSize=10,Rate=1000,Count=10000) for size in (256,1024,16384)]
+        return result
     check(mode=='full','unknown study mode')
     db=case(Kind='database',Count=5000,BatchSize=100,PayloadBytes=256)
     result=[dict(db,ID=f'db-batch-{b}',BatchSize=b) for b in (1,10,50,100,500,1000)]
@@ -180,8 +202,8 @@ def audit(directory, allow_smoke=False, secrets=()):
     root=Path(directory);index=json.loads((root/"index.json").read_text())
     check(index["Schema"]==2 and index["Status"]=="complete", "study is incomplete")
     identity=index["Identity"];mode=identity["Mode"]
-    check(mode=="full" or allow_smoke and mode=="smoke", "smoke is not publication evidence")
-    check(mode!="full" or not identity["SourceDirty"], "full study used dirty sources")
+    check(mode in ("full","connections") or allow_smoke and mode=="smoke", "smoke is not publication evidence")
+    check(mode not in ("full","connections") or not identity["SourceDirty"], "full study used dirty sources")
     for key in ("SourceFingerprint","ControlsFingerprint","ImagesFingerprint","ConfigFingerprint"):
         check(re.fullmatch(r"[0-9a-f]{64}",identity[key]) is not None, "invalid provenance fingerprint")
     check(re.fullmatch(r"[0-9a-f]{40}",identity["SourceSHA"]) is not None, "invalid source revision")
@@ -190,7 +212,7 @@ def audit(directory, allow_smoke=False, secrets=()):
         value=read_artifact(root,ref,secrets)
         if ref.get("Codec")=="json":
             validate_manifest(value,identity)
-    cases=index["Cases"];validate_registry(cases,mode);check(len(cases)==(25 if mode=="full" else 2), "registry cardinality differs")
+    cases=index["Cases"];validate_registry(cases,mode);check(len(cases)==(25 if mode=="full" else 12 if mode=="connections" else 2), "registry cardinality differs")
     check(len({row["Case"]["ID"] for row in cases})==len(cases), "duplicate case ID")
     totals={"database_runs":0,"pipeline_runs":0,"recovery_runs":0,"limited_cases":0}
     for row in cases:

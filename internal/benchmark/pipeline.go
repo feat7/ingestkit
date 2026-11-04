@@ -24,6 +24,8 @@ import (
 var errObserverUnavailable = errors.New("observer temporarily unavailable")
 
 type PipelineConfig struct {
+	HTTPMaxConnsPerHost, HTTPMaxIdleConnsPerHost int
+
 	ReconnectObserver                                       bool
 	SampleStarted                                           func(int, time.Time)
 	SampleFinished                                          func(int) error
@@ -38,7 +40,7 @@ type PipelineConfig struct {
 
 // No credentials or connection strings are included in the serializable config.
 func PublicPipelineConfig(c PipelineConfig) map[string]any {
-	return map[string]any{"observer_reconnect": c.ReconnectObserver, "namespace": c.Namespace, "payload_profile": c.PayloadProfile, "https": strings.HasPrefix(c.APIURL, "https://"), "tenant": c.Tenant, "pattern": c.Pattern, "seed": c.Seed, "target_events_per_second": c.Rate, "concurrency": c.Concurrency, "http_batch_size": c.BatchSize, "payload_bytes": c.PayloadBytes, "repetitions": c.Repetitions, "window_ns": c.Duration.Nanoseconds(), "warmup_ns": c.Warmup.Nanoseconds(), "drain_deadline_ns": c.DrainDeadline.Nanoseconds(), "poll_interval_ns": c.PollInterval.Nanoseconds()}
+	return map[string]any{"http_max_conns_per_host": c.HTTPMaxConnsPerHost, "http_max_idle_conns_per_host": c.HTTPMaxIdleConnsPerHost, "observer_reconnect": c.ReconnectObserver, "namespace": c.Namespace, "payload_profile": c.PayloadProfile, "https": strings.HasPrefix(c.APIURL, "https://"), "tenant": c.Tenant, "pattern": c.Pattern, "seed": c.Seed, "target_events_per_second": c.Rate, "concurrency": c.Concurrency, "http_batch_size": c.BatchSize, "payload_bytes": c.PayloadBytes, "repetitions": c.Repetitions, "window_ns": c.Duration.Nanoseconds(), "warmup_ns": c.Warmup.Nanoseconds(), "drain_deadline_ns": c.DrainDeadline.Nanoseconds(), "poll_interval_ns": c.PollInterval.Nanoseconds()}
 }
 
 type Latency struct {
@@ -594,9 +596,8 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 	if c.Pool == nil || c.Rate <= 0 || c.Concurrency <= 0 || c.Concurrency > 1000 || c.Duration <= 0 || c.DrainDeadline <= 0 || c.PollInterval <= 0 || c.BatchSize <= 0 || c.BatchSize > 100 || c.Repetitions < 3 || c.Tenant == "" || (c.Pattern != "steady" && c.Pattern != "burst") {
 		return r, errors.New("invalid pipeline configuration")
 	}
-	count := int(float64(c.Rate) * c.Duration.Seconds())
-	if count <= 0 || count > 1000000 {
-		return r, errors.New("pipeline requires 1..1000000 events per sample")
+	if err := ValidatePipelineWorkload(c); err != nil {
+		return r, err
 	}
 	// Clone once per case so repetitions retain normal keep-alive behavior.
 	client := &http.Client{Timeout: 8 * time.Second}
@@ -611,6 +612,9 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			return r, errors.New("pipeline instrumentation requires an HTTP transport")
 		}
 	}
+	transport = transport.Clone()
+	transport.MaxConnsPerHost = c.HTTPMaxConnsPerHost
+	transport.MaxIdleConnsPerHost = c.HTTPMaxIdleConnsPerHost
 	recorder := NewConnectionRecorder()
 	client.Transport = recorder.WrapTransport(transport)
 	defer client.CloseIdleConnections()

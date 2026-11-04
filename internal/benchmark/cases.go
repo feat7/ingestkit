@@ -6,6 +6,7 @@ import (
 )
 
 type Case struct {
+	HTTPMaxConnsPerHost, HTTPMaxIdleConnsPerHost                   int
 	ID, Kind, Recovery, Pattern, PayloadProfile                    string
 	Count, BatchSize, PayloadBytes, Rate, Concurrency, Repetitions int
 	DuplicateFraction                                              float64

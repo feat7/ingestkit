@@ -21,6 +21,8 @@ import (
 )
 
 type StudyConfig struct {
+	Suite string
+
 	OutputDirectory string
 	Smoke, Resume   bool
 	Seed            int64
@@ -69,7 +71,7 @@ type PopulationEvidence struct {
 }
 
 func pipelineCaseConfig(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool, client *http.Client, c Case, seed int64, namespace string) PipelineConfig {
-	return PipelineConfig{Pool: p, HTTPClient: client, APIURL: s.APIURL, APIKey: s.APIKey(), Tenant: "default", Namespace: namespace, PayloadProfile: c.PayloadProfile, Seed: seed, Rate: c.Rate, Concurrency: c.Concurrency, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes, Repetitions: c.Repetitions, Duration: c.Window, Warmup: c.Warmup, DrainDeadline: c.Drain, PollInterval: c.Poll, Pattern: c.Pattern, ReconnectObserver: c.Recovery == "database", SampleFinished: func(int) error { return waitConsumerCaughtUp(ctx, s) }}
+	return PipelineConfig{HTTPMaxConnsPerHost: c.HTTPMaxConnsPerHost, HTTPMaxIdleConnsPerHost: c.HTTPMaxIdleConnsPerHost, Pool: p, HTTPClient: client, APIURL: s.APIURL, APIKey: s.APIKey(), Tenant: "default", Namespace: namespace, PayloadProfile: c.PayloadProfile, Seed: seed, Rate: c.Rate, Concurrency: c.Concurrency, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes, Repetitions: c.Repetitions, Duration: c.Window, Warmup: c.Warmup, DrainDeadline: c.Drain, PollInterval: c.Poll, Pattern: c.Pattern, ReconnectObserver: c.Recovery == "database", SampleFinished: func(int) error { return WaitConsumerCaughtUp(ctx, s) }}
 }
 func doneCase(status string) bool { return status == "complete" || status == "limited" }
 func validateStudyRepetitions(c Case, value any) error {
@@ -292,11 +294,28 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	if cfg.OnCaseStart != nil && !cfg.Smoke {
 		return errors.New("custom study hooks are restricted to correctness smoke runs")
 	}
+	if cfg.Suite == "" {
+		cfg.Suite = "core"
+	}
+	if cfg.Suite != "core" && cfg.Suite != "connections" {
+		return errors.New("suite must be core or connections")
+	}
 	cases := StudyCases()
 	mode := "full"
+	if cfg.Suite == "connections" {
+		cases = ConnectionCases()
+		mode = "connections"
+	}
 	if cfg.Smoke {
 		cases = smokeCases()
 		mode = "smoke"
+	}
+	for _, c := range cases {
+		if c.Kind == "pipeline" {
+			if err := ValidatePipelineWorkload(PipelineConfig{Rate: c.Rate, Duration: c.Window, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes}); err != nil {
+				return err
+			}
+		}
 	}
 	sha, sourceHash, dirty, err := sourceIdentity(ctx, root, out)
 	if err != nil {

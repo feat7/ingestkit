@@ -204,6 +204,7 @@ func SampleResources(ctx context.Context, s *runenv.Stack, pools ...*pgxpool.Poo
 			}
 			probe, end := context.WithTimeout(ctx, 3*time.Second)
 			snapshot := RuntimeSnapshot(probe, s, pool)
+			snapshot["offset_progress"] = CaptureOffsetProgress(probe, s)
 			end()
 			samples = append(samples, ResourceSample{At: time.Now().UTC(), Statistics: out, Error: e != nil, Runtime: snapshot})
 			timer := time.NewTimer(time.Second)
