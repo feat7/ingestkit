@@ -1,15 +1,15 @@
-# Application examples
+# Try the application examples
 
-- [Checkout](checkout/README.md): copyable Python/Node HTTP clients, single/batch
-  fixture CLIs, explicit CA trust and bounded stable-ID retries.
-- [Transactional outbox](outbox/README.md): atomically store a business order and
-  serialized event, then dispatch safely across process restarts.
-- [Backend integration guide](../docs/integration.md): import and use the clients
-  from application code.
-- [HTTP contract](../docs/api.md): limits, responses, retries and persistence checks.
+Start with the [self-hosted deployment](../deploy/README.md), then choose an
+example. Neither requires Go in the application or a package-registry SDK.
 
-Start with the [self-hosted deployment](../deploy/README.md); the application
-examples do not require Go or a package registry SDK.
+- [Checkout](checkout/README.md) sends three events using the Python or Node
+  client. Run it twice to see the same IDs produce one set of rows.
+- [Order and outbox](outbox/README.md) saves an order and pending event together,
+  then sends pending work from a separate process. Restart it to retry saved IDs.
 
-A 202 acknowledges the broker. Verify storage separately when your workflow
-requires it. Keep API keys in your backend and retain event IDs across restarts.
+The [integration guide](../docs/integration.md) shows the imports to use in your
+own backend. The [API reference](../docs/api.md) lists fields, limits and retries.
+
+Keep the key on your backend and keep event IDs across restarts. HTTP 202 confirms
+queue acceptance; use SQL to confirm storage when your workflow needs it.

@@ -1,78 +1,81 @@
-# Publication drafts — updated 4 November 2026
+# Publication drafts (updated 4 November 2026)
 
-These are local drafts. No article, repository release or social submission has
-been published by this work. Check that the reviewed branch and referenced source
-commits are available publicly before using these links. Add personal context only
-if it happened; do not invent adoption, company impact or popularity.
+Choose a blog home before posting the article. These drafts do not publish it,
+create a release or submit anything to social sites. Check public code/results
+links before posting. Add personal context only when it happened; the repository
+does not establish adoption, company impact or popularity.
 
 ## Article
 
-Title: Building an event collector around the failure boundaries
+Title: What happens after an event collector says "accepted"?
 
-Alternative: What HTTP 202 means in a self-hosted event pipeline
+Alternative: Keeping an event through a database outage and a worker restart
 
-Source: [publication-ready Markdown draft](../../article.md). Choose the author's
-canonical blog home, replace relative code/results/image links with public URLs,
-and preview the responsive figures on that platform. Keep the measured revision,
-three-repetition ranges, unknown deliveries and shared-host caveats beside claims.
-If cross-posting, retain one canonical article URL rather than splitting the story
-across competing copies. No hosting destination is selected or created here.
+The [article draft](../../article.md) follows an order event from the application
+to PostgreSQL, then explains the retry gaps and the write-method experiment.
+Replace relative code/results/image links with public URLs for the chosen blog,
+and check its image rendering on a phone. Keep the measured revision, all three
+runs, uncertain outcomes and shared-host limits beside the claims. If cross-posting,
+choose one canonical article URL.
 
-The concrete hook: a deployable collector plus an application outbox, two separate
-crash windows, and evidence that changed the default from COPY/staging/merge to
-batch INSERT. The value is being able to run, break and inspect it.
+The story has a runnable deployment, an application outbox and two tested crash
+gaps. The database experiment also changed the implementation: batched INSERT
+replaced COPY/staging/merge after the measured comparison.
 
-## Regular Hacker News article submission
+## Hacker News article submission
 
-Title: Building an event collector and testing its failure boundaries
+Title: What happens after an event collector says "accepted"?
 
 URL: the final public article URL.
 
 Optional author comment:
 
-> I built a small Go/Redpanda/PostgreSQL event collector with a self-contained
-> HTTPS deployment and a runnable transactional-outbox example. The repo tests
-> crashes after SQL commit and after HTTP acknowledgement, then reconciles the
-> same event IDs. A corrected 25-case study favored batch INSERT over my COPY/merge
-> path by median, so I changed the default and reran it. All repetitions and limits
-> remain in the captures, including ambiguous deliveries; these are local results,
-> not maximum-capacity claims. I'd welcome feedback on the failure model and method.
+> I built a small Go event collector with an HTTPS API, Redpanda queue and
+> PostgreSQL store. The article follows an order event through a database outage
+> and two crash gaps. The repo includes a Docker Compose deployment and a small
+> order/outbox app you can run. Tests stop the worker after SQL commit and stop
+> the sender after HTTP acknowledgement, then check the stored IDs. A 25-case
+> study found a lower median for batch INSERT than for my COPY/merge path in
+> all 11 database configurations, so I changed the writer and ran the study
+> again. The results include all runs and unknown deliveries. I'd welcome
+> feedback on the retry behavior and experiment design.
 
-A blog post belongs in a regular submission. The [Show HN guidelines](https://news.ycombinator.com/showhn.html)
-reserve Show HN for something people can try, rather than reading material.
+Use a regular submission for the article. [Show HN](https://news.ycombinator.com/showhn.html)
+is for a project readers can try.
 
-## Potential separate Show HN
+## Separate Show HN submission
 
-Title: Show HN: IngestKit – a self-hosted event collector with crash/replay tests
+Title: Show HN: IngestKit, a self-hosted event collector with crash/replay tests
 
-URL: the public repository after this branch is made available.
+URL: the public repository containing the reviewed code.
 
 Description draft:
 
-> Deploy a small HTTPS event collector with Docker Compose, send stable UUIDs from
-> Python or Node, and inspect PostgreSQL storage. The application outbox persists
-> orders and pending events atomically and replays the same IDs after a dispatcher
-> crash. Local demos and real-service tests stop dependencies and check accepted
-> IDs, stored content and source progress. Deployment builds Go inside Docker;
-> owned local demos/studies require Go. It is one host with finite retention, not HA.
+> Run an HTTPS event collector with Docker Compose, send events from Python or
+> Node, and find the rows in PostgreSQL. The included order/outbox app saves
+> orders and pending events together, then resends the same IDs after a crash.
+> Demos and real-service tests stop dependencies and check which events reached
+> storage. Go builds inside Docker on the deployment host; local demos and
+> studies need Go installed. The server uses one host with finite queue retention.
 
-Use only when readers can actually access and run the reviewed code. Prefer one
-focused submission at a time; this file does not authorize posting, messaging,
-vote coordination or account/hosting setup.
+Use this only when the reviewed code is publicly accessible and runnable.
+Submit one focused story at a time. Posting, messages, vote coordination and
+hosting/account setup need their own explicit request.
 
-## Resume / project description
+## Resume or project description
 
-Built a self-hosted Go event collector with HTTPS, Redpanda buffering and
-PostgreSQL storage; supplied copyable Python/Node clients and a transactional
-outbox. Verified tenant-scoped deduplication and crash replay with real dependency
-outages, restricted-role/restore tests and a reproducible 25-configuration study.
-Changed the default SQL writer based on measured batch/payload/duplicate results.
+Built a self-hosted Go event collector with HTTPS, a Redpanda queue and PostgreSQL
+storage, plus reusable Python/Node clients and a durable application outbox.
+Tested database outages, writer permissions, restore and crashes during retry;
+verified that replay kept one row per tenant/event ID. Ran 25 controlled experiment
+configurations and changed the SQL writer based on the batch, payload and
+repeated-ID results.
 
 Short bullet:
 
-Built and failure-tested a self-hosted Go/Redpanda/PostgreSQL collector with HTTPS,
-durable application outbox and replay-safe storage; recorded 25 reproducible
-experiment configurations with raw samples, ID reconciliation and explicit limits.
+Built and tested a Go/Redpanda/PostgreSQL event collector with a Docker Compose
+HTTPS deployment and durable outbox; verified crash replay and recorded 25
+experiment configurations with raw samples and explicit limits.
 
-No claim of production adoption, business impact, cloud cost, maximum throughput
-or popularity is supported by the local repository evidence.
+These local results do not support a claim of production adoption, business
+impact, cloud cost, maximum throughput or popularity.

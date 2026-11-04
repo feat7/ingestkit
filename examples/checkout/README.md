@@ -1,49 +1,57 @@
-# Checkout events
+# Send three checkout events
 
-Three ordinary envelopes describe a product view, checkout start and completed
-order. The fixed UUIDs make retry/deduplication easy to observe.
+The fixture has a product view, checkout start and completed order. Each has a
+fixed UUID, so you can resend it and see PostgreSQL keep one row per event.
 
-For a deployed collector, follow the [server setup](../../deploy/README.md), load
-its backend key and set the URL:
+Follow the [server setup](../../deploy/README.md), then run from that checkout
+with its initial generated key mapping. The commands reload the key after the
+deployment demo clears it. On another backend host or after rotating the key,
+supply API_URL and INGESTKIT_API_KEY through private application settings.
+Use your collector hostname in API_URL.
 
 ~~~sh
 export API_URL=https://events.example.com
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
 export INGESTKIT_API_KEY
 python3 examples/checkout/send.py
 SEND_MODE=single node examples/checkout/send.mjs
 ~~~
 
-These read `events.json` and retain its IDs on retry. Running both repeatedly
-still stores three logical events for that tenant. Use fresh explicit UUIDs for
-new business events. Both default to the batch endpoint; `SEND_MODE=single` sends
-individual requests and `EVENTS_FILE=/path/to/events.json` selects your own
-`{ "events": [...] }` fixture. A 202 acknowledges the broker, not PostgreSQL.
+Both commands read `events.json` and keep those IDs on retry. Running them again
+still leaves three logical events for that tenant. Give new business events
+fresh UUIDs. The clients use the batch endpoint by default; `SEND_MODE=single`
+sends individual requests. `EVENTS_FILE=/path/to/events.json` selects another
+`{ "events": [...] }` fixture. HTTP 202 confirms that the queue accepted the
+records; the worker writes PostgreSQL separately.
 
-For an isolated local walkthrough with Docker and Go:
+## Run a disposable local demo
+
+With Docker and Go installed:
 
 ~~~sh
 make demo DEMO_FLAGS=-cleanup
 make demo-recovery DEMO_FLAGS=-cleanup
 ~~~
 
-Each owns its services and checks accepted/stored IDs. Omitting `-cleanup` stops
-its services and preserves volumes; the command prints its exact cleanup recipe.
-The root `make up` development stack also supports the callers' local defaults,
-including `local-demo-key`; those defaults are not deployed credentials.
+Each demo creates its own services and checks that accepted IDs reached storage.
+Without `-cleanup`, it stops those services and keeps their volumes, then prints
+the command for removing that run. The root `make up` development stack also
+works with the callers' local defaults, including `local-demo-key`. Use the generated
+private key for the deployed server.
 
-## Copy the client into an application
+## Use the same helper in your backend
 
-`ingest_client.py` exports `Client.send` / `Client.send_batch` and `IngestError`.
-`ingest-client.mjs` exports `IngestClient.send` / `sendBatch` and `IngestError`.
-The modules perform no work at import time and have no package dependencies.
-See the [backend guide](../../docs/integration.md) for imports and usage, and the
-[API contract](../../docs/api.md) for acknowledgement and retry rules.
+`ingest_client.py` exports `Client.send`, `Client.send_batch` and `IngestError`.
+`ingest-client.mjs` exports `IngestClient.send`, `sendBatch` and `IngestError`.
+Importing either module does no I/O, and neither needs third-party packages.
+The [integration guide](../../docs/integration.md) shows imports and calls; the
+[API reference](../../docs/api.md) explains response checking and retry decisions.
 
-For the self-hosted HTTPS deployment, set API_URL and INGESTKIT_API_KEY. Public
-certificates use normal system trust. `INGESTKIT_CA_FILE` selects an explicit
-private CA for local tests; neither helper disables certificate checks.
+Set API_URL and INGESTKIT_API_KEY for your HTTPS deployment. Public certificates
+use system trust. For local tests, `INGESTKIT_CA_FILE` names a private CA to trust.
+Both helpers leave certificate checks enabled.
 
-Run their controlled-server tests (including TLS and interrupted requests):
+Run the client tests, including TLS and interrupted requests:
 
 ~~~sh
 python3 -m unittest discover -s examples/checkout -p 'test_*.py'

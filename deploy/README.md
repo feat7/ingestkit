@@ -1,38 +1,27 @@
-# Self-hosted deployment
+# Run IngestKit on one server
 
-Prepare private configuration for the hostname you will use:
+This Compose deployment runs Caddy, the Go API, Redpanda, the database worker and
+PostgreSQL on one Linux host. Caddy exposes HTTPS; the other services have no
+public ports. Docker builds the Go programs for you.
 
-~~~sh
-deploy/configure.sh events.example.com
-~~~
+## Prepare the host
 
-The script requires a POSIX shell, standard system utilities and OpenSSL. It
-creates deploy/.env with mode 0600, three independent secrets and an initial API
-key mapped to tenant default. It does not install software or contact a server.
-Existing configuration is preserved; re-running against the same path fails.
-Keep the file private and out of source control. API_KEYS is a JSON object;
-duplicate decoded key names are rejected, including escaped spellings of the
-same key. Use distinct keys for overlap rotation.
+Install Git, Docker Engine with Compose v2.24.4+, OpenSSL and curl. Point a
+hostname you own at the server, and make ports 80 and 443 reachable. Replace
+`events.example.com` in every command with that hostname. Caddy uses DNS and
+those ports to obtain the public certificate, then keeps it in a named volume.
+Local automated tests use a private certificate authority; they do not test
+public certificate issuance.
 
-An optional second argument selects a configuration directory. localhost is
-accepted for local TLS verification. Public deployment will require a hostname
-pointing to the host and reachable gateway ports 80/443.
+Allow memory for Redpanda's 1 GiB allocation plus PostgreSQL, Go and Docker.
+The [measured environment](../benchmarks/results/selfhost-2026-11-04/manifest-1.json)
+had a Docker VM with 10 CPUs and about 16 GiB RAM; that is not a minimum sizing
+recommendation. Disk use depends on traffic and retention. Both the queue and
+database live on this host, so losing its disk can lose both.
 
-## Start on a server
+## Create private settings and start
 
-Replace `events.example.com` with your own DNS hostname in every command.
-
-Use a Linux host with Git, Docker Engine and Docker Compose v2.24.4 or newer,
-OpenSSL, and curl. Allow room for the broker's 1 GiB allocation plus PostgreSQL,
-the Go services and Docker. The [measured environment](../benchmarks/results/selfhost-2026-11-04/manifest-1.json)
-used a Docker VM exposing 10 CPUs and about 16 GiB RAM; it does not establish a minimum host size.
-Disk requirements depend on traffic and retention. This is a single-host setup:
-losing its disk can lose both queued and stored events.
-
-Point the hostname's DNS records at the host. Ports 80 and 443 must be reachable
-for Caddy's certificate issuance and HTTPS traffic. Caddy keeps its certificates
-in a named volume. Public certificate issuance requires working DNS and external
-reachability; the automated local test uses a private CA instead.
+Run this once from a fresh checkout:
 
 ~~~sh
 git clone https://github.com/feat7/ingestkit.git
@@ -42,14 +31,24 @@ docker compose --env-file deploy/.env -f deploy/compose.yml config --quiet
 docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 ~~~
 
-Only the gateway publishes ports. PostgreSQL, Kafka, broker administration and
-service metrics stay on Docker's private network. The consumer uses an
-`ingestkit_writer` login with schema usage, SELECT and INSERT (no temporary-table privilege);
-migrations use the separate admin login.
+The configuration script needs a POSIX shell, standard utilities and OpenSSL.
+It creates deploy/.env with file mode 0600, three independent secrets and an API
+key mapped to tenant default. It neither contacts the server nor installs software.
+It refuses to overwrite an existing configuration, so keep that file private,
+out of Git and backed up.
 
-## Send and verify
+An optional second argument to the script chooses another configuration directory.
+The hostname localhost is accepted for local TLS verification. API_KEYS is a
+JSON object; repeated key names are rejected even if an escaped spelling decodes
+to the same key. To rotate a key, use two distinct keys for the same tenant.
 
-For the initial generated mapping, load the API key locally without printing it:
+The database, broker, administration and metrics stay on Docker's private network.
+The consumer login `ingestkit_writer` has schema usage, SELECT and INSERT, without
+temporary-table privileges. Migrations run with a separate admin login.
+
+## Send the checkout events and find their rows
+
+For the initially generated key mapping, load the key without printing it:
 
 ~~~sh
 INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
@@ -64,12 +63,12 @@ docker compose --env-file deploy/.env -f deploy/compose.yml exec -T postgres \
   "SELECT tenant_id,event_id,event_type,persisted_at FROM ingestkit.events ORDER BY persisted_at DESC LIMIT 10;"
 ~~~
 
-HTTP 202 acknowledges the broker write. Storage happens asynchronously; allow
-time for the consumer before checking SQL. Repeating the same IDs stores one row
-per tenant and event ID. The first stored content wins. Use new UUIDs for new
-business events. The API key belongs in trusted backend code.
+A 202 response confirms the queue write. Give the background worker time to save
+the rows before checking SQL. Sending the fixture again keeps one row per tenant
+and event ID, with the first stored content unchanged. Use new UUIDs for new
+business events. Keep the key in your backend, where users cannot retrieve it.
 
-## Stop or update configuration
+## Stop services or reload settings
 
 ~~~sh
 # Stop and remove containers; preserve all named data volumes.
@@ -79,19 +78,23 @@ docker compose --env-file deploy/.env -f deploy/compose.yml down
 docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 ~~~
 
-A plain `restart` does not reload environment values. Never add `down -v` to an
-ordinary shutdown. Keep a private backup of deploy/.env as well as your database
-backups: changing PostgreSQL's initial admin password variable does not change
-the password inside an existing database.
+A plain `restart` keeps the old environment. Recreate affected containers after
+editing configuration. Ordinary shutdown preserves database, broker and certificate
+volumes; keep `down -v` out of that procedure.
 
-The pinned [Caddy official image](https://hub.docker.com/_/caddy) is
-`2.11.7-alpine`. Redpanda starts without dev-container mode, with a 1 GiB memory
-allocation, one core, overprovisioned scheduling and explicit
-`--unsafe-bypass-fsync=false`; both topics have `write.caching=false`. See the
-[Redpanda mode reference](https://docs.redpanda.com/streaming/current/reference/rpk/rpk-redpanda/rpk-redpanda-mode/)
-for why development defaults must be examined. PostgreSQL retains its normal
-fsync and synchronous commit settings. These settings do not provide replication
-or protection from losing this host.
+Back up deploy/.env separately from the database. PostgreSQL uses its initial
+admin password variable only when it creates the database directory; changing
+that variable does not change an existing login's password.
 
-See [operating the collector](../docs/operations.md) for readiness, disk growth,
-key rotation, backup/restore and upgrade procedures.
+## Disk durability settings
+
+The [Caddy image](https://hub.docker.com/_/caddy) is pinned to `2.11.7-alpine`.
+Redpanda starts outside dev-container mode, with one core, a 1 GiB allocation,
+overprovisioned scheduling and `--unsafe-bypass-fsync=false`. Both topics use
+`write.caching=false`. The [Redpanda mode reference](https://docs.redpanda.com/streaming/current/reference/rpk/rpk-redpanda/rpk-redpanda-mode/)
+explains why development defaults need checking. PostgreSQL keeps its normal
+fsync and synchronous-commit settings. None of these settings adds another copy
+of the host's disks.
+
+The [operator guide](../docs/operations.md) covers readiness, queue growth,
+key rotation, backups, fresh-target restore and upgrades.

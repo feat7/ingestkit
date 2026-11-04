@@ -1,16 +1,32 @@
-# Corrected self-hosted ingestion study
+# Results with the batch-INSERT writer
 
-Measured 4 November 2026 from clean source `213e4cc50523882f0d0cf7533d064494387d3207`. The deployed consumer uses atomic **batch INSERT**. The explicit COPY/staging/merge reference remains independently implemented in the database comparison. The [complete earlier COPY-writer study](../selfhost-copy-2026-11-04/README.md) motivated that change; its bytes and limits are retained.
+Measured on 4 November 2026 from clean source `213e4cc50523882f0d0cf7533d064494387d3207`.
+The deployed worker uses atomic batch INSERT. The database comparison still has
+an independent COPY/staging/merge implementation. The [earlier complete study](../selfhost-copy-2026-11-04/README.md)
+led to the writer change; its captures and limits remain unchanged.
 
-## What this capture establishes
+## What was checked
 
-All 25 registered configurations completed with three measured repetitions: 99 database method/repetition rows, 33 HTTPS load windows and 9 recovery repetitions. Nine configurations contain reported limits. Every broker-acknowledged ID reconciled with independently verified stored content; no accepted missing IDs, unexpected IDs or duplicate physical rows were found. Ambiguous HTTP outcomes are a separate population and are **not** counted as successful delivery.
+All 25 cases completed with three measured runs each: 99 database method/run
+rows, 33 HTTPS load windows and 9 recovery runs. Nine cases report limits. Every
+ID acknowledged by the queue was found with its expected content in the independent
+storage check. There were no missing acknowledged IDs, unexpected IDs or duplicate
+physical rows. Requests with uncertain outcomes are counted separately and never
+become successful deliveries in the report.
 
-The independent [auditor](../../audit_study.py) verified registry controls, method/repetition counts, immutable artifact hashes and bounds, raw timing populations, nearest-rank p50/p95/p99, actual request/ACK windows, ID sets, rates, summaries, broker/topic/PostgreSQL durability and the trusted HTTPS route. An exact scan against this owned run’s generated credentials passed.
+The [independent auditor](../../audit_study.py) checked registered settings,
+method/run counts, file checksums and size limits, raw timing samples, nearest-rank
+p50/p95/p99, request/ACK windows, ID sets, rates, summaries, broker/topic/PostgreSQL
+durability settings and trusted HTTPS routing. A scan for this run's exact generated
+credentials found none in the published captures.
 
-## Database comparison
+## Which database write was faster?
 
-5,000 submissions per method/repetition, rotated method order, varied deterministic JSON payloads. Generation, warm-up, reset and exact verification are outside elapsed time. Single INSERT commits each row; batch INSERT and COPY/stage/merge commit each batch against the same indexed table and first-content conflict policy. Values below are **median seconds [min–max] across all three repetitions**.
+Each method submitted 5,000 varied, reproducible JSON events per run. Method order
+rotated. Generation, reset, warm-up and exact verification happened outside the
+write timer. Single INSERT committed each row; batch INSERT and COPY/stage/merge
+committed each batch to the same indexed table, preserving the first stored content
+for repeated IDs. Each cell is median seconds followed by the range of all three runs.
 
 | Case | Single INSERT | Batch INSERT | COPY + merge |
 | --- | ---: | ---: | ---: |
@@ -26,13 +42,26 @@ The independent [auditor](../../audit_study.py) verified registry controls, meth
 | db-duplicates-50 | 4.253 [3.998–4.346] | 0.096 [0.091–0.198] | 0.263 [0.253–0.509] |
 | db-duplicates-90 | 1.394 [1.198–2.531] | 0.064 [0.056–0.080] | 0.229 [0.219–0.423] |
 
-Batch INSERT had the lower median than COPY/staging/merge in all eleven configurations in both studies. Individual repetitions overlap or reverse that ordering in some larger-batch/payload cases. This supports the simpler default here, not a universal COPY threshold. No adaptive cutoff, UNNEST comparison or typed-schema speed claim is inferred. Duplicate configurations insert fewer unique rows; submitted/s differs from unique inserted/s.
+Batch INSERT had a lower median than COPY/staging/merge in all eleven cases in
+both studies. Some individual runs overlapped or reversed that order, particularly
+with larger batches/payloads. The result supports the simpler writer for this
+workload. It establishes no universal COPY threshold, adaptive cutoff, UNNEST
+comparison or typed-schema speed advantage. Duplicate cases write fewer new rows;
+submitted/s therefore differs from unique inserted/s.
 
-## HTTPS pipeline
+## What reached storage over HTTPS?
 
-Ten-second windows after two-second warm-up; 50 ms target SQL polling; bounded 30-second observation drain; private-CA HTTPS with certificate verification. Default controls: 1,000 offered events/s, batch100, 32 clients, 256B varied payload. Larger payloads use batch10, with the 256B/batch10 case as their matched control. Burst offers the same total in the first quarter of the window.
+The load window was ten seconds after two seconds of warm-up. SQL polling aimed
+for every 50 ms, with a bounded 30-second observation period afterward. HTTPS used
+a verified private CA. Defaults were a target of 1,000 events/s, batches of 100,
+32 clients and varied 256-byte payloads. Larger payloads used batch 10 with the
+256-byte/batch-10 case as their control. The burst sent the same total in the
+first quarter of the window.
 
-Counts are per repetition in order1/2/3. ACK p95 is per successful HTTP request; SQL p95 is API receipt to first observed committed row per observed event, including polling/query delay. The two latency populations differ.
+Read counts in run order 1/2/3. ACK p95 samples successful HTTP requests. SQL p95
+samples observed events from API receipt until the first completed query that
+sees their committed row, including polling/query delay. These are different
+sample sets. p95 is the time by which 95% of the relevant samples finished.
 
 | Case | Attempted | Broker acknowledged | Verified stored | ACK p95 ms | SQL p95 upper bound ms |
 | --- | --- | --- | --- | --- | --- |
@@ -48,15 +77,28 @@ Counts are per repetition in order1/2/3. ACK p95 is per successful HTTP request;
 | pipeline-concurrency-8 | 4680 / 4644 / 4492 | 4680 / 4644 / 4492 | 4680 / 4644 / 4492 | 20.81 / 20.87 / 22.24 | 72.65 / 71.46 / 90.68 |
 | pipeline-concurrency-64 | 10000 / 10000 / 9938 | 10000 / 10000 / 9938 | 10000 / 10000 / 9938 | 19.58 / 21.20 / 37.42 | 86.18 / 109.43 / 225.58 |
 
-The batch100 baseline, 100/s case and first-quarter burst completed without reported limits. Other cases retain generator misses, late schedules, request/ACK tails, observer delays or ambiguous delivery. A finite-window tail is not by itself evidence of saturation. Lower attempted counts mean the driver did not generate the target; they do not mean the collector lost those unattempted events.
+The batch-100 baseline, 100/s case and burst finished without reported limits.
+Other cases retain missed sending schedules, late requests/responses, observer
+delays or uncertain delivery. A response outside the window alone does not show
+saturation. Lower attempted counts mean the driver did not send its full target;
+the collector cannot lose an event that was never submitted.
 
-At 10,000 offered events/s, repetition2 retained 1,000 ambiguous IDs absent at its final deadline. The 16KiB case’s repetition2 retained 160 such IDs. Absence at that deadline means delivery remains unknown, not proved never delivered. Reuse those IDs on retry. No ambiguous ID is converted into an acknowledgement or a fabricated latency sample.
+At a target of 10,000 events/s, run 2 left 1,000 uncertain IDs absent at the final
+check. The 16 KiB case left 160 such IDs in run 2. Delivery remains unknown at that
+deadline; it is not proved impossible later. Retry the same IDs. They contribute
+neither an acknowledgement nor an invented latency sample.
 
-In-window ACK rate divides only acknowledgements completed inside the target window by that window. Stored rate divides independently verified rows by the full window, request tail, observation drain and final independent verification. A final census can find a row without yielding a pending-observer latency sample; `ObservedEvents` and `VerificationNS` expose the distinction. Inspect all rate denominators and limit reasons in [index.json](index.json). No maximum capacity or cloud-cost claim follows.
+In-window ACK rate counts only responses completed in the target window. Stored
+rate divides verified rows by the full window, unfinished requests, observation
+and final verification. Rows found only in the final query may have no observation
+latency sample; `ObservedEvents` and `VerificationNS` make that distinction visible.
+[index.json](index.json) records the denominators and each limit. These runs do not
+establish maximum capacity or cloud cost.
 
-## Availability experiments
+## Did events survive the outages?
 
-Each row below represents three repetitions, separate from throughput claims. Actual fault request/completion timestamps are retained in raw captures.
+Each experiment ran three times. Raw captures retain the actual fault request
+and completion times.
 
 | Experiment | Controls | Verified outcome |
 | --- | --- | --- |
@@ -64,13 +106,27 @@ Each row below represents three repetitions, separate from throughput claims. Ac
 | Consumer | KILL requested at3s; restart requested at5s during the same workload | Every accepted ID/content reconciled after group recovery; actual Docker timings retained |
 | Outbox + broker | 100 persisted application events; broker stopped for8s after stop completion; failed attempt exceeds5s | Pending IDs survived a new dispatcher; replay yielded100 accepted/stored unique IDs each repetition |
 
-These availability results do not prove an arbitrary kill landed inside the SQL-commit/offset window. The separate deterministic process-kill regression pauses exactly there, verifies an uncommitted offset, and replays to one stored row. SQL gaps cannot reveal precise commit times. Docker stop/start completion is a control observation, not an exact service-availability clock.
+The exact SQL-commit/offset crash test is separate: it pauses after SQL commits,
+checks that the queue position is still unsaved, then restarts and verifies one
+row after replay. An arbitrary restart would not prove it hit that gap. SQL
+observation gaps cannot reveal precise commit times, and Docker stop/start
+completion is a control timestamp rather than an exact availability transition.
 
-## Environment and reproducibility
+## Environment and reproduction
 
-[manifest-1.json](manifest-1.json) records actual versions/image IDs/digests, running broker process controls, source/host/VM metadata, topic configuration, database durability/indexes and trusted TLS protocol. Broker1core/1GiB, one replica, seven-day log retention; process fsync bypass false and topic write caching false. PostgreSQL18.6 fsync, synchronous commit and full-page writes on. API limit10,000 requests/s, info logging. Local TLS trust was verified; public ACME issuance was not tested.
+[manifest-1.json](manifest-1.json) records versions, image IDs/digests, actual
+broker process settings, host/VM, topics, database durability/indexes and verified
+TLS. The broker had one core, 1 GiB, one replica and seven-day retention, with
+process fsync bypass and topic write caching both false. PostgreSQL 18.6 had fsync,
+synchronous commit and full-page writes on. The API limit was 10,000 requests/s
+with info logging. Local HTTPS trust was tested; public ACME issuance was not.
 
-The M1 Max physical host had10 logical CPUs/68,719,476,736 bytes RAM; OrbStack’s Linux Docker VM exposed10 CPUs/16,818,991,104 bytes RAM. The generator and SQL observer ran on that same physical host alongside existing workloads. Only owned containers were controlled. Resource snapshots are coarse observations, not a calibrated bottleneck or isolated-disk benchmark. One broker/host does not protect against host/disk loss or retention expiry.
+The M1 Max host had 10 logical CPUs and 68,719,476,736 bytes RAM. Its OrbStack
+Linux Docker VM exposed 10 CPUs and 16,818,991,104 bytes RAM. The generator and
+SQL observer shared the physical host with existing workloads. Only this run's
+containers were controlled. Coarse resource snapshots do not isolate a bottleneck
+or measure disk performance. One broker/host does not protect against disk loss,
+host loss or retention expiry.
 
 Run from the repository root:
 
@@ -80,6 +136,14 @@ python3 benchmarks/audit_study.py benchmarks/results/selfhost-2026-11-04
 make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42'
 ~~~
 
-See the [study guide](../../README.md) for controls, prerequisites, resume and artifact bounds. The current source can audit these immutable captures; reproducing the exact measured implementation requires the recorded source revision. Changes to docs/evidence after that revision do not retroactively remeasure it.
+The [experiment guide](../../README.md) covers prerequisites, controls, resume
+and file limits. Current source can audit these captures. Repeating the exact
+measured implementation requires its recorded revision; later documentation or
+evidence changes do not remeasure it.
 
-[index.json](index.json) contains readable controls, summaries, statuses and SHA256 references; [summary.csv](summary.csv) lists every case. [journal.json](journal.json) retains progress/attempts. Raw gzip files under `raw/` have zero timestamps and include all repetitions, request/event timing samples, backlog observations and compact ID populations. Metadata and coarse resources are independently checksummed. Private keys/config/CA/logs remain in the ignored owned run directory. No failed/limited case was discarded.
+Use [index.json](index.json) for controls, results, statuses and SHA256 references;
+[summary.csv](summary.csv) lists every case and [journal.json](journal.json) keeps
+attempt history. Raw gzip files in `raw/` have zero timestamps and contain all
+runs, timing samples, backlog observations and compact ID sets. Metadata and
+coarse resources have independent checksums. Private keys/config/CA/logs stay in
+the ignored run directory. Failed or limited cases were not discarded.

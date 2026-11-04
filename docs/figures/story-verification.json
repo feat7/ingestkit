@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "runtime_source_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+  "archify_version": "3.2.0",
+  "scope": "Logical event journey and the deterministic worker SQL-commit/read-position gap. Phone SVGs are reading guides, not additional packet traces. No new timing measurements.",
+  "native_export_sha256_before_whitespace_cleanup": {
+    "event-journey.svg": "d9579bd689877bffd1618ac05816423821d29619e5e053064c3edb2729387cf9",
+    "worker-replay.svg": "0a34c3ce3ab9c82cdfcee99c2c35886c5c510ed25bf9e88c0c0dd9eaeb907cc1"
+  },
+  "export_cleanup": "Only trailing source whitespace was trimmed; XML elements/attributes, visible labels and CSS tokens were checked unchanged.",
+  "assets_sha256": {
+    "worker-replay.svg": "9a62c01f33ff94b851a8600495dbc9539178e6ac90a63e27008eabec5d66624c",
+    "worker-replay-mobile.svg": "60c217e551a4607ff0eef8a75aa141213825ff4a6111418e5c1f6af3630c55da",
+    "event-journey-mobile.svg": "629b1c2d66492fe323b45a059e97b4b8b3b5fa2ed13d3567582670fdd2838f8d",
+    "event-journey.svg": "dfca99dd66b31acb36729b92a242558d40a1eaedc5656577f1ff97b3af82df5c"
+  },
+  "checks": {
+    "archify_validate_deliver_check_browser_check": "passed for both native diagrams",
+    "native_light_dark_visual_review": true,
+    "rendered_reader_pages": 19,
+    "desktop_content_width_pixels": 800,
+    "phone_viewport_pixels": 390,
+    "phone_document_scroll_width_pixels": 390,
+    "broken_images": 0,
+    "phone_guide_clipped_labels": 0,
+    "local_links_checked": 153,
+    "original_command_blocks_preserved": "Original commands retained; four first-run examples now reload the generated key, and one duplicate configuration block is omitted.",
+    "measured_result_tables_unchanged": true,
+    "previous_figure_and_study_index_hashes_unchanged": true,
+    "both_study_audits": "99 database / 33 pipeline / 9 recovery runs, 9 limited cases each; passed",
+    "auditor_unit_tests": 6,
+    "reader_review": "One fresh read-only editor/fact review; key handoff and two pending-count meanings corrected.",
+    "first_run_key_setup": "All four example environment blocks failed after the deployment unset, then passed after explicit key loading, using generated private configuration and the actual Python client constructor."
+  },
+  "source_spec_sha256": {
+    "docs/figures/event-journey.architecture.json": "ef9bfa1b5b6cb3bbf748c43d783e7d799a0535362a3a4fa794ea14f980bcb806",
+    "docs/figures/worker-replay.sequence.json": "6b64f98e7000134bf828af10221bae4e50cfc4797672c1d4d715941c7c3918ec"
+  },
+  "guide_script_sha256": "ac41d8ccd485e8afe2928dde01783f380b4a220a6acee92e8e07aaf66b73c9ca",
+  "native_artifact_sha256": {
+    "journey": "408b8b503a3aee4f91fd733d2af35c57a77d3429009673ccce9e99a962cc7bb9",
+    "replay": "2629c9edf11b9fbf21830affa35b9d4840d4e58b3c8bf6693e4a2f6db9d372ca"
+  }
+}
