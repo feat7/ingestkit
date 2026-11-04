@@ -1,12 +1,12 @@
-# Checkout with a transactional outbox
+# Save an order and its event together
 
-This is one small SQLite application, not another collector service. Creating an
-order saves its business row and serialized event in the same transaction. A
-separate, bounded dispatch command sends pending events through the reusable
-Python HTTP client. The collector still acknowledges the broker before storage.
+This example is a small SQLite application. One transaction saves an order and
+a pending event containing its UUID and exact JSON body. A separate dispatch
+command sends pending events to IngestKit. If either process stops, the saved
+event is still available for a later attempt.
 
-From the repository root, with the HTTPS collector deployed and its backend key
-loaded as described in the [deployment guide](../../deploy/README.md):
+Run from the repository root after deploying the HTTPS collector and loading
+its backend key as shown in the [deployment guide](../../deploy/README.md):
 
 ~~~sh
 umask 077
@@ -19,52 +19,56 @@ python3 -m examples.outbox dispatch --database private/orders.db
 python3 -m examples.outbox status --database private/orders.db
 ~~~
 
-The first command prints its persisted event UUID. Repeating the same order ID
-and amount returns that UUID; a conflicting amount fails. The UUID, occurred_at
-and serialized payload do not change when the process restarts. Use a new order
-ID for a new order. The private directory and SQLite business data belong on a
-persistent disk and in your own application backup strategy.
+The create-order command prints the event UUID. Creating that order again with
+the same amount returns the same UUID; a conflicting amount fails. Restarting
+the process leaves the UUID, occurred_at and serialized payload unchanged. Use
+a new order ID for a new order. Keep the private directory on persistent disk
+and include this SQLite business data in your application's backup plan.
 
-`dispatch` attempts at most 100 pending records once, with bounded retries inside
-the HTTP helper. `--batch-size 10` lowers the selection size; `--max-attempts 1`
-limits transport attempts. Set `INGESTKIT_CA_FILE` when using an explicit local
-CA. Public HTTPS uses ordinary certificate verification.
+## Read the dispatch result
 
-The command prints attempted/acknowledged/rejected counts and the remaining
-pending count. It exits nonzero when the selected work could not be acknowledged
-or was rejected. An empty queue exits successfully. States mean:
+`dispatch` selects at most 100 pending records per invocation. The HTTP helper
+makes bounded retries for that work. `--batch-size 10` lowers the selection size;
+`--max-attempts 1` allows one transport attempt. Set `INGESTKIT_CA_FILE` for an
+explicit local CA. Public HTTPS uses ordinary certificate verification.
 
-| State | Meaning |
+The command prints attempted, acknowledged and rejected counts, plus the number
+still pending. It exits nonzero if selected work was rejected or could not be
+acknowledged. An empty queue succeeds.
+
+| State | What it means |
 | --- | --- |
-| pending | Still needs broker acknowledgement; network ambiguity, authentication/configuration failures and server errors remain here |
-| acknowledged | HTTP 202 with exactly the selected IDs; PostgreSQL may still be catching up |
-| rejected | A 400/413 requires an operator decision; the event and safe error code remain inspectable |
+| pending | The event still needs queue acknowledgement. Network uncertainty, authentication/configuration failures and server errors leave it here. |
+| acknowledged | HTTP 202 named exactly the selected IDs. PostgreSQL may still be catching up. |
+| rejected | A 400/413 needs an operator decision. The saved event and safe error code remain available. |
 
-`status` reports all state counts and a bounded list of problem IDs, attempts and
-safe error codes. Attempts count dispatcher calls, not each internal HTTP retry.
-No payload, key, response body or database URL is copied into error summaries.
-Do not silently discard a rejected event. Decide whether to repair the business
-input, split an oversized batch, retry, or compensate. This example deliberately
-has no automatic rejection reset that could rewrite an already delivered event.
+`status` prints counts and a bounded list of problem IDs, attempts and safe error
+codes. An attempt counts a dispatcher call, not every internal HTTP retry.
+Error summaries exclude payloads, keys, response bodies and database URLs.
 
-## The crash boundary
+Inspect rejected events and decide whether to fix input, split a batch, retry
+or compensate for a business operation. The example has no automatic rejection
+reset, since rewriting an event that might already have arrived needs a decision.
 
-The dispatcher reads pending work, releases the SQLite connection, sends HTTP,
-and only then marks the selected rows acknowledged in another transaction. It
-holds no business write lock while waiting on the network. If it dies after the
-broker ACK but before that update, the rows remain pending. The next process
-resends their original IDs and content; PostgreSQL keeps one row per tenant/ID.
-The integration test pauses a test-only wrapper precisely after a real ACK,
-kills that child process, dispatches again and checks one stored row.
+## If dispatch stops after HTTP 202
 
-Run one dispatcher at a time. Adapting this to multiple dispatchers needs a lease
-or claim protocol in your application's database; this example does not claim
-that behavior. A timer/cron/application worker can invoke the one-shot command,
-but deploy that scheduling only after choosing your application's lifecycle.
+The dispatcher reads pending work, closes the SQLite connection and sends HTTP.
+Only after checking the response IDs does it mark those rows acknowledged in a
+new transaction. It holds no business write lock during the network wait.
 
-## Verify at the collector
+If the process stops after the response but before that update, the row stays
+pending. A new process sends the same UUID and content again. PostgreSQL's unique
+tenant/event key keeps one row. The integration test pauses a separate test-only
+wrapper after an actual acknowledgement, kills it, dispatches again and checks
+that single row.
 
-Copy the created event UUID into this query on the collector host:
+Run one dispatcher at a time. Multiple dispatchers need a claim or lease in your
+application database. A timer, cron job or application worker can invoke this
+one-shot command once you have chosen how it fits your application's lifecycle.
+
+## Check the row at the collector
+
+Copy the created UUID into this query on the collector host:
 
 ~~~sh
 docker compose --env-file deploy/.env -f deploy/compose.yml exec -T postgres \
@@ -72,16 +76,18 @@ docker compose --env-file deploy/.env -f deploy/compose.yml exec -T postgres \
   "SELECT event_id,event_type,payload FROM ingestkit.events WHERE tenant_id='default' AND event_id='YOUR-EVENT-UUID';"
 ~~~
 
-The payload includes the order ID and amount. Acknowledged outbox state alone
-does not replace this persistence check.
+Check the order ID and amount in the payload. An acknowledged outbox row confirms
+queue acceptance; it does not replace this storage check.
 
-To adapt the pattern, place your real business write and the serialized outbox
-row inside the same database transaction. Keep the event ID stable, dispatch
-outside the transaction, and mark acknowledgement only after validating the
-response. An HTTP call after a standalone business commit leaves a creation gap
-that retries alone cannot repair. SQLite here is a concrete teaching example;
-you do not need another SQLite database when your application already uses
-PostgreSQL or another transactional store.
+## Adapt it to your database
+
+Put the business write and serialized outbox row in the same database transaction.
+Keep the ID stable, send outside that transaction and mark acknowledgement after
+validating the response. A separate business commit followed by HTTP still leaves
+a gap where the process can die before creating any pending delivery.
+
+Use your application's existing transactional database when you have one. SQLite
+is here to make the example runnable; it is not a requirement for other projects.
 
 ~~~sh
 python3 -m unittest discover -s examples/outbox -p 'test_*.py'
@@ -90,7 +96,7 @@ scripts/test-integration.sh -run TestOutbox -v
 ~~~
 
 The [recorded recovery study](../../benchmarks/results/selfhost-2026-11-04/README.md)
-uses 100 saved events per repetition and a broker outage longer than the publish
-deadline. It retains pending state and replays from a new dispatcher. This is
-separate from the deterministic after-ACK kill check described above; neither
-replaces your own application database's transaction/worker design.
+also tests 100 saved events per run during a broker outage longer than the publish
+deadline. A new dispatcher resends the pending events. That outage test is separate
+from the exact after-ACK kill test, and both supplement the transaction/worker
+checks needed for your own application.
