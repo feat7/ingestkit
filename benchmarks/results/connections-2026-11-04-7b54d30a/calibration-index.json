@@ -1,0 +1,25 @@
+{
+  "Schema": 2,
+  "Kind": "tls_driver_calibration",
+  "SourceSHA": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+  "Artifacts": [
+    {
+      "Path": "calibration/rate-15000.json",
+      "SHA256": "79d8b92e47963ad2c8cf0d451367c19d2dee4146d03f86625ea91954011c3156",
+      "Size": 1043315,
+      "Codec": "json"
+    },
+    {
+      "Path": "calibration/rate-30000.json",
+      "SHA256": "0c87385451a3114e6c3b2577a64602e65767f1de37fa3da7c5020bdecabe0f12",
+      "Size": 2081852,
+      "Codec": "json"
+    },
+    {
+      "Path": "calibration/rate-50000.json",
+      "SHA256": "6d7978ed8335dbc85de178ddabb9fa924d6bad51fd86af367f7a98afd0661c1d",
+      "Size": 3466592,
+      "Codec": "json"
+    }
+  ]
+}

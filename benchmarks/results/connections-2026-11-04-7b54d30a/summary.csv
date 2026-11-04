@@ -1,0 +1,13 @@
+case,kind,status,attempt,completed_repetitions,artifact,sha256
+connections-cap-4,pipeline,limited,1,3,raw/connections-cap-4-attempt-1.json.gz,2553054d1714e9287497c4439871aafa9272b539b2ec617f0069719cde1f7d10
+connections-cap-8,pipeline,limited,1,3,raw/connections-cap-8-attempt-1.json.gz,fb45e02e3a752c7f65989f3e4bebbe3c52876383d4f1d0220248017208872612
+connections-cap-16,pipeline,limited,1,3,raw/connections-cap-16-attempt-1.json.gz,079e937145a4ecb546dc56275e782840c598b825e6357077b239a58214eae2c4
+connections-cap-32,pipeline,limited,1,3,raw/connections-cap-32-attempt-1.json.gz,a14796d47b9dd5e88633e1ebaa0037ae73afcf61ae4b49682cdae3766128d47a
+connections-cap-64,pipeline,limited,1,3,raw/connections-cap-64-attempt-1.json.gz,42dcc57cef7aa8d0cd303f080e54b1fc47d51c8f31804d5ed856e8b17e2d5408
+connections-cap-128,pipeline,limited,1,3,raw/connections-cap-128-attempt-1.json.gz,f620a0d60ffb3c6c367c352cfc5f959b1f835dccde4c2d4c267bb335292f33b4
+connections-cap-0,pipeline,limited,1,3,raw/connections-cap-0-attempt-1.json.gz,bb70fc56b50e7ffb2675e08778410a54089ba4b161fc601a7c74bfd8158c1bbd
+connections-rate-30000,pipeline,limited,1,3,raw/connections-rate-30000-attempt-1.json.gz,808df76aeba9263f638dce86601a36b2e9fa1166d10348f7cc93030a0624f5ea
+connections-rate-50000,pipeline,limited,1,3,raw/connections-rate-50000-attempt-1.json.gz,cddc6b761d05e128247f6c8c02cdcd604322676bf82e8b51476e27805020096e
+connections-payload-256,pipeline,limited,1,3,raw/connections-payload-256-attempt-1.json.gz,9f4cd8fda9f3db5ed4c0fc0788ea62820ae4e351bb84bc516b2b732203c7e341
+connections-payload-1024,pipeline,limited,1,3,raw/connections-payload-1024-attempt-1.json.gz,dbedab43c0071e04abc30124772dfc3a80d72517b2244b68719b211c406ce7a2
+connections-payload-16384,pipeline,limited,1,3,raw/connections-payload-16384-attempt-1.json.gz,29ca74ba4a5169aec5d01c6e271e329a349932ed23571fe20617630278f3768d

@@ -1,0 +1,80 @@
+{
+  "schema": 2,
+  "scope": "Local sequential screening only; no sustained capacity claim",
+  "source_sha": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+  "pipeline_runs": 36,
+  "limited_cases": 12,
+  "calibration_runs": 9,
+  "calibration": [
+    {
+      "offered_events_per_second": 15000,
+      "accepted_inside_per_second": [
+        15000,
+        15000,
+        15000
+      ],
+      "generator_misses": [
+        0,
+        0,
+        0
+      ],
+      "peak_tcp": [
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "offered_events_per_second": 30000,
+      "accepted_inside_per_second": [
+        30000,
+        30000,
+        29990
+      ],
+      "generator_misses": [
+        0,
+        0,
+        0
+      ],
+      "peak_tcp": [
+        2,
+        2,
+        7
+      ]
+    },
+    {
+      "offered_events_per_second": 50000,
+      "accepted_inside_per_second": [
+        50000,
+        50000,
+        50000
+      ],
+      "generator_misses": [
+        0,
+        0,
+        0
+      ],
+      "peak_tcp": [
+        26,
+        26,
+        26
+      ]
+    }
+  ],
+  "provenance": {
+    "source_files": 181,
+    "source_fingerprint": "cd0d4934d139eccfbe6ae00095095965f698e7b82260b6c3ad28ad315ed83c68",
+    "controls_fingerprint": "bdec13e526ee97355acb1304c18bc984ecffe3d8958094f2510443d0921c8c64",
+    "runtime_fingerprint": "58b28355c14c4083591b7ea7c0022eafec29f50f758a16fcd58bae0c4162217a",
+    "source_sha": "043f584cf8638269a53afd5c9ec35a2721bc4148"
+  },
+  "images_fingerprint": "41b1431ceeefcdf0521fe69945e6770e8184ae54621864d3235c0a34b71bb9be",
+  "generated_secret_values_checked": 3,
+  "owned_containers_remaining": 0,
+  "resource_guard": {
+    "min_memory_free_percent": 38,
+    "max_driver_rss_kib": 2997648,
+    "max_host_load_1m": 6.97,
+    "triggered": false
+  }
+}
