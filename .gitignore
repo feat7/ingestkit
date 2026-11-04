@@ -23,3 +23,6 @@ coverage.*
 # Private environment variants; checked-in examples remain public.
 **/.env.*
 !**/.env.example
+
+# Optional local figure-generation environment
+**/.venv/

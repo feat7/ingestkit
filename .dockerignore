@@ -23,3 +23,5 @@ bin
 **/*.db-*
 **/*.sqlite
 **/*.sqlite-*
+
+**/.venv

@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Deploy an event collector",
+    "locale": "en",
+    "output": ".archify/architecture-deployment-20261104-041835/deployment.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:feat7/ingestkit.git",
+      "revision": "213e4cc50523882f0d0cf7533d064494387d3207",
+      "link_mode": "local-only"
+    }
+  },
+  "components": [
+    {
+      "id": "caller",
+      "type": "external",
+      "label": "Your backend",
+      "sublabel": "stable event IDs",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 42,
+          "end_line": 102
+        }
+      ]
+    },
+    {
+      "id": "edge",
+      "type": "security",
+      "label": "Caddy",
+      "sublabel": "public 80 / 443",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "deploy/compose.yml",
+          "line": 5,
+          "end_line": 17
+        },
+        {
+          "path": "deploy/Caddyfile",
+          "line": 1,
+          "end_line": 12
+        }
+      ]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Go API",
+      "sublabel": "key \u2192 tenant",
+      "pos": [
+        300,
+        200
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "internal/api/ingest.go",
+          "line": 12,
+          "end_line": 53
+        },
+        {
+          "path": "internal/api/middleware/auth.go",
+          "line": 42,
+          "end_line": 69
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 77,
+          "end_line": 94
+        }
+      ]
+    },
+    {
+      "id": "log",
+      "type": "messagebus",
+      "label": "Redpanda",
+      "sublabel": "events + DLQ",
+      "pos": [
+        560,
+        200
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "deploy/compose.yml",
+          "line": 32,
+          "end_line": 59
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 64
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Go consumer",
+      "sublabel": "retry + replay",
+      "pos": [
+        560,
+        400
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "internal/messaging/process.go",
+          "line": 11,
+          "end_line": 107
+        },
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 143
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 95,
+          "end_line": 113
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "one row per ID",
+      "pos": [
+        300,
+        400
+      ],
+      "size": [
+        120,
+        64
+      ],
+      "sources": [
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 1,
+          "end_line": 12
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 18,
+          "end_line": 31
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "One Docker Compose host",
+      "wraps": [
+        "edge",
+        "ingest",
+        "log",
+        "worker",
+        "database"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "security-group",
+      "label": "Private services \u00b7 no published ports",
+      "wraps": [
+        "ingest",
+        "log",
+        "worker",
+        "database"
+      ],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    {
+      "from": "caller",
+      "to": "edge",
+      "label": "HTTPS",
+      "variant": "security"
+    },
+    {
+      "from": "edge",
+      "to": "ingest",
+      "label": "HTTP"
+    },
+    {
+      "from": "ingest",
+      "to": "log",
+      "label": "publish",
+      "variant": "emphasis"
+    },
+    {
+      "from": "log",
+      "to": "worker",
+      "label": "consume",
+      "variant": "dashed"
+    },
+    {
+      "from": "worker",
+      "to": "database",
+      "label": "batch INSERT",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Acceptance",
+      "items": [
+        "202 means the broker acknowledged the request. PostgreSQL storage is asynchronous.",
+        "API keys stay in trusted application backends."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Persistence",
+      "items": [
+        "PostgreSQL, Redpanda and Caddy use named volumes.",
+        "SQL commits before source offsets; replay deduplicates by tenant and UUID.",
+        "Malformed records require an acknowledged DLQ write on the same broker before offset progress."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "One host",
+      "items": [
+        "Only Caddy publishes ports 80/443. Dependencies and metrics stay private.",
+        "One broker/replica and finite retention do not protect against host or disk loss."
+      ]
+    }
+  ]
+}

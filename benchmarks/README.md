@@ -16,8 +16,9 @@ The CLI requires committed source and records that revision, image content IDs/r
 
 [Recorded local experiments](results/local-2026-11-03/README.md) include every
 repetition, exact configuration and the observed COPY/staging disadvantage.
-The optional figure generator is `python3 benchmarks/plot_results.py` with
-matplotlib installed; it reads these captures and writes docs/assets/experiments.svg.
+The [figure source guide](../docs/figures/README.md) explains generation from the
+new study index, native diagrams and responsive desktop/mobile figures. The old
+experiments.svg remains a historical asset, not current deployment evidence.
 
 
 **Durability correction:** the historical pipeline captures used a broker with

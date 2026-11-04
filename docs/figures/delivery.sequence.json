@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "An ACK and a commit are different promises",
+    "locale": "en",
+    "output": ".archify/sequence-delivery-20261104-041835/delivery.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:feat7/ingestkit.git",
+      "revision": "213e4cc50523882f0d0cf7533d064494387d3207",
+      "link_mode": "local-only"
+    }
+  },
+  "participants": [
+    {
+      "id": "sender",
+      "type": "external",
+      "label": "App",
+      "sources": [
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 42,
+          "end_line": 102
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API",
+      "sources": [
+        {
+          "path": "internal/api/ingest.go",
+          "line": 35,
+          "end_line": 53
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 77,
+          "end_line": 96
+        }
+      ]
+    },
+    {
+      "id": "broker",
+      "type": "messagebus",
+      "label": "Log",
+      "sources": [
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 64
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 32,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "consumer",
+      "type": "backend",
+      "label": "Worker",
+      "sources": [
+        {
+          "path": "internal/messaging/process.go",
+          "line": 11,
+          "end_line": 107
+        },
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 143
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 95,
+          "end_line": 113
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "SQL",
+      "sources": [
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 12
+        }
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "id": "submit",
+      "from": "sender",
+      "to": "api",
+      "y": 170,
+      "label": "POST",
+      "variant": "default",
+      "note": "Validate envelope; key supplies tenant"
+    },
+    {
+      "id": "publish",
+      "from": "api",
+      "to": "broker",
+      "y": 260,
+      "label": "publish",
+      "variant": "emphasis"
+    },
+    {
+      "id": "broker-ack",
+      "from": "broker",
+      "to": "api",
+      "y": 300,
+      "label": "ACK",
+      "variant": "return"
+    },
+    {
+      "id": "accept",
+      "from": "api",
+      "to": "sender",
+      "y": 340,
+      "label": "202",
+      "variant": "return"
+    },
+    {
+      "id": "poll",
+      "from": "consumer",
+      "to": "broker",
+      "y": 410,
+      "label": "poll",
+      "variant": "default",
+      "note": "Consumer progress is independent of HTTP response timing"
+    },
+    {
+      "id": "insert",
+      "from": "consumer",
+      "to": "postgres",
+      "y": 520,
+      "label": "INSERT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sql-commit",
+      "from": "postgres",
+      "to": "consumer",
+      "y": 560,
+      "label": "commit",
+      "variant": "return",
+      "note": "Crash here leaves the source offset pending"
+    },
+    {
+      "id": "advance",
+      "from": "consumer",
+      "to": "broker",
+      "y": 660,
+      "label": "offset",
+      "variant": "default"
+    },
+    {
+      "id": "replay",
+      "from": "broker",
+      "to": "consumer",
+      "y": 770,
+      "label": "replay",
+      "variant": "dashed",
+      "note": "Alternative: restart after a crash before offset commit"
+    },
+    {
+      "id": "retry-insert",
+      "from": "consumer",
+      "to": "postgres",
+      "y": 880,
+      "label": "same UUID",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dedup",
+      "from": "postgres",
+      "to": "consumer",
+      "y": 920,
+      "label": "one row",
+      "variant": "return"
+    },
+    {
+      "id": "advance-retry",
+      "from": "consumer",
+      "to": "broker",
+      "y": 970,
+      "label": "offset",
+      "variant": "default"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 690,
+      "label": "Accepted \u2192 stored \u2192 offset"
+    },
+    {
+      "from": 730,
+      "to": 1000,
+      "label": "Alternative: crash before offset"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Broker acceptance",
+      "items": [
+        "202 follows all broker acknowledgements in the response.",
+        "A timeout can be ambiguous; retry the same UUID and bytes."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Storage effect",
+      "items": [
+        "One SQL statement commits a valid segment atomically.",
+        "The unique (tenant_id,event_id) key keeps replay from creating another row."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Crash boundary",
+      "items": [
+        "A crash after SQL commit and before offset commit causes replay.",
+        "This is idempotent storage, not a transaction spanning Kafka and PostgreSQL."
+      ]
+    }
+  ]
+}
