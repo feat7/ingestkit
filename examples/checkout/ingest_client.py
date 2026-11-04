@@ -9,6 +9,41 @@ import threading
 import time
 from urllib.parse import urlsplit
 
+# DNS has no cancellable stdlib API. Only these bounded daemon workers may
+# outlive a timed-out attempt; they never connect or receive event/key data.
+_DNS_SLOTS = threading.BoundedSemaphore(8)
+
+def _remaining(deadline):
+    budget = deadline-time.monotonic()
+    if budget <= 0:
+        raise TimeoutError()
+    return budget
+
+def _resolve(host, port, deadline):
+    if not _DNS_SLOTS.acquire(timeout=_remaining(deadline)):
+        raise TimeoutError()
+    result, done = [], threading.Event()
+    def lookup():
+        try:
+            try:
+                result.append(socket.getaddrinfo(host, port, type=socket.SOCK_STREAM))
+            except (OSError, UnicodeError):
+                result.append(None)
+        finally:
+            _DNS_SLOTS.release()
+            done.set()
+    try:
+        threading.Thread(target=lookup, daemon=True).start()
+    except RuntimeError:
+        _DNS_SLOTS.release()
+        raise OSError("resolver unavailable") from None
+    if not done.wait(_remaining(deadline)):
+        raise TimeoutError()
+    _remaining(deadline)  # Discard results that arrived after the deadline.
+    if result[0] is None:
+        raise OSError("resolution failed")
+    return result[0]
+
 _UUID = re.compile(r"^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
 
 class IngestError(Exception):
@@ -62,25 +97,46 @@ class Client:
                 time.sleep(.1 * 2**attempt)
         raise error from None
 
+    def _connect(self, deadline):
+        port = self._port if self._port is not None else (443 if self._secure else 80)
+        for family, kind, protocol, _, address in _resolve(self._host, port, deadline):
+            sock = None
+            try:
+                budget = _remaining(deadline)
+                sock = socket.socket(family, kind, protocol)
+                sock.settimeout(budget)
+                sock.connect(address)
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                if self._secure:
+                    sock.settimeout(_remaining(deadline))
+                    sock = self._context.wrap_socket(sock, server_hostname=self._host)
+                _remaining(deadline)
+                return sock
+            except ssl.SSLCertVerificationError:
+                if sock:
+                    sock.close()
+                raise
+            except OSError:
+                if sock:
+                    sock.close()
+        raise OSError("connection failed")
+
     def _attempt(self, path, body, expected):
+        deadline = time.monotonic()+self._timeout
         connection = (http.client.HTTPSConnection(self._host, self._port, timeout=self._timeout,
                                                   context=self._context) if self._secure else
                       http.client.HTTPConnection(self._host, self._port, timeout=self._timeout))
         timer = None
         response = None
         try:
-            started = time.monotonic()
-            connection.connect()
+            connection.sock = self._connect(deadline)
             sock = connection.sock
             def stop():
                 try:
                     sock.shutdown(socket.SHUT_RDWR)
                 except OSError:
                     pass
-            remaining = self._timeout - (time.monotonic()-started)
-            if remaining <= 0:
-                raise TimeoutError()
-            timer = threading.Timer(remaining, stop)
+            timer = threading.Timer(_remaining(deadline), stop)
             timer.daemon = True
             timer.start()
             connection.request("POST", path, body=body, headers={"Content-Type":"application/json",
@@ -99,6 +155,7 @@ class Client:
             if not isinstance(ack, dict) or ack.get("event_ids") != expected or ack.get("status") != "accepted":
                 raise IngestError("acknowledgement differs; delivery uncertain", status=202,
                                   retryable=True, request_id=request_id)
+            _remaining(deadline)
             return expected
         except ssl.SSLCertVerificationError:
             raise IngestError("TLS certificate is not trusted") from None

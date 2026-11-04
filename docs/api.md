@@ -65,8 +65,12 @@ Application errors include `error`, `message`, `request_id` and `timestamp`;
 `X-Request-ID` is also returned. The supplied helpers expose a validated UUID
 request ID and status without copying response/error bodies into exceptions.
 Their defaults are three attempts with 100/200 ms backoff and an eight-second
-network timeout per attempt. Configure one to ten attempts. They do not follow
-redirects or publish credentials to another endpoint.
+network deadline per attempt, shared by DNS, all address connections, TLS and
+HTTP. Configure one to ten attempts. Python cannot cancel an operating-system
+DNS lookup: at most eight daemon resolver workers may finish later. They never
+connect or receive events or keys; waiting for a resolver slot uses the same
+deadline. The helpers do not follow redirects or publish credentials to another
+endpoint.
 
 `GET /health` checks the API process. `GET /ready` checks API broker readiness;
 it says nothing about database persistence. Public metrics and administration

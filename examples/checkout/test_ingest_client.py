@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from ingest_client import Client, IngestError
 
@@ -90,6 +91,84 @@ class ClientTest(unittest.TestCase):
                 self.assertLess(time.monotonic()-started, 2)
                 for private in ("secret-key", "payload-canary", "postgres://"):
                     self.assertNotIn(private, str(raised.exception))
+
+    def test_attempt_deadline_includes_dns_without_late_post(self):
+        # A slow resolver must not hold up send() or publish after it returns.
+        resolve = socket.getaddrinfo
+        released, finished = threading.Event(), threading.Event()
+        def delayed(*args, **kwargs):
+            try:
+                released.wait(.3)
+                return resolve(*args, **kwargs)
+            finally:
+                finished.set()
+        with server([(202, [EVENT["event_id"]])]) as (url, seen):
+            url = url.replace("127.0.0.1", "localhost")
+            with patch("socket.getaddrinfo", delayed):
+                started = time.monotonic()
+                try:
+                    with self.assertRaises(IngestError) as raised:
+                        Client(url, "secret-key", timeout=.03, max_attempts=1).send(EVENT)
+                    elapsed = time.monotonic()-started
+                    self.assertTrue(raised.exception.retryable)
+                    self.assertLess(elapsed, .18)
+                finally:
+                    released.set()
+                    self.assertTrue(finished.wait(1))
+            self.assertEqual(seen, [])
+
+    def test_attempt_deadline_is_shared_by_all_addresses(self):
+        # socket.create_connection otherwise grants each address a fresh timeout.
+        addresses = [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "",
+                      ("192.0.2.1", 80))] * 4
+        sockets = []
+        def stalled_connect(sock, address):
+            sockets.append(sock)
+            threading.Event().wait(sock.gettimeout())
+            raise socket.timeout()
+        with patch("socket.getaddrinfo", return_value=addresses), \
+                patch.object(socket.socket, "connect", stalled_connect):
+            started = time.monotonic()
+            with self.assertRaises(IngestError) as raised:
+                Client("http://example.invalid", "secret-key", timeout=.04,
+                       max_attempts=1).send(EVENT)
+            self.assertTrue(raised.exception.retryable)
+            self.assertLess(time.monotonic()-started, .12)
+        self.assertTrue(sockets)
+        self.assertTrue(all(sock.fileno() == -1 for sock in sockets))
+
+    def test_unresolved_dns_work_is_bounded(self):
+        # Timed-out DNS must not create one forever-blocked thread per send.
+        release = threading.Event()
+        lock = threading.Lock()
+        active, peak = 0, 0
+        def stalled(*args, **kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            try:
+                release.wait(.2)
+                raise socket.gaierror()
+            finally:
+                with lock:
+                    active -= 1
+        with patch("socket.getaddrinfo", stalled):
+            try:
+                started = time.monotonic()
+                for _ in range(12):
+                    with self.assertRaises(IngestError) as raised:
+                        Client("http://example.invalid", "secret-key", timeout=.01,
+                               max_attempts=1).send(EVENT)
+                    self.assertTrue(raised.exception.retryable)
+                self.assertLess(time.monotonic()-started, .4)
+                self.assertLessEqual(peak, 8)
+            finally:
+                release.set()
+                deadline = time.monotonic()+1
+                while active and time.monotonic() < deadline:
+                    threading.Event().wait(.005)
+                self.assertEqual(active, 0)
 
     def test_permanent_status_and_request_id(self):
         for status in (400, 401, 413):
