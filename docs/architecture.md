@@ -63,17 +63,15 @@ HTTP tenant checks do not add PostgreSQL row-level isolation.
 
 ## Why the database writer uses INSERT
 
-The [first complete corrected study](../benchmarks/results/selfhost-copy-2026-11-04/README.md)
-compared one INSERT per row, one INSERT per batch and the original COPY path,
-which used a temporary table followed by a merge. Batch INSERT had a lower median
-elapsed time than COPY/merge in all 11 tested configurations.
+The worker uses one multirow INSERT per atomic batch with
+`ON CONFLICT (tenant_id,event_id) DO NOTHING`. Replaying an event keeps its
+existing row. This path needs no temporary-table privilege. Tests cover rollback,
+duplicate IDs, restricted privileges and the SQL/offset crash gap.
 
-The writer changed to batch INSERT while retaining tests for rollback, duplicate
-IDs, restricted privileges and the exact crash/replay gap. COPY stays an explicit
-benchmark implementation. The [second complete study](../benchmarks/results/selfhost-2026-11-04/README.md)
-measures the changed writer. Some individual timings overlap or reverse the
-median ordering. No universal batch-size threshold or JSONB-versus-typed-table
-advantage was established, and the writer does not choose a method adaptively.
+The reference COPY benchmark creates a staging table, copies rows into it, then
+merges them into the destination. Its total measures that complete transaction,
+not plain COPY. Previous comparative results are withdrawn pending measurement
+revalidation; the deployed writer is not claimed to be universally fastest.
 
 ## Decide whether the queue helps your application
 

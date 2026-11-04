@@ -160,10 +160,9 @@ Routine shutdown does not need `down -v`, global prune or volume removal.
 
 ## What the recovery tests establish
 
-The [recorded recovery experiments](../benchmarks/results/selfhost-2026-11-04/README.md)
-run a database outage, worker kill/restart and broker-outage/outbox retry three
-times each. They check accepted IDs and content and retain actual control times.
-A completed start command does not prove the consumer group has caught up:
-check readiness, lag and stored UUIDs. SQL observation gaps remain gaps. The
-experiments do not establish recovery from host/disk loss or an outage beyond
-retained history.
+Previous recorded recovery bundles have been withdrawn from the public tree as
+part of measurement revalidation. Use the owned integration tests and local
+recovery demo to check the supported failure paths. A completed start command
+does not prove that the consumer group has caught up: check readiness, offset
+lag and stored UUIDs. Observation gaps remain unknown intervals. These checks
+do not establish recovery from host/disk loss or an outage beyond retained history.

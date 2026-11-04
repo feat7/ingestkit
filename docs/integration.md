@@ -117,8 +117,8 @@ test deployment, use `INGESTKIT_CA_FILE=/absolute/path/to/root.crt`, Python's
 `ca_file` option or Node's `caFile` option to trust its private CA. The helpers
 keep certificate verification enabled.
 
-The outbox example includes a real crash test after HTTP acknowledgement but
-before the local pending row is updated. The [recovery study](../benchmarks/results/selfhost-2026-11-04/README.md)
-also runs a broker outage three times with 100 saved events each. These test
-different gaps: a local acknowledgement update, a queue outage, and the separate
-worker SQL/offset gap described in the [delivery guide](delivery.md).
+The outbox example includes a crash test after HTTP acknowledgement but before
+the local pending row is updated. The [delivery guide](delivery.md) explains that
+retry gap and the worker's separate SQL/offset gap. Retrying uncertain HTTP
+outcomes must preserve the event IDs. Previous measured recovery bundles have
+been withdrawn pending benchmark revalidation.

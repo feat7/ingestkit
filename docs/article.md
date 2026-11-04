@@ -144,109 +144,45 @@ A failed HTTP batch can still have put some records into the queue; validation
 together does not make the batch one transaction across partitions or SQL writes.
 Keep the original IDs and content after an uncertain response.
 
-## The database comparison removed some code
+## One atomic database write per batch
 
-The original writer used COPY, PostgreSQL's bulk-loading mechanism. Its complete
-path created a temporary table, copied the events into it, merged them into the
-indexed event table with duplicate handling, and committed. That is more work
-than a plain COPY into an empty table.
+The deployed writer builds a multirow INSERT with
+`ON CONFLICT (tenant_id,event_id) DO NOTHING`. The transaction either saves its
+new rows or rolls back; a replay keeps each existing row. The reference COPY
+comparison includes creating a temporary table, loading it and merging its rows.
+That is a different algorithm from direct COPY into the destination.
 
-[PostgreSQL's bulk-loading guidance](https://www.postgresql.org/docs/18/populate.html)
-explains the cost of committing each row and the use of COPY for large loads.
-The [recorded study](../benchmarks/results/selfhost-2026-11-04/README.md) used clean
-source [213e4cc](../benchmarks/results/selfhost-2026-11-04/manifest-1.json) and measured
-25 configurations three times each. The database comparison covered these complete implementations: one INSERT per
-row, one INSERT per batch, and COPY followed by a merge.
+Previous comparative tables and measured plots have been withdrawn while the
+benchmark is repaired. Their combined bundles contained database, pipeline and
+recovery measurements; retiring a bundle does not imply every recorded value
+was wrong. A new comparison must state the complete algorithm, transaction
+boundaries, duplicate policy, payload size and actual batch sizes.
 
-Each method submitted 5,000 events against the same table, indexes and duplicate
-policy, with database durability enabled. Input generation, reset, warm-up and
-verification happened outside the measured write time. Method order rotated
-across three runs. The single-row method committed every row; the other two
-committed every batch.
+## Count the work at each boundary
 
-For 256-byte payloads, batch size 100 and no duplicate IDs, the times were:
+A requested sending rate is not an achieved rate. Record planned events, requests
+actually started, successful acknowledgements and independently verified rows.
+A generator miss is work that was never sent. An uncertain response can follow
+partial publication, so retry the same event IDs and keep unknown outcomes
+separate from success.
 
-| Method | Median (s) | Range (s) |
-| --- | ---: | ---: |
-| Single INSERT | 6.510 | 4.710 to 8.375 |
-| Batch INSERT | 0.155 | 0.121 to 0.247 |
-| COPY/staging/merge | 0.486 | 0.212 to 0.523 |
+Concurrent HTTP requests, open TCP connections, idle connection retention,
+producer record buffers and database pool connections are different limits.
+Measure their actual use and waits before attributing a throughput ceiling.
+HTTP 202 acknowledges the broker; PostgreSQL may still be catching up.
 
-The median is the middle of the three runs; the range shows all of them.
-Batch INSERT also had a lower median than COPY/merge in all 11 database
-configurations in both complete studies. The sweep covered batches from 1 to
-1,000, payloads up to 16 KiB, and 10%, 50% and 90% repeated submissions. Some
-individual runs overlapped or reversed the ordering. Repeated-ID cases created
-fewer new rows, so their submitted-events rate measures different work.
+The SQL observer must not block accounting for completed HTTP requests. Failed
+observations make visibility timing unavailable; they must not erase a successful
+independent ID/payload check or turn bookkeeping time into database throughput.
+The [measurement guide](../benchmarks/README.md) describes the current audit.
 
-The deployed worker now uses an atomic batched INSERT. Its rollback, duplicate,
-restricted-role and exact crash-replay tests still pass, and it no longer needs
-permission to create temporary tables. The original COPY transaction remains
-an independent benchmark method. A second complete study measured the changed
-writer from committed code.
+## Check recovery separately from throughput
 
-These runs establish a choice for this workload. They do not locate a universal
-batch size where COPY wins, compare UNNEST, or compare JSONB with typed tables.
-[Tiger Data's batch-ingest comparison](https://www.tigerdata.com/blog/benchmarking-postgresql-batch-ingest)
-uses other methods and sizes; its numbers cannot be transferred to this workload.
-The [full database plots](assets/database-batching.svg), including their
-[phone layout](assets/database-batching-mobile.svg), retain every measured run.
-
-## Count what was sent, accepted and found
-
-The HTTPS baseline tried to send 1,000 events per second for ten seconds: batches
-of 100, 32 clients and 256-byte payloads. After two seconds of warm-up, all three
-runs sent, received acknowledgements for, and found the stored content of 10,000
-events each, without reported limits.
-
-The response and storage measurements answer different questions. Across those
-runs, HTTP response p95 was 40.19 to 42.92 ms: 95% of successful requests completed
-within each run's p95. Receipt-to-observed-storage p95 was 101.61 to 103.08 ms,
-with one sample per observed event. SQL checks ran at a target interval of 50 ms,
-so that second measure includes waiting for the next query and the query itself.
-It is an upper bound on when storage became visible.
-
-The suite has 11 HTTP configurations, each run three times. Larger payloads use
-batches of 10 to fit the request limit. Some configurations missed the sending
-schedule or finished requests after the ten-second window. At 10,000 offered
-events/s, run 2 left 1,000 IDs with uncertain HTTP outcomes absent at the final
-check. The 16 KiB case left 160 in its second run. Those IDs remain unknown:
-the report neither counts them as acknowledged success nor proves they could
-never arrive later. An application should keep them for retry.
-
-A missed sending schedule is work the client did not submit. An acknowledgement
-just beyond a window boundary can happen without proving the server is saturated.
-The [full HTTP plots](assets/pipeline-load.svg) and [phone layout](assets/pipeline-load-mobile.svg)
-keep those cases and their limits. These short local runs do not establish
-maximum capacity.
-
-Rates also need a clear end time. The in-window acknowledgement rate counts only
-responses received inside the target window. The verified storage rate includes
-the window, unfinished requests, observation time and final verification.
-Counting late rows against only the earlier window would inflate that rate.
-
-To measure storage, the observer tracks the IDs it has not yet seen in a temporary
-table on its own database connection. A transaction that commits late therefore
-still gets checked. Scanning only an insertion timestamp such as `persisted_at`
-could miss it, because insertion and commit happen at different times. A final,
-independent query checks IDs and content. Rows found only then get no invented
-latency sample. API receipt and SQL observation use the deployment clock; the
-host schedules requests with a monotonic clock, which does not jump with wall time.
-
-## Stop the dependencies and check the rows
-
-The three recovery experiments each ran three times:
-
-| What stops | When | What was checked afterward |
-| --- | --- | --- |
-| PostgreSQL | Stop requested at 3s, start at 8s, during 15s of offered 500 events/s | Every acknowledged ID and its content reached storage |
-| Worker | KILL at 3s, restart requested at 5s, with the same offered load | Every acknowledged ID and its content reached storage after the group recovered |
-| Redpanda queue | Stopped for eight seconds after stop completion; 100 outbox events; a failed attempt longer than the five-second publish deadline | A new dispatcher resent saved events; each run finished with 100 accepted and stored unique IDs |
-
-The [recovery plots](assets/recovery.svg) and [phone layout](assets/recovery-mobile.svg)
-show all runs and actual control times. Gaps stay visible when SQL cannot be
-observed. A start command completing does not mean the worker has caught up,
-and these tests do not replace the exact crash-window test.
+Use the recovery demo and owned integration tests to stop PostgreSQL, restart a
+worker and exercise application outbox retry. Check accepted IDs and contents
+after recovery. Readiness, broker offset lag and verified rows answer different
+questions. A process starting is not proof that queued work has drained, and
+an observation gap supplies no invented latency sample.
 
 Other real-service tests revoke INSERT while the database still answers Ping,
 then restore it and check processing readiness; rotate overlapping API keys; and
@@ -260,16 +196,10 @@ rewind with the database, and only retained records can fill the gap.
 
 ## Where the results apply
 
-The tests ran on an M1 Max host with an OrbStack Linux Docker VM. The VM exposed
-10 CPUs and about 16 GiB RAM; Redpanda had one core and 1 GiB. The sender and SQL
-observer shared the machine with existing workloads. Coarse container snapshots
-cannot establish the sole bottleneck or a cloud-cost estimate.
-
-The manifests record image IDs/digests, the actual Redpanda fsync-bypass flag, topic
-write caching, database durability and verified HTTPS. An earlier development
-capture had process-level fsync bypass enabled even with topic write caching off.
-Its [historical correction](../benchmarks/results/local-2026-11-03/README.md) remains
-with the original samples. The corrected studies use new measurements.
+The previous local measurement bundles are being replaced with an audited
+connection study. No current result in this article establishes maximum or
+sustained capacity. A future measured claim must state the hardware, duration,
+load-generator placement, batching, actual achieved rate and observation limits.
 
 The supported deployment is one host, one queue replica and finite retention.
 Losing that host or its disks can lose events. Your application owns its business

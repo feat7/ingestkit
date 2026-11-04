@@ -88,12 +88,11 @@ make demo-recovery DEMO_FLAGS=-cleanup
 ~~~
 
 The second demo stops PostgreSQL, sends events, restarts the database and checks
-that the same IDs reached the table. The [experiment results](benchmarks/results/selfhost-2026-11-04/README.md)
-go further: 25 configurations, three runs each, with saved samples and explicit
-limits. The database comparison led to a simpler writer: batch INSERT had a lower
-median time than COPY/staging/merge in all 11 tested database configurations.
-Unknown delivery outcomes remain unknown in the reports; these runs do not
-establish maximum capacity.
+that the same IDs reached the table. Previous benchmark bundles and measured
+charts have been withdrawn while the load driver, SQL observer and connection
+limits are revalidated. The [measurement guide](benchmarks/README.md) explains
+the distinction between offered load, acknowledgements and verified storage.
+These local demonstrations do not establish maximum capacity.
 
 [Development and tests](docs/development.md) · [Run the experiments](benchmarks/README.md) ·
 [Delivery details](docs/delivery.md) · [How the components fit together](docs/architecture.md)

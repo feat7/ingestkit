@@ -94,5 +94,6 @@ are optional development dependencies; the collector does not need them.
 
 The [operator guide](operations.md) has the deployed procedures for logs, key
 rotation and fresh-target restore. Both the broker process's fsync bypass and
-topic write caching affect durability. The [historical correction](../benchmarks/results/local-2026-11-03/README.md)
-explains an earlier development-mode capture without changing its raw data.
+topic write caching affect durability. Previous measurement bundles have been
+archived outside the checkout and withdrawn from public claims. See the
+[measurement guide](../benchmarks/README.md) for the revalidation work.
