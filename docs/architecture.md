@@ -1,49 +1,74 @@
 # Architecture
 
-The API authenticates a key, supplies tenant identity and receipt time, validates
-an event envelope, and waits for Redpanda acknowledgement. It does not contact
-PostgreSQL. The consumer reads bounded records and writes valid segments through
-a temporary PostgreSQL staging table using COPY, then merges into
-ingestkit.events with ON CONFLICT DO NOTHING inside one transaction.
+The deployment has five long-running services: Caddy, a Go API, Redpanda, a Go
+consumer and PostgreSQL. Initialization jobs create topics, apply migrations and
+set up the restricted writer login. Only Caddy publishes host ports 80/443.
 
-Offsets advance after the database transaction commits. A crash between those
-two operations causes replay; the unique (tenant_id,event_id) key makes the
-storage effect idempotent. This is not an atomic transaction across systems.
+<a href="assets/deployment.svg"><picture><source media="(max-width:600px)" srcset="assets/deployment-mobile.svg"><img src="assets/deployment.svg" alt="Public HTTPS terminates at Caddy; the collector and its dependencies stay private on one Docker Compose host."></picture></a>
 
-Malformed broker envelopes go to a separate acknowledged broker quarantine topic.
-Database outages remain retries. A failed quarantine cannot justify committing
-past the affected source record.
+[Full diagram](assets/deployment.svg) · [Source and reproduction](figures/README.md)
 
-## Why these choices
+The API maps a backend key to a tenant, validates the envelope, supplies receipt
+time and publishes to Redpanda. It returns 202 after all records covered by the
+response are acknowledged. It never contacts PostgreSQL. The producer uses
+bounded buffering, a five-second publish deadline, all-ISR acknowledgements and
+franz-go's idempotent producer.
 
-- **HTTP boundary:** callers can reuse the service from any language without a
-  generated client or schema compiler.
-- **Broker buffer:** accepts bursts and permits database outages within retention,
-  at the cost of an additional service and operational failure modes.
-- **Generic JSONB table:** one readable storage path; application payload
-  validation belongs to the application. No per-event or per-tenant table factory.
-- **Sequential bounded processing:** makes offset progress straightforward to
-  inspect. A claimed worker pool adds no value without a measured need.
-- **COPY with staging/merge:** retains bulk loading while supporting replay.
-  Its overhead must be measured against simpler writes, not assumed away.
+The consumer reads at most 500 records, handles each partition in order and
+writes valid segments with one multi-row INSERT plus `ON CONFLICT DO NOTHING`.
+Each SQL statement commits atomically. Only then does the consumer commit those
+source offsets. A crash in between can replay the segment; the unique
+`(tenant_id,event_id)` key prevents another row. An HTTP batch can span partitions
+and SQL segments; it is not one transaction across the entire pipeline.
 
-## Boundaries
+Malformed broker envelopes go to a separate quarantine topic on the same broker.
+The consumer waits for its acknowledgement before advancing the source offset.
+Database failures are retries, not quarantine. See [delivery semantics](delivery.md).
 
-This project does not provide analytics dashboards, a schema registry, generated
-SDKs, automatic legacy migrations, database row-level tenant isolation, a hosted
-service, or a connector platform. Small workloads may be better served by direct
-PostgreSQL writes; the benchmark experiment compares the relevant write methods.
+## What the components own
 
-internal/persistence owns the new store. The API, messaging, and event packages
-do not depend on generated code. internal/runenv is local test/demo
-orchestration, not a runtime service dependency.
+| Component | Responsibility |
+| --- | --- |
+| `internal/api` and middleware | Authentication, per-tenant request limiting, validation, HTTP acknowledgements |
+| `internal/messaging` | Bounded publish, partition processing, acknowledged quarantine, offset ordering |
+| `internal/persistence` | Atomic batched SQL and first-content conflict handling |
+| `internal/service` | Supervision, drain, processing readiness and safe diagnostics |
+| `deploy/` | Canonical HTTPS Compose package, configuration generation, migrations/role initialization |
+| `internal/runenv` | Owned local test/demo/study orchestration; not a deployed service |
+| `examples/` | Importable callers and an application-owned SQLite outbox |
+| `internal/benchmark` | Explicit write comparisons, HTTPS load observation and recovery experiments |
 
-## What measurement changed
+PostgreSQL, Redpanda and Caddy state use named volumes. The consumer has CONNECT,
+schema USAGE, SELECT and INSERT privileges; it is not a superuser and needs no
+TEMP or permanent-DDL privilege. Migrations use a separate admin login.
+The private Compose network is the deployment trust boundary; tenant API scoping
+does not provide PostgreSQL row-level isolation.
 
-The [local comparison](../benchmarks/results/local-2026-11-03/README.md) found
-batch INSERT faster than COPY/stage/merge at batch size 100. The current store
-keeps the latter implementation as a visible experiment; it is not justified
-as a small-batch performance optimization. Larger batches, different payloads
-or a direct PostgreSQL-only path need their own measurements. Generic JSONB
-storage avoids generated schemas, but its cost relative to typed columns was
-not measured.
+## Why the writer changed
+
+The first [complete corrected study](../benchmarks/results/selfhost-copy-2026-11-04/README.md)
+compared single INSERT, batch INSERT and the actual temporary-table COPY/merge
+path. Batch INSERT had the lower median than COPY/merge in all 11 configurations.
+The default was changed separately, retaining atomic rollback, deduplication,
+restricted-role and deterministic crash-replay checks. The COPY transaction now
+lives as an explicit benchmark reference; changing the default does not relabel
+a different algorithm as COPY.
+
+A [new complete study](../benchmarks/results/selfhost-2026-11-04/README.md) records
+the resulting committed implementation. Repetition ranges overlap or reverse
+some individual timings. There is no universal/adaptive batch-size threshold or
+measured JSONB-versus-typed-table advantage.
+
+## Scope and tradeoffs
+
+The broker permits asynchronous acceptance and retained-log recovery during
+PostgreSQL outages, at the cost of another stateful service. For an application
+already satisfied by direct transactional PostgreSQL writes, that extra service
+may not be useful. The outbox pattern is reusable independently of this collector.
+
+This package targets one Compose host. One broker replica, finite log retention
+and a database backup do not provide high availability or automatic recovery from
+losing the only disks. There is no analytics dashboard, connector catalog, schema
+registry, generated SDK, automatic legacy import or business-payload validator.
+Applications own their business schemas and event IDs; operators own backups,
+disk growth and any database archival/deletion policy.

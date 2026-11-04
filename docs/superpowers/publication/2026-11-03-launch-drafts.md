@@ -1,39 +1,78 @@
-# Publication drafts — prepare only
+# Publication drafts — updated 4 November 2026
 
-These drafts are unpublished. Replace the article URL after choosing a home for it. Review the first-person voice and add only personal context that actually happened.
+These are local drafts. No article, repository release or social submission has
+been published by this work. Check that the reviewed branch and referenced source
+commits are available publicly before using these links. Add personal context only
+if it happened; do not invent adoption, company impact or popularity.
 
-## Primary article
+## Article
 
-Title: Building an event pipeline in Go—and testing what survives a crash
+Title: Building an event collector around the failure boundaries
 
-Alternate, focused on the measured surprise: COPY wasn't the fastest part of my Go event pipeline
+Alternative: What HTTP 202 means in a self-hosted event pipeline
 
-Source: [article](../../article.md). Publish the full article on the author's blog first if a suitable home exists. An optional DEV cross-post can point its canonical URL there; see [DEV's editor/cross-posting instructions](https://dev.to/help/writing-editing-scheduling). Convert repository-relative code/results links to absolute links at the measured revision before posting. Confirm the branch and referenced commits have been pushed so readers can resolve them. Keep the complete sample ranges and environment caveats.
+Source: [publication-ready Markdown draft](../../article.md). Choose the author's
+canonical blog home, replace relative code/results/image links with public URLs,
+and preview the responsive figures on that platform. Keep the measured revision,
+three-repetition ranges, unknown deliveries and shared-host caveats beside claims.
+If cross-posting, retain one canonical article URL rather than splitting the story
+across competing copies. No hosting destination is selected or created here.
 
-## Regular Hacker News submission
+The concrete hook: a deployable collector plus an application outbox, two separate
+crash windows, and evidence that changed the default from COPY/staging/merge to
+batch INSERT. The value is being able to run, break and inspect it.
 
-Title: Building a Go event pipeline and testing the database-commit crash window
+## Regular Hacker News article submission
+
+Title: Building an event collector and testing its failure boundaries
 
 URL: the final public article URL.
 
-Optional author comment: I built a small HTTP → Redpanda → PostgreSQL collector to make acknowledgement and replay behavior inspectable. The repo includes real dependency-outage tests and a deterministic kill between database and offset commits. One result surprised me: with batches of 100, ordinary batch INSERT beat COPY/staging/merge. The local load runs reconcile every ID, but they are not a maximum-capacity result. I'm interested in feedback on the failure boundaries and benchmark method.
+Optional author comment:
 
-Do not call an article submission Show HN. [HN's guidelines](https://news.ycombinator.com/showhn.html) distinguish reading material from something people can try.
+> I built a small Go/Redpanda/PostgreSQL event collector with a self-contained
+> HTTPS deployment and a runnable transactional-outbox example. The repo tests
+> crashes after SQL commit and after HTTP acknowledgement, then reconciles the
+> same event IDs. A corrected 25-case study favored batch INSERT over my COPY/merge
+> path by median, so I changed the default and reran it. All repetitions and limits
+> remain in the captures, including ambiguous deliveries; these are local results,
+> not maximum-capacity claims. I'd welcome feedback on the failure model and method.
+
+A blog post belongs in a regular submission. The [Show HN guidelines](https://news.ycombinator.com/showhn.html)
+reserve Show HN for something people can try, rather than reading material.
 
 ## Potential separate Show HN
 
-Title: Show HN: IngestKit – break an event pipeline and reconcile what survived
+Title: Show HN: IngestKit – a self-hosted event collector with crash/replay tests
 
-URL: the public repository once this branch is available.
+URL: the public repository after this branch is made available.
 
-Description: A small Go collector with an isolated checkout demo and a database-outage demo. Run make demo-recovery to acknowledge events while PostgreSQL is stopped, restore it, and compare the same IDs. The integration suite also kills the consumer after database commit but before offset commit. Plain Python and Node callers demonstrate reuse. Requires local Docker and Go; no hosted account or generated SDK.
+Description draft:
 
-Use only when the runnable project is publicly accessible. Do not coordinate votes or promise popularity. The article and runnable project serve different submissions; avoid duplicative promotion.
+> Deploy a small HTTPS event collector with Docker Compose, send stable UUIDs from
+> Python or Node, and inspect PostgreSQL storage. The application outbox persists
+> orders and pending events atomically and replays the same IDs after a dispatcher
+> crash. Local demos and real-service tests stop dependencies and check accepted
+> IDs, stored content and source progress. Deployment builds Go inside Docker;
+> owned local demos/studies require Go. It is one host with finite retention, not HA.
+
+Use only when readers can actually access and run the reviewed code. Prefer one
+focused submission at a time; this file does not authorize posting, messaging,
+vote coordination or account/hosting setup.
 
 ## Resume / project description
 
-Built a Go event collector using Redpanda and PostgreSQL, with broker-acknowledged HTTP ingestion, tenant-scoped idempotent storage, bounded retries and acknowledged quarantine. Verified replay using a deterministic crash between database and offset commits and automated dependency-outage/rebalance tests. Recorded reproducible local database and pipeline experiments with exact ID reconciliation, raw samples and environment manifests.
+Built a self-hosted Go event collector with HTTPS, Redpanda buffering and
+PostgreSQL storage; supplied copyable Python/Node clients and a transactional
+outbox. Verified tenant-scoped deduplication and crash replay with real dependency
+outages, restricted-role/restore tests and a reproducible 25-configuration study.
+Changed the default SQL writer based on measured batch/payload/duplicate results.
 
-Resume bullet: Built and failure-tested a Go/Redpanda/PostgreSQL event pipeline; verified database-commit replay and tenant-scoped deduplication, and recorded reproducible local ingestion experiments with raw correctness evidence.
+Short bullet:
 
-Do not add claims about production adoption, business impact, cloud cost, maximum throughput or popularity without new evidence.
+Built and failure-tested a self-hosted Go/Redpanda/PostgreSQL collector with HTTPS,
+durable application outbox and replay-safe storage; recorded 25 reproducible
+experiment configurations with raw samples, ID reconciliation and explicit limits.
+
+No claim of production adoption, business impact, cloud cost, maximum throughput
+or popularity is supported by the local repository evidence.

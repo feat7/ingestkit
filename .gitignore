@@ -11,3 +11,18 @@ bin/
 *.log
 coverage.*
 .DS_Store
+# Self-hosted private runtime/configuration data
+**/backups/
+**/private/
+.archify/
+# Local application outbox databases and journals
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
+# Private environment variants; checked-in examples remain public.
+**/.env.*
+!**/.env.example
+
+# Optional local figure-generation environment
+**/.venv/

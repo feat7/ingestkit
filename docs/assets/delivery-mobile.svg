@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 840" role="img" aria-labelledby="title desc">
+<title id="title">Three delivery boundaries</title>
+<desc id="desc">202 acknowledges the broker. SQL commits a replay-safe row. The consumer commits its offset after SQL succeeds. HTTP response and consumer progress run concurrently.</desc>
+<style>
+:root{--paper:#faf9f6;--ink:#18323c;--muted:#526671;--line:#b4c3c9;--blue:#205f72;--panel:#edf3f3}
+@media(prefers-color-scheme:dark){:root{--paper:#12212b;--ink:#edf2f4;--muted:#bbccd3;--line:#526671;--blue:#7bc6d6;--panel:#1a303c}}
+text{font-family:Arial,sans-serif;fill:var(--ink)}.small{font-size:14px;fill:var(--muted)}.heading{font-size:21px;font-weight:700}.copy{font-size:16px}.card{fill:var(--panel);stroke:var(--line);stroke-width:1.5}.step{font-size:14px;font-weight:700;fill:var(--blue)}.arrow{stroke:var(--blue);stroke-width:2;fill:none}
+</style>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="var(--blue)"/></marker></defs>
+<rect width="360" height="840" rx="12" fill="var(--paper)"/>
+<text x="20" y="34" class="heading">Three delivery boundaries</text>
+<text x="20" y="61" class="small">Same event UUID across retries.</text>
+<rect x="20" y="92" width="320" height="156" rx="12" class="card"/>
+<text x="38" y="122" class="step">1 · ACCEPTANCE</text>
+<text x="38" y="154" class="heading">Broker ACK → HTTP 202</text>
+<text x="38" y="185" class="copy">The broker acknowledged the event.</text>
+<text x="38" y="212" class="small">PostgreSQL may still be pending.</text>
+<path d="M180 254V297" class="arrow" marker-end="url(#arrow)"/>
+<text x="194" y="278" class="small">async store</text>
+<rect x="20" y="308" width="320" height="156" rx="12" class="card"/>
+<text x="38" y="338" class="step">2 · STORAGE</text>
+<text x="38" y="370" class="heading">SQL commit</text>
+<text x="38" y="401" class="copy">One atomic batch, one row per ID.</text>
+<text x="38" y="428" class="small">Crash now? Replay the same UUID.</text>
+<path d="M180 470V513" class="arrow" marker-end="url(#arrow)"/>
+<text x="194" y="494" class="small">after SQL</text>
+<rect x="20" y="524" width="320" height="156" rx="12" class="card"/>
+<text x="38" y="554" class="step">3 · PROGRESS</text>
+<text x="38" y="586" class="heading">Commit source offset</text>
+<text x="38" y="617" class="copy">The consumer advances after SQL.</text>
+<text x="38" y="644" class="small">Replay keeps one row per tenant + UUID.</text>
+<text x="20" y="720" class="small">HTTP response and consumer progress</text>
+<text x="20" y="742" class="small">run concurrently after broker acceptance.</text>
+<text x="20" y="777" class="small">Kafka + PostgreSQL are separate transactions.</text>
+<text x="20" y="811" class="small">Source 213e4cc · full sequence linked beside guide</text>
+</svg>

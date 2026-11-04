@@ -1,0 +1,5235 @@
+{
+  "Status": "complete",
+  "ExecutionAttempts": 1,
+  "MetadataArtifacts": [
+    {
+      "Codec": "json",
+      "Path": "manifest-1.json",
+      "SHA256": "ab89359ae672b5a26618aedc6fec10664f469f90e296bb134c482a9c1a14b0cb",
+      "Size": 14128,
+      "RawBytes": 14128
+    }
+  ],
+  "ManifestFiles": [
+    "manifest-1.json"
+  ],
+  "Resources": [
+    {
+      "Codec": "gzip",
+      "Path": "resources-1.json.gz",
+      "SHA256": "ff96e4b4af6ab093a8d3e97eeec74151af67aba10d95c1dd83a4fc751bf383ac",
+      "Size": 25335,
+      "RawBytes": 505001
+    }
+  ],
+  "Schema": 1,
+  "Identity": {
+    "SourceSHA": "dccf4b3783a83010a86cceb5f318fc0b23645b56",
+    "SourceFingerprint": "25e4030c4039e03531efcbabdc8da836aa97fe5cdeabbfdd94b15fb48008ce68",
+    "ControlsFingerprint": "48c89aca641858936a3ae61db38c6683c1e3ec590b3c447c2548cbf4c2f9e318",
+    "ImagesFingerprint": "46058c0c246a346a73a5980052ca2595e385b37ed18966f80d3e6a189016c0bd",
+    "ConfigFingerprint": "738367cf2d26017bbe811849d3aacaedeb4891091f61e7e3c50904733a855cfe",
+    "Mode": "full",
+    "Seed": 42,
+    "SourceDirty": false
+  },
+  "RunNamespace": "ae237e04-731d-4320-af54-3ff38d8ae65f",
+  "Cases": {
+    "db-batch-1": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-1-attempt-1.json.gz",
+        "SHA256": "369bca674073b33284fe19c594e52d757dc35b7ec1b0277e9eada7781dcd2f56",
+        "Size": 130752,
+        "RawBytes": 342879
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-1",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 1,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 5451552417,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4945587042,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 23787816500,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4698216541,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 22270728125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4769635625,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 20999593167,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 7943784875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4443313042,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-1-attempt-1.json.gz",
+            "SHA256": "369bca674073b33284fe19c594e52d757dc35b7ec1b0277e9eada7781dcd2f56",
+            "Size": 130752,
+            "RawBytes": 342879
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-batch-10": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-10-attempt-1.json.gz",
+        "SHA256": "30e74d69c56dfb4f9a9abcaa766bdf6ba38b6f34e125a11c263588f71ca56c46",
+        "Size": 52983,
+        "RawBytes": 139114
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-10",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 10,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4868561042,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 677020042,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 2791043417,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1647866083,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 2883055375,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 5296327458,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 2405385708,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 8848153458,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 500646333,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-10-attempt-1.json.gz",
+            "SHA256": "30e74d69c56dfb4f9a9abcaa766bdf6ba38b6f34e125a11c263588f71ca56c46",
+            "Size": 52983,
+            "RawBytes": 139114
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-batch-100": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-100-attempt-1.json.gz",
+        "SHA256": "6a7837588b8bd8e687d9ac3290c16c4a9fd38789596132203930d5d5493c34ce",
+        "Size": 44383,
+        "RawBytes": 118372
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-100",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6252412291,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 131458625,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 293925125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 259989833,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 435312792,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 8931380875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 287726625,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4922131084,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 158938208,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-100-attempt-1.json.gz",
+            "SHA256": "6a7837588b8bd8e687d9ac3290c16c4a9fd38789596132203930d5d5493c34ce",
+            "Size": 44383,
+            "RawBytes": 118372
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-batch-1000": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-1000-attempt-1.json.gz",
+        "SHA256": "80469d563341738d16ce5cf11f48db82469d27982104abec7a872431e2c4611f",
+        "Size": 43863,
+        "RawBytes": 119033
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-1000",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 1000,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 9971811333,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 73004667,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 91250875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 94170041,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 90251167,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6222443792,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 81666875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6220183875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 78067833,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-1000-attempt-1.json.gz",
+            "SHA256": "80469d563341738d16ce5cf11f48db82469d27982104abec7a872431e2c4611f",
+            "Size": 43863,
+            "RawBytes": 119033
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-batch-50": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-50-attempt-1.json.gz",
+        "SHA256": "2631dd527972d301f38274a089361f12f72e9066bd682d5a44db5a949e1b9481",
+        "Size": 45158,
+        "RawBytes": 120934
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-50",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 50,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 4533726209,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 170107625,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 581224916,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 330741292,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 541003333,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6550575958,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 524224167,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6138724000,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 202138834,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-50-attempt-1.json.gz",
+            "SHA256": "2631dd527972d301f38274a089361f12f72e9066bd682d5a44db5a949e1b9481",
+            "Size": 45158,
+            "RawBytes": 120934
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-batch-500": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-batch-500-attempt-1.json.gz",
+        "SHA256": "907403528ed1fdbc1c4eea24f3517026f7b78799ff83320b6c42b45e981fb188",
+        "Size": 42663,
+        "RawBytes": 121453
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-batch-500",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 500,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6120738125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 97039375,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 104231416,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 129472125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 119877958,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6334902125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 90675500,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6171369250,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 76679292,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-batch-500-attempt-1.json.gz",
+            "SHA256": "907403528ed1fdbc1c4eea24f3517026f7b78799ff83320b6c42b45e981fb188",
+            "Size": 42663,
+            "RawBytes": 121453
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-duplicates-10": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-duplicates-10-attempt-1.json.gz",
+        "SHA256": "924be0c894d2b9220312c5fc71726a70a3e1d44d6a3134cfc8c6828d14fd8aed",
+        "Size": 43114,
+        "RawBytes": 116290
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-duplicates-10",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0.1
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 4523910458,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 128403750,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 299802667,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 192726792,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 377546333,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 4831851792,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 243185291,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 5630481709,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 4500,
+            "duplicates": 500,
+            "elapsed_ns": 149752458,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-duplicates-10-attempt-1.json.gz",
+            "SHA256": "924be0c894d2b9220312c5fc71726a70a3e1d44d6a3134cfc8c6828d14fd8aed",
+            "Size": 43114,
+            "RawBytes": 116290
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-duplicates-50": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-duplicates-50-attempt-1.json.gz",
+        "SHA256": "3bbd6b9501484547f600f99bee631186635f0c800da55b97b6175623214aed0e",
+        "Size": 42624,
+        "RawBytes": 116502
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-duplicates-50",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0.5
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 4308531667,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 105259084,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 356780958,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 218304708,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 475505500,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 6885547292,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 304966000,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 3604732000,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 2500,
+            "duplicates": 2500,
+            "elapsed_ns": 158724625,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-duplicates-50-attempt-1.json.gz",
+            "SHA256": "3bbd6b9501484547f600f99bee631186635f0c800da55b97b6175623214aed0e",
+            "Size": 42624,
+            "RawBytes": 116502
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-duplicates-90": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-duplicates-90-attempt-1.json.gz",
+        "SHA256": "48a0e237918e20300979db0a31127097631c9a1a13a49b7cbeddad222cca85ad",
+        "Size": 39317,
+        "RawBytes": 111273
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-duplicates-90",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 256,
+          "duplicate_fraction": 0.9
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 1883489250,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 78453250,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 382714791,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 100039250,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 453156084,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 1478754459,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 262018166,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 1357953750,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 500,
+            "duplicates": 4500,
+            "elapsed_ns": 63792791,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-duplicates-90-attempt-1.json.gz",
+            "SHA256": "48a0e237918e20300979db0a31127097631c9a1a13a49b7cbeddad222cca85ad",
+            "Size": 39317,
+            "RawBytes": 111273
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-payload-1024": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-payload-1024-attempt-1.json.gz",
+        "SHA256": "e63d2e2f4ad5284a71f8e48c095509ff5d6806f16f095911d9941b1ec54c6636",
+        "Size": 45348,
+        "RawBytes": 121865
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-payload-1024",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 1024,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 6808433458,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 210348917,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 524147625,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 231698791,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 453167834,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 9562879291,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 306062833,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 5816228125,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 256530875,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-payload-1024-attempt-1.json.gz",
+            "SHA256": "e63d2e2f4ad5284a71f8e48c095509ff5d6806f16f095911d9941b1ec54c6636",
+            "Size": 45348,
+            "RawBytes": 121865
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "db-payload-16384": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/db-payload-16384-attempt-1.json.gz",
+        "SHA256": "9e1d5fb267e80f82dc5545f7d2c36179a692860d2d75fe8b009b6b33dc0a36dc",
+        "Size": 48591,
+        "RawBytes": 125472
+      },
+      "Summary": {
+        "kind": "database",
+        "workload": {
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/db-payload-16384",
+          "payload_profile": "varied",
+          "seed": 42,
+          "count": 5000,
+          "payload_bytes": 16384,
+          "duplicate_fraction": 0
+        },
+        "batch_size": 100,
+        "repetitions": 3,
+        "runs": [
+          {
+            "method": "insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 14687461042,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1097110709,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 1,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1527117292,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1283645875,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1359904709,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 2,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 14272579542,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "copy-merge",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 1197085209,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 15618113041,
+            "batch_ns": null,
+            "correct": true
+          },
+          {
+            "method": "batch-insert",
+            "repetition": 3,
+            "submitted": 5000,
+            "inserted": 5000,
+            "duplicates": 0,
+            "elapsed_ns": 946918750,
+            "batch_ns": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Generation, dataset reset, warm-up and exact ID/payload verification excluded from elapsed time.",
+          "Single INSERT commits each row; batch INSERT and production COPY/merge commit each batch. Same table, indexes and conflict policy.",
+          "BatchNS records client-observed calls; single INSERT calls contain one row. Durability settings are captured in manifest.json."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/db-payload-16384-attempt-1.json.gz",
+            "SHA256": "9e1d5fb267e80f82dc5545f7d2c36179a692860d2d75fe8b009b6b33dc0a36dc",
+            "Size": 48591,
+            "RawBytes": 125472
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-batch-1": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-batch-1-attempt-1.json.gz",
+        "SHA256": "9b2a39ac29a9a1b706f62eab35fc6edc02c895c2b6ca2e024e7a9525d3712170",
+        "Size": 804807,
+        "RawBytes": 4810274
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 1,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-batch-1",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9989,
+            "AcceptedAfterWindow": 11,
+            "ObserverPolls": 203,
+            "ObserverQueries": 812,
+            "ObserverQueryNS": 1377441001,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 51255583,
+            "ObservedEvents": 10000,
+            "VerificationNS": 58771708,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 92,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10194055917,
+            "DrainNS": 194055917,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998.9,
+            "PersistedEPS": 980.9638167006339,
+            "ack_latency": {
+              "p50_ns": 12383041,
+              "p95_ns": 18663708,
+              "p99_ns": 24394000
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 85364000,
+              "p95_ns": 122868000,
+              "p99_ns": 152523000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "28d0fcd3609452304692b5def184c293f4825ce8d5b3d7ad3fd98d7bcafb1ef9",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "28d0fcd3609452304692b5def184c293f4825ce8d5b3d7ad3fd98d7bcafb1ef9",
+              "stored": "28d0fcd3609452304692b5def184c293f4825ce8d5b3d7ad3fd98d7bcafb1ef9"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 9466,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9449,
+            "AcceptedAfterWindow": 17,
+            "ObserverPolls": 203,
+            "ObserverQueries": 800,
+            "ObserverQueryNS": 1368076030,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 50765291,
+            "ObservedEvents": 9466,
+            "VerificationNS": 52158542,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "generator_missed_events",
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 9466,
+            "Accepted": 9466,
+            "Persisted": 9466,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 534,
+            "LateSchedules": 22,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 90,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10182052250,
+            "DrainNS": 182052250,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 944.9,
+            "PersistedEPS": 929.6750564209685,
+            "ack_latency": {
+              "p50_ns": 12732958,
+              "p95_ns": 23652083,
+              "p99_ns": 65023292
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 83314000,
+              "p95_ns": 177539000,
+              "p99_ns": 486214000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "1c4b2b933b3a983b1a4d6ed4184f6ff2cc65058c5cea59a888150a9163e9838b",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "1c4b2b933b3a983b1a4d6ed4184f6ff2cc65058c5cea59a888150a9163e9838b",
+              "stored": "1c4b2b933b3a983b1a4d6ed4184f6ff2cc65058c5cea59a888150a9163e9838b"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9983,
+            "AcceptedAfterWindow": 17,
+            "ObserverPolls": 202,
+            "ObserverQueries": 809,
+            "ObserverQueryNS": 1576483460,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 50502291,
+            "ObservedEvents": 10000,
+            "VerificationNS": 55478166,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 96,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10133476916,
+            "DrainNS": 133476916,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998.3,
+            "PersistedEPS": 986.8281225578903,
+            "ack_latency": {
+              "p50_ns": 14255166,
+              "p95_ns": 21135834,
+              "p99_ns": 24498250
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 86632000,
+              "p95_ns": 118017000,
+              "p99_ns": 131092000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "39459f687870f205295b9b59b3146f17ed54ec3738c0d9f90705232d5bbda2a4",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "39459f687870f205295b9b59b3146f17ed54ec3738c0d9f90705232d5bbda2a4",
+              "stored": "39459f687870f205295b9b59b3146f17ed54ec3738c0d9f90705232d5bbda2a4"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-batch-1-attempt-1.json.gz",
+            "SHA256": "9b2a39ac29a9a1b706f62eab35fc6edc02c895c2b6ca2e024e7a9525d3712170",
+            "Size": 804807,
+            "RawBytes": 4810274
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-batch-10": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-batch-10-attempt-1.json.gz",
+        "SHA256": "eabe032e9145789c7ea3ef879048266e74f6a45dddbb789e5a28c001be50c3e8",
+        "Size": 270405,
+        "RawBytes": 1221356
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 10,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-batch-10",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9990,
+            "AcceptedAfterWindow": 10,
+            "ObserverPolls": 202,
+            "ObserverQueries": 808,
+            "ObserverQueryNS": 1065330545,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 56193583,
+            "ObservedEvents": 10000,
+            "VerificationNS": 54267625,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 2,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 95,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10129323834,
+            "DrainNS": 129323834,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 999,
+            "PersistedEPS": 987.2327278583085,
+            "ack_latency": {
+              "p50_ns": 16320250,
+              "p95_ns": 21827291,
+              "p99_ns": 26217041
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 86364000,
+              "p95_ns": 116573000,
+              "p99_ns": 131375000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "2308f929bbe4618d9fff677d91c7e7ff182b2ba6ea512b30e06512052bfe23d5",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "2308f929bbe4618d9fff677d91c7e7ff182b2ba6ea512b30e06512052bfe23d5",
+              "stored": "2308f929bbe4618d9fff677d91c7e7ff182b2ba6ea512b30e06512052bfe23d5"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9990,
+            "AcceptedAfterWindow": 10,
+            "ObserverPolls": 202,
+            "ObserverQueries": 804,
+            "ObserverQueryNS": 1104503993,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 55482541,
+            "ObservedEvents": 10000,
+            "VerificationNS": 57927792,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 100,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10134078500,
+            "DrainNS": 134078500,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 999,
+            "PersistedEPS": 986.7695419963443,
+            "ack_latency": {
+              "p50_ns": 16227166,
+              "p95_ns": 28102666,
+              "p99_ns": 176825667
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 93098000,
+              "p95_ns": 160529000,
+              "p99_ns": 322554000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "04a3e6cc5ded1c8cfd3df11d3a60f47f6eece0555ab514fe0383305558fa336f",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "04a3e6cc5ded1c8cfd3df11d3a60f47f6eece0555ab514fe0383305558fa336f",
+              "stored": "04a3e6cc5ded1c8cfd3df11d3a60f47f6eece0555ab514fe0383305558fa336f"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9990,
+            "AcceptedAfterWindow": 10,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 1109773911,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 53328500,
+            "ObservedEvents": 10000,
+            "VerificationNS": 69103042,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 88,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10199933875,
+            "DrainNS": 199933875,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 999,
+            "PersistedEPS": 980.3985126325144,
+            "ack_latency": {
+              "p50_ns": 15924083,
+              "p95_ns": 21203833,
+              "p99_ns": 24105417
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 84546000,
+              "p95_ns": 114733000,
+              "p99_ns": 126936000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "9d57209e1f3abbc3a335b225d1cee5ab6eee642d1026d50130f0db4c54823cba",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "9d57209e1f3abbc3a335b225d1cee5ab6eee642d1026d50130f0db4c54823cba",
+              "stored": "9d57209e1f3abbc3a335b225d1cee5ab6eee642d1026d50130f0db4c54823cba"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-batch-10-attempt-1.json.gz",
+            "SHA256": "eabe032e9145789c7ea3ef879048266e74f6a45dddbb789e5a28c001be50c3e8",
+            "Size": 270405,
+            "RawBytes": 1221356
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-batch-100": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-batch-100-attempt-1.json.gz",
+        "SHA256": "67189037495f6b6c21c6ce624b4d5f3cff6579ced93603d95804eb0cf25b1e0a",
+        "Size": 195702,
+        "RawBytes": 843832
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 100,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-batch-100",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 744,
+            "ObserverQueryNS": 1320043757,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 54871667,
+            "ObservedEvents": 10000,
+            "VerificationNS": 70612833,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10106381583,
+            "DrainNS": 106381583,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 989.4738208599856,
+            "ack_latency": {
+              "p50_ns": 26848833,
+              "p95_ns": 35775750,
+              "p99_ns": 41297750
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 50916000,
+              "p95_ns": 102740000,
+              "p99_ns": 108909000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "cd405735e752334cc4de0c1a4fa5c0efa093ea81bce76f07ef4ce745179a3a40",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "cd405735e752334cc4de0c1a4fa5c0efa093ea81bce76f07ef4ce745179a3a40",
+              "stored": "cd405735e752334cc4de0c1a4fa5c0efa093ea81bce76f07ef4ce745179a3a40"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 742,
+            "ObserverQueryNS": 1215422754,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 53499583,
+            "ObservedEvents": 10000,
+            "VerificationNS": 70658750,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 34,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10103019708,
+            "DrainNS": 103019708,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 989.8030775968472,
+            "ack_latency": {
+              "p50_ns": 27208917,
+              "p95_ns": 35683167,
+              "p99_ns": 45575542
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 51126000,
+              "p95_ns": 101067000,
+              "p99_ns": 104082000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "3f5d1782f6cc8cad9a9a58cb387050eb3ac75e018f4cd1fc8bd4e841de5b9100",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "3f5d1782f6cc8cad9a9a58cb387050eb3ac75e018f4cd1fc8bd4e841de5b9100",
+              "stored": "3f5d1782f6cc8cad9a9a58cb387050eb3ac75e018f4cd1fc8bd4e841de5b9100"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 738,
+            "ObserverQueryNS": 1320513923,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 52057375,
+            "ObservedEvents": 10000,
+            "VerificationNS": 63698500,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 35,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10093028542,
+            "DrainNS": 93028542,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 990.782891219134,
+            "ack_latency": {
+              "p50_ns": 27612459,
+              "p95_ns": 34361667,
+              "p99_ns": 36536833
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 51367000,
+              "p95_ns": 102529000,
+              "p99_ns": 104402000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "c334c4f73a3eb52422cc5b1b5331cfcca73fbd344fb2343d5bedcbed9dd01b6a",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "c334c4f73a3eb52422cc5b1b5331cfcca73fbd344fb2343d5bedcbed9dd01b6a",
+              "stored": "c334c4f73a3eb52422cc5b1b5331cfcca73fbd344fb2343d5bedcbed9dd01b6a"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-batch-100-attempt-1.json.gz",
+            "SHA256": "67189037495f6b6c21c6ce624b4d5f3cff6579ced93603d95804eb0cf25b1e0a",
+            "Size": 195702,
+            "RawBytes": 843832
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-burst": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-burst-attempt-1.json.gz",
+        "SHA256": "acad81044bdd9ae2c87ee49c4bb14ba76d36c3254ccd9971595bd0807b634511",
+        "Size": 194413,
+        "RawBytes": 855025
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 100,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-burst",
+          "observer_reconnect": false,
+          "pattern": "burst",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 655,
+            "ObserverQueryNS": 790644409,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 54010333,
+            "ObservedEvents": 10000,
+            "VerificationNS": 71223084,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 2500000000,
+            "TotalNS": 10141911000,
+            "DrainNS": 141911000,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 986.0074694009837,
+            "ack_latency": {
+              "p50_ns": 21952958,
+              "p95_ns": 25375791,
+              "p99_ns": 29855167
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 100949000,
+              "p95_ns": 127782000,
+              "p99_ns": 151369000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "acc3874608663ee94b9d13dfa4e4ac56e48e284659a7b6d49a2f773e41006b58",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "acc3874608663ee94b9d13dfa4e4ac56e48e284659a7b6d49a2f773e41006b58",
+              "stored": "acc3874608663ee94b9d13dfa4e4ac56e48e284659a7b6d49a2f773e41006b58"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 656,
+            "ObserverQueryNS": 830966748,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 59821250,
+            "ObservedEvents": 10000,
+            "VerificationNS": 60462416,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 2500000000,
+            "TotalNS": 10084280208,
+            "DrainNS": 84280208,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 991.642417082665,
+            "ack_latency": {
+              "p50_ns": 22483417,
+              "p95_ns": 27473333,
+              "p99_ns": 30710916
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 76517000,
+              "p95_ns": 102238000,
+              "p99_ns": 110723000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "44414eb17bacc96c7f6f371430576c4fdf1033d61ff3ee5dc7eacc3118902222",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "44414eb17bacc96c7f6f371430576c4fdf1033d61ff3ee5dc7eacc3118902222",
+              "stored": "44414eb17bacc96c7f6f371430576c4fdf1033d61ff3ee5dc7eacc3118902222"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 10000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 656,
+            "ObserverQueryNS": 852735297,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 55860958,
+            "ObservedEvents": 10000,
+            "VerificationNS": 78949750,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 2500000000,
+            "TotalNS": 10141259167,
+            "DrainNS": 141259167,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 1000,
+            "PersistedEPS": 986.0708453778933,
+            "ack_latency": {
+              "p50_ns": 22226834,
+              "p95_ns": 29102458,
+              "p99_ns": 36543500
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 100745000,
+              "p95_ns": 147218000,
+              "p99_ns": 176147000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "46f6c754ed779f568d7d3d4d32255ce195e514db9cc2a49606b0d57a1b6819b7",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "46f6c754ed779f568d7d3d4d32255ce195e514db9cc2a49606b0d57a1b6819b7",
+              "stored": "46f6c754ed779f568d7d3d4d32255ce195e514db9cc2a49606b0d57a1b6819b7"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-burst-attempt-1.json.gz",
+            "SHA256": "acad81044bdd9ae2c87ee49c4bb14ba76d36c3254ccd9971595bd0807b634511",
+            "Size": 194413,
+            "RawBytes": 855025
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-concurrency-64": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-concurrency-64-attempt-1.json.gz",
+        "SHA256": "ab20868f676a0e5e4f2e9388591e34be49a5cc66e7227e7c17cf7ce693711435",
+        "Size": 809129,
+        "RawBytes": 4901624
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 64,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 1,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-concurrency-64",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9989,
+            "AcceptedAfterWindow": 11,
+            "ObserverPolls": 203,
+            "ObserverQueries": 810,
+            "ObserverQueryNS": 1024408171,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 50345292,
+            "ObservedEvents": 10000,
+            "VerificationNS": 60949083,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 3,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 86,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10185377250,
+            "DrainNS": 185377250,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998.9,
+            "PersistedEPS": 981.7996677540834,
+            "ack_latency": {
+              "p50_ns": 12507708,
+              "p95_ns": 21818833,
+              "p99_ns": 62487791
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 80283000,
+              "p95_ns": 140772000,
+              "p99_ns": 270584000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "4fef9f4d0e5eae011ddfa0a0d16b6600315023c378488070cf7920cbe7317706",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "4fef9f4d0e5eae011ddfa0a0d16b6600315023c378488070cf7920cbe7317706",
+              "stored": "4fef9f4d0e5eae011ddfa0a0d16b6600315023c378488070cf7920cbe7317706"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9989,
+            "AcceptedAfterWindow": 11,
+            "ObserverPolls": 199,
+            "ObserverQueries": 796,
+            "ObserverQueryNS": 1619755052,
+            "ObserverLatePolls": 1,
+            "ObserverMaxGapNS": 208736167,
+            "ObservedEvents": 10000,
+            "VerificationNS": 55045417,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements",
+              "observer_poll_delays"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 63,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 87,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10127520250,
+            "DrainNS": 127520250,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998.9,
+            "PersistedEPS": 987.4085415924002,
+            "ack_latency": {
+              "p50_ns": 15550541,
+              "p95_ns": 42710542,
+              "p99_ns": 84716250
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 94290000,
+              "p95_ns": 167797000,
+              "p99_ns": 302013000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "8ea0ea59e91dd074730ff4bffc1a50698e61af3683495a65e2432d2c6a7e29f9",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "8ea0ea59e91dd074730ff4bffc1a50698e61af3683495a65e2432d2c6a7e29f9",
+              "stored": "8ea0ea59e91dd074730ff4bffc1a50698e61af3683495a65e2432d2c6a7e29f9"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9987,
+            "AcceptedAfterWindow": 13,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 1387337663,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 50409000,
+            "ObservedEvents": 10000,
+            "VerificationNS": 58813708,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 84,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10183333833,
+            "DrainNS": 183333833,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998.7,
+            "PersistedEPS": 981.9966784938455,
+            "ack_latency": {
+              "p50_ns": 15008708,
+              "p95_ns": 24771333,
+              "p99_ns": 37338583
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 93741000,
+              "p95_ns": 136232000,
+              "p99_ns": 166268000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "a26dfa856a3769137ed94e9fd11b25db79a6e5860df2b3354f32b72c8ac19418",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "a26dfa856a3769137ed94e9fd11b25db79a6e5860df2b3354f32b72c8ac19418",
+              "stored": "a26dfa856a3769137ed94e9fd11b25db79a6e5860df2b3354f32b72c8ac19418"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-concurrency-64-attempt-1.json.gz",
+            "SHA256": "ab20868f676a0e5e4f2e9388591e34be49a5cc66e7227e7c17cf7ce693711435",
+            "Size": 809129,
+            "RawBytes": 4901624
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-concurrency-8": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-concurrency-8-attempt-1.json.gz",
+        "SHA256": "872f2edeff22fc8d16e66045a0acf3746d7fca55dfab7f461005afba10c9ed00",
+        "Size": 343413,
+        "RawBytes": 2278200
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 8,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 1,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-concurrency-8",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 4616,
+            "AttemptedAfterWindow": 16,
+            "AcceptedInWindow": 4608,
+            "AcceptedAfterWindow": 24,
+            "ObserverPolls": 203,
+            "ObserverQueries": 810,
+            "ObserverQueryNS": 866202913,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 52714375,
+            "ObservedEvents": 4632,
+            "VerificationNS": 34658542,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "generator_missed_events",
+              "late_schedules",
+              "request_queue_tail",
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 4632,
+            "Accepted": 4632,
+            "Persisted": 4632,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 5368,
+            "LateSchedules": 278,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 38,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10154143583,
+            "DrainNS": 154143583,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 460.8,
+            "PersistedEPS": 456.168455974452,
+            "ack_latency": {
+              "p50_ns": 16674042,
+              "p95_ns": 20257875,
+              "p99_ns": 27406083
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 81797000,
+              "p95_ns": 114918000,
+              "p99_ns": 191979000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "64f4a10228490c2df17c11342467f8adb9b8d736f094b031d67e59693955b52f",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "64f4a10228490c2df17c11342467f8adb9b8d736f094b031d67e59693955b52f",
+              "stored": "64f4a10228490c2df17c11342467f8adb9b8d736f094b031d67e59693955b52f"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 4568,
+            "AttemptedAfterWindow": 16,
+            "AcceptedInWindow": 4560,
+            "AcceptedAfterWindow": 24,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 791862958,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 53887375,
+            "ObservedEvents": 4584,
+            "VerificationNS": 37994042,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "generator_missed_events",
+              "late_schedules",
+              "request_queue_tail",
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 4584,
+            "Accepted": 4584,
+            "Persisted": 4584,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 5416,
+            "LateSchedules": 304,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 33,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10156235708,
+            "DrainNS": 156235708,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 456,
+            "PersistedEPS": 451.34832745061374,
+            "ack_latency": {
+              "p50_ns": 17359583,
+              "p95_ns": 21130875,
+              "p99_ns": 23426875
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 88217000,
+              "p95_ns": 117375000,
+              "p99_ns": 130501000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "a007efc750935b7e5df7dc1f9f3c0e7b65003422d9ad7a40064be2944a86fd38",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "a007efc750935b7e5df7dc1f9f3c0e7b65003422d9ad7a40064be2944a86fd38",
+              "stored": "a007efc750935b7e5df7dc1f9f3c0e7b65003422d9ad7a40064be2944a86fd38"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 4385,
+            "AttemptedAfterWindow": 13,
+            "AcceptedInWindow": 4377,
+            "AcceptedAfterWindow": 21,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 838142834,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 60472083,
+            "ObservedEvents": 4398,
+            "VerificationNS": 38787417,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "generator_missed_events",
+              "late_schedules",
+              "request_queue_tail",
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 4398,
+            "Accepted": 4398,
+            "Persisted": 4398,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 5602,
+            "LateSchedules": 390,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 37,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10156614583,
+            "DrainNS": 156614583,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 437.7,
+            "PersistedEPS": 433.0183019213224,
+            "ack_latency": {
+              "p50_ns": 18018916,
+              "p95_ns": 22055583,
+              "p99_ns": 26228500
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 91806000,
+              "p95_ns": 123814000,
+              "p99_ns": 135075000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "f2af14351a9822b64a96adf09e434a8cfd4c26d3f4e595b3c348eadc2534716a",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "f2af14351a9822b64a96adf09e434a8cfd4c26d3f4e595b3c348eadc2534716a",
+              "stored": "f2af14351a9822b64a96adf09e434a8cfd4c26d3f4e595b3c348eadc2534716a"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-concurrency-8-attempt-1.json.gz",
+            "SHA256": "872f2edeff22fc8d16e66045a0acf3746d7fca55dfab7f461005afba10c9ed00",
+            "Size": 343413,
+            "RawBytes": 2278200
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-payload-1024": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-payload-1024-attempt-1.json.gz",
+        "SHA256": "397ce2694350ca1a34e1772b3f83d0373f8eb06a0db821c2fd0c78e4fcffbb4d",
+        "Size": 280475,
+        "RawBytes": 1236068
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 10,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-payload-1024",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 1024,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9980,
+            "AcceptedAfterWindow": 20,
+            "ObserverPolls": 202,
+            "ObserverQueries": 808,
+            "ObserverQueryNS": 3597504962,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 56024792,
+            "ObservedEvents": 10000,
+            "VerificationNS": 138009125,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 2,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 82,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10229256417,
+            "DrainNS": 229256417,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998,
+            "PersistedEPS": 977.5881640214826,
+            "ack_latency": {
+              "p50_ns": 18146000,
+              "p95_ns": 27231041,
+              "p99_ns": 46701041
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 114867000,
+              "p95_ns": 157276000,
+              "p99_ns": 198771000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "0985bb9abccdfdd3fd1f84fc6990ca87d2055f46866644f86364c26f84b95a5f",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "0985bb9abccdfdd3fd1f84fc6990ca87d2055f46866644f86364c26f84b95a5f",
+              "stored": "0985bb9abccdfdd3fd1f84fc6990ca87d2055f46866644f86364c26f84b95a5f"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9990,
+            "AcceptedAfterWindow": 10,
+            "ObserverPolls": 203,
+            "ObserverQueries": 812,
+            "ObserverQueryNS": 3981094658,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 56225709,
+            "ObservedEvents": 10000,
+            "VerificationNS": 127120500,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 104,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10263751791,
+            "DrainNS": 263751791,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 999,
+            "PersistedEPS": 974.3025945706056,
+            "ack_latency": {
+              "p50_ns": 17752375,
+              "p95_ns": 24166750,
+              "p99_ns": 27432750
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 116026000,
+              "p95_ns": 155159000,
+              "p99_ns": 174721000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "acba6dff3020e1dd7c11ce0fe2b6a63af42ecc5c5d7f887f3749ce7421707667",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "acba6dff3020e1dd7c11ce0fe2b6a63af42ecc5c5d7f887f3749ce7421707667",
+              "stored": "acba6dff3020e1dd7c11ce0fe2b6a63af42ecc5c5d7f887f3749ce7421707667"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9990,
+            "AcceptedAfterWindow": 10,
+            "ObserverPolls": 203,
+            "ObserverQueries": 812,
+            "ObserverQueryNS": 4159555708,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 70576125,
+            "ObservedEvents": 10000,
+            "VerificationNS": 134417083,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 99,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10273409083,
+            "DrainNS": 273409083,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 999,
+            "PersistedEPS": 973.3867228695851,
+            "ack_latency": {
+              "p50_ns": 17884458,
+              "p95_ns": 25757708,
+              "p99_ns": 45971458
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 115907000,
+              "p95_ns": 164124000,
+              "p99_ns": 203020000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "a27a83e5d681e871ac6f371a8a47d72e7c88deba762abfa888f689a367ff179d",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "a27a83e5d681e871ac6f371a8a47d72e7c88deba762abfa888f689a367ff179d",
+              "stored": "a27a83e5d681e871ac6f371a8a47d72e7c88deba762abfa888f689a367ff179d"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-payload-1024-attempt-1.json.gz",
+            "SHA256": "397ce2694350ca1a34e1772b3f83d0373f8eb06a0db821c2fd0c78e4fcffbb4d",
+            "Size": 280475,
+            "RawBytes": 1236068
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-payload-16384": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-payload-16384-attempt-1.json.gz",
+        "SHA256": "b895d591e4a0b402a0f39919092064c8a37878dbc3ab5b8d0c6d04993ed584a1",
+        "Size": 286427,
+        "RawBytes": 1403772
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 10,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-payload-16384",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 16384,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 1000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9980,
+            "AcceptedAfterWindow": 20,
+            "ObserverPolls": 204,
+            "ObserverQueries": 814,
+            "ObserverQueryNS": 3876978750,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 62161042,
+            "ObservedEvents": 10000,
+            "VerificationNS": 1535059250,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 10000,
+            "Persisted": 10000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 152,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 11714064417,
+            "DrainNS": 1714064417,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 998,
+            "PersistedEPS": 853.6746635512377,
+            "ack_latency": {
+              "p50_ns": 29415583,
+              "p95_ns": 44987500,
+              "p99_ns": 58049958
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 168864000,
+              "p95_ns": 244177000,
+              "p99_ns": 323207000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "8caa3772efb09ce636b61213327ea00e1fd2b0fb49b97ae60db3c648a0bd5810",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "8caa3772efb09ce636b61213327ea00e1fd2b0fb49b97ae60db3c648a0bd5810",
+              "stored": "8caa3772efb09ce636b61213327ea00e1fd2b0fb49b97ae60db3c648a0bd5810"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9820,
+            "AcceptedAfterWindow": 30,
+            "ObserverPolls": 802,
+            "ObserverQueries": 2604,
+            "ObserverQueryNS": 7865304321,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 74407250,
+            "ObservedEvents": 9850,
+            "VerificationNS": 1552880416,
+            "AmbiguousUnobserved": 150,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "ambiguous_delivery",
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 9850,
+            "Persisted": 9850,
+            "Ambiguous": 150,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 160,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 41649846583,
+            "DrainNS": 31649846583,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 982,
+            "PersistedEPS": 236.49546896579503,
+            "ack_latency": {
+              "p50_ns": 29832541,
+              "p95_ns": 51331458,
+              "p99_ns": 82149459
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 166955000,
+              "p95_ns": 359498000,
+              "p99_ns": 449689000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "6a0708e350562057a13c792f3bb263c33580f735500a00ca7fbbc03e73e1cc21",
+              "ambiguous": "11d76c206b89452eee668d6e622acb5a785b5bf465a568563329e1a395ff630b",
+              "attempted": "39103419a74c7fa1e638eba45ca7176dafe5a11b2bc941912571dccb0825d38d",
+              "stored": "6a0708e350562057a13c792f3bb263c33580f735500a00ca7fbbc03e73e1cc21"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 10000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 9880,
+            "AcceptedAfterWindow": 20,
+            "ObserverPolls": 801,
+            "ObserverQueries": 2601,
+            "ObserverQueryNS": 6894226753,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 68243625,
+            "ObservedEvents": 9930,
+            "VerificationNS": 1618706417,
+            "AmbiguousUnobserved": 70,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "ambiguous_delivery",
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 10000,
+            "Attempted": 10000,
+            "Accepted": 9900,
+            "Persisted": 9930,
+            "Ambiguous": 100,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 30,
+            "BacklogAtWindowEnd": 186,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 41687026041,
+            "DrainNS": 31687026041,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 988,
+            "PersistedEPS": 238.2036077659666,
+            "ack_latency": {
+              "p50_ns": 30214250,
+              "p95_ns": 49266917,
+              "p99_ns": 127602958
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 175904000,
+              "p95_ns": 279029000,
+              "p99_ns": 326704000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "2aa645511c05a258e183efd1953260f2d82e341f02fa32c41fde4a54fa56da6e",
+              "ambiguous": "69ea7eb5e915f3d8376e2178f6b3bb638783121de1e7c5b3ccfb91e3911bfc5c",
+              "attempted": "1a85afba0a6b49ad82dde0d3acd62a82de92ee58cb5cc85371bb9012950651c3",
+              "stored": "91f6d17b7d42e380d6c7910f1a2230705989b47474aa137e85deef1eaacb8d83"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-payload-16384-attempt-1.json.gz",
+            "SHA256": "b895d591e4a0b402a0f39919092064c8a37878dbc3ab5b8d0c6d04993ed584a1",
+            "Size": 286427,
+            "RawBytes": 1403772
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-rate-100": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-rate-100-attempt-1.json.gz",
+        "SHA256": "372bfca0da475c3912cc8a67af0ed499ee0856291d185e754b134896c53cd578",
+        "Size": 15268,
+        "RawBytes": 154562
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 100,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-rate-100",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 100,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 1000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 1000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 618,
+            "ObserverQueryNS": 1074059039,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 59419625,
+            "ObservedEvents": 1000,
+            "VerificationNS": 19795041,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 1,
+            "Planned": 1000,
+            "Attempted": 1000,
+            "Accepted": 1000,
+            "Persisted": 1000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10044123875,
+            "DrainNS": 44123875,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 100,
+            "PersistedEPS": 99.56069961353398,
+            "ack_latency": {
+              "p50_ns": 33858792,
+              "p95_ns": 51856084,
+              "p99_ns": 51856084
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 90649000,
+              "p95_ns": 101067000,
+              "p99_ns": 102858000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "8f3b19e8b3afcdea06b998fda90cedcd38d5a9642d30f49f4d6296ba4ce94cf5",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "8f3b19e8b3afcdea06b998fda90cedcd38d5a9642d30f49f4d6296ba4ce94cf5",
+              "stored": "8f3b19e8b3afcdea06b998fda90cedcd38d5a9642d30f49f4d6296ba4ce94cf5"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 1000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 1000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 618,
+            "ObserverQueryNS": 1143264174,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 55731875,
+            "ObservedEvents": 1000,
+            "VerificationNS": 15749708,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 2,
+            "Planned": 1000,
+            "Attempted": 1000,
+            "Accepted": 1000,
+            "Persisted": 1000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10040247459,
+            "DrainNS": 40247459,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 100,
+            "PersistedEPS": 99.5991387745735,
+            "ack_latency": {
+              "p50_ns": 27940333,
+              "p95_ns": 54502708,
+              "p99_ns": 54502708
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 50675000,
+              "p95_ns": 104645000,
+              "p99_ns": 104645000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "9adc3c6f41c2095289e0fd763eb7a5a23e0a59dcdbfe2576fbc34f7823807cb5",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "9adc3c6f41c2095289e0fd763eb7a5a23e0a59dcdbfe2576fbc34f7823807cb5",
+              "stored": "9adc3c6f41c2095289e0fd763eb7a5a23e0a59dcdbfe2576fbc34f7823807cb5"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 1000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 1000,
+            "AcceptedAfterWindow": 0,
+            "ObserverPolls": 201,
+            "ObserverQueries": 615,
+            "ObserverQueryNS": 1078898453,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 52047084,
+            "ObservedEvents": 1000,
+            "VerificationNS": 8478625,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "complete",
+            "repetition": 3,
+            "Planned": 1000,
+            "Attempted": 1000,
+            "Accepted": 1000,
+            "Persisted": 1000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 0,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10019273333,
+            "DrainNS": 19273333,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 100,
+            "PersistedEPS": 99.80763741681226,
+            "ack_latency": {
+              "p50_ns": 48528958,
+              "p95_ns": 57843083,
+              "p99_ns": 57843083
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 83883000,
+              "p95_ns": 98151000,
+              "p99_ns": 98576000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "e00af1e3676b8a1a601bcd1b638c0833ad2e6a7473d8d38bbb55d412495964a0",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "e00af1e3676b8a1a601bcd1b638c0833ad2e6a7473d8d38bbb55d412495964a0",
+              "stored": "e00af1e3676b8a1a601bcd1b638c0833ad2e6a7473d8d38bbb55d412495964a0"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-rate-100-attempt-1.json.gz",
+            "SHA256": "372bfca0da475c3912cc8a67af0ed499ee0856291d185e754b134896c53cd578",
+            "Size": 15268,
+            "RawBytes": 154562
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-rate-10000": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-rate-10000-attempt-1.json.gz",
+        "SHA256": "d6b1b248af9bec8ae81e1995009f79ecaa51ecfef789c7eee05efad5994be766",
+        "Size": 2085683,
+        "RawBytes": 8795472
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 100,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-rate-10000",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 10000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 100000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 99800,
+            "AcceptedAfterWindow": 200,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 4796400950,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 56014458,
+            "ObservedEvents": 100000,
+            "VerificationNS": 565229166,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 100000,
+            "Attempted": 100000,
+            "Accepted": 100000,
+            "Persisted": 100000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 1400,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10846931666,
+            "DrainNS": 846931666,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 9980,
+            "PersistedEPS": 9219.19701158003,
+            "ack_latency": {
+              "p50_ns": 22179416,
+              "p95_ns": 32202209,
+              "p99_ns": 49580333
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 144594000,
+              "p95_ns": 210130000,
+              "p99_ns": 262606000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "fc81800426f61675305e326aee326fcc196a7afe95756f5f6f76143e9222b592",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "fc81800426f61675305e326aee326fcc196a7afe95756f5f6f76143e9222b592",
+              "stored": "fc81800426f61675305e326aee326fcc196a7afe95756f5f6f76143e9222b592"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 100000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 99800,
+            "AcceptedAfterWindow": 200,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 5029455718,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 64391667,
+            "ObservedEvents": 100000,
+            "VerificationNS": 548898125,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_schedules",
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 100000,
+            "Attempted": 100000,
+            "Accepted": 100000,
+            "Persisted": 100000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 1,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 1193,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10831766833,
+            "DrainNS": 831766833,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 9980,
+            "PersistedEPS": 9232.10419331965,
+            "ack_latency": {
+              "p50_ns": 22752000,
+              "p95_ns": 31133250,
+              "p99_ns": 37125917
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 152171000,
+              "p95_ns": 212488000,
+              "p99_ns": 243332000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "4941b0538cd8e8421d428671e975816e08d4ddb351bdec63dd477abb837edd06",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "4941b0538cd8e8421d428671e975816e08d4ddb351bdec63dd477abb837edd06",
+              "stored": "4941b0538cd8e8421d428671e975816e08d4ddb351bdec63dd477abb837edd06"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 100000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 99700,
+            "AcceptedAfterWindow": 300,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 5989808288,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 60892125,
+            "ObservedEvents": 100000,
+            "VerificationNS": 577729917,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 100000,
+            "Attempted": 100000,
+            "Accepted": 100000,
+            "Persisted": 100000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 1600,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10889437542,
+            "DrainNS": 889437542,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 9970,
+            "PersistedEPS": 9183.210759445117,
+            "ack_latency": {
+              "p50_ns": 22685333,
+              "p95_ns": 31826500,
+              "p99_ns": 43007583
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 160447000,
+              "p95_ns": 243959000,
+              "p99_ns": 312562000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "18bc0d91061ff51628b111bd731f42f62e6085f3cff7efe6219e2306dbe39003",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "18bc0d91061ff51628b111bd731f42f62e6085f3cff7efe6219e2306dbe39003",
+              "stored": "18bc0d91061ff51628b111bd731f42f62e6085f3cff7efe6219e2306dbe39003"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-rate-10000-attempt-1.json.gz",
+            "SHA256": "d6b1b248af9bec8ae81e1995009f79ecaa51ecfef789c7eee05efad5994be766",
+            "Size": 2085683,
+            "RawBytes": 8795472
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "pipeline-rate-5000": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/pipeline-rate-5000-attempt-1.json.gz",
+        "SHA256": "270de12e779611ee90d18f3d727f6fc78a4e8da498d12f9e8432f1c51e813449",
+        "Size": 1024934,
+        "RawBytes": 4347076
+      },
+      "Summary": {
+        "kind": "pipeline",
+        "config": {
+          "concurrency": 32,
+          "drain_deadline_ns": 30000000000,
+          "http_batch_size": 100,
+          "https": true,
+          "namespace": "ae237e04-731d-4320-af54-3ff38d8ae65f/pipeline-rate-5000",
+          "observer_reconnect": false,
+          "pattern": "steady",
+          "payload_bytes": 256,
+          "payload_profile": "varied",
+          "poll_interval_ns": 50000000,
+          "repetitions": 3,
+          "seed": 42,
+          "target_events_per_second": 5000,
+          "tenant": "default",
+          "warmup_ns": 2000000000,
+          "window_ns": 10000000000
+        },
+        "runs": [
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 50000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 49900,
+            "AcceptedAfterWindow": 100,
+            "ObserverPolls": 202,
+            "ObserverQueries": 809,
+            "ObserverQueryNS": 2597232328,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 55266916,
+            "ObservedEvents": 50000,
+            "VerificationNS": 267020958,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 1,
+            "Planned": 50000,
+            "Attempted": 50000,
+            "Accepted": 50000,
+            "Persisted": 50000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 472,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10407074791,
+            "DrainNS": 407074791,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 4990,
+            "PersistedEPS": 4804.424010024394,
+            "ack_latency": {
+              "p50_ns": 22864417,
+              "p95_ns": 27299083,
+              "p99_ns": 35871125
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 107443000,
+              "p95_ns": 142696000,
+              "p99_ns": 160172000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "f2b32199e53b2bb5b1c807bd80168468c75338d3e1a5055d88fc340c4b3118a8",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "f2b32199e53b2bb5b1c807bd80168468c75338d3e1a5055d88fc340c4b3118a8",
+              "stored": "f2b32199e53b2bb5b1c807bd80168468c75338d3e1a5055d88fc340c4b3118a8"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 50000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 49900,
+            "AcceptedAfterWindow": 100,
+            "ObserverPolls": 202,
+            "ObserverQueries": 809,
+            "ObserverQueryNS": 2607684502,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 59507583,
+            "ObservedEvents": 50000,
+            "VerificationNS": 277525417,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 2,
+            "Planned": 50000,
+            "Attempted": 50000,
+            "Accepted": 50000,
+            "Persisted": 50000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 463,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10418984625,
+            "DrainNS": 418984625,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 4990,
+            "PersistedEPS": 4798.9321224283885,
+            "ack_latency": {
+              "p50_ns": 22941750,
+              "p95_ns": 26967584,
+              "p99_ns": 29952959
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 108116000,
+              "p95_ns": 139877000,
+              "p99_ns": 151984000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "56cf9957ddc42750ec06d0809ec2c6368a3758384482d2975ce56e044ab44cba",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "56cf9957ddc42750ec06d0809ec2c6368a3758384482d2975ce56e044ab44cba",
+              "stored": "56cf9957ddc42750ec06d0809ec2c6368a3758384482d2975ce56e044ab44cba"
+            },
+            "backlog": null,
+            "correct": true
+          },
+          {
+            "ObserverOutages": 0,
+            "request_samples": null,
+            "AttemptedInWindow": 50000,
+            "AttemptedAfterWindow": 0,
+            "AcceptedInWindow": 49900,
+            "AcceptedAfterWindow": 100,
+            "ObserverPolls": 203,
+            "ObserverQueries": 813,
+            "ObserverQueryNS": 3027386629,
+            "ObserverLatePolls": 0,
+            "ObserverMaxGapNS": 66680208,
+            "ObservedEvents": 50000,
+            "VerificationNS": 284472917,
+            "AmbiguousUnobserved": 0,
+            "ContentMismatch": 0,
+            "outcome": "limited",
+            "limit_reasons": [
+              "late_acknowledgements"
+            ],
+            "repetition": 3,
+            "Planned": 50000,
+            "Attempted": 50000,
+            "Accepted": 50000,
+            "Persisted": 50000,
+            "Ambiguous": 0,
+            "Rejected": 0,
+            "GeneratorMissed": 0,
+            "LateSchedules": 0,
+            "Missing": 0,
+            "Unexpected": 0,
+            "DuplicateRows": 0,
+            "AmbiguousPersisted": 0,
+            "BacklogAtWindowEnd": 469,
+            "WindowNS": 10000000000,
+            "ActiveNS": 10000000000,
+            "TotalNS": 10478080750,
+            "DrainNS": 478080750,
+            "PollIntervalNS": 50000000,
+            "AcceptedEPS": 4990,
+            "PersistedEPS": 4771.866259954143,
+            "ack_latency": {
+              "p50_ns": 23289708,
+              "p95_ns": 28194167,
+              "p99_ns": 35505083
+            },
+            "receipt_to_observed_storage_upper_bound": {
+              "p50_ns": 110738000,
+              "p95_ns": 147120000,
+              "p99_ns": 158948000
+            },
+            "ack_ns": null,
+            "visibility_ns": null,
+            "id_set_sha256": {
+              "accepted": "11c964cd9aae5904dba238ff9d5b36d9b3239554fcc4380329dea9e6adc9c7b0",
+              "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "attempted": "11c964cd9aae5904dba238ff9d5b36d9b3239554fcc4380329dea9e6adc9c7b0",
+              "stored": "11c964cd9aae5904dba238ff9d5b36d9b3239554fcc4380329dea9e6adc9c7b0"
+            },
+            "backlog": null,
+            "correct": true
+          }
+        ],
+        "notes": [
+          "Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.",
+          "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.",
+          "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.",
+          "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.",
+          "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+          "Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/pipeline-rate-5000-attempt-1.json.gz",
+            "SHA256": "270de12e779611ee90d18f3d727f6fc78a4e8da498d12f9e8432f1c51e813449",
+            "Size": 1024934,
+            "RawBytes": 4347076
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "recovery-consumer": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/recovery-consumer-attempt-1.json.gz",
+        "SHA256": "d1b207ce92acf905019a30d2a5a2767e02513f491850103650e77e16c4728ad0",
+        "Size": 149806,
+        "RawBytes": 722509
+      },
+      "Summary": {
+        "Kind": "consumer",
+        "Runs": [
+          {
+            "Repetition": 1,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 3001409042,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:18.219466Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 3780615125,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:18.998669Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 5000500208,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:20.218551Z"
+              },
+              {
+                "Action": "started",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 7753107917,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:22.97115Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 0,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 940,
+              "ObserverQueryNS": 1537933802,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 53558250,
+              "ObservedEvents": 7500,
+              "VerificationNS": 48869958,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "complete",
+              "repetition": 1,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15067714125,
+              "DrainNS": 67714125,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 497.75300604861985,
+              "ack_latency": {
+                "p50_ns": 27111500,
+                "p95_ns": 46578666,
+                "p99_ns": 54702042
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 2598904000,
+                "p95_ns": 9300123000,
+                "p99_ns": 9902755000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "e7f4e6af5c3d0260cce3d14b8675cdbfba8638a321ca95076b27338de25b1c9c",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "e7f4e6af5c3d0260cce3d14b8675cdbfba8638a321ca95076b27338de25b1c9c",
+                "stored": "e7f4e6af5c3d0260cce3d14b8675cdbfba8638a321ca95076b27338de25b1c9c"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          },
+          {
+            "Repetition": 2,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 3002930333,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:33.39871Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 3786349667,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:34.182127Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 5001432958,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:35.397206Z"
+              },
+              {
+                "Action": "started",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 7665722000,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:38.061488Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 0,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 942,
+              "ObserverQueryNS": 1678882665,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 60056500,
+              "ObservedEvents": 7500,
+              "VerificationNS": 54793167,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "complete",
+              "repetition": 2,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15087642333,
+              "DrainNS": 87642333,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 497.09555903216545,
+              "ack_latency": {
+                "p50_ns": 28258875,
+                "p95_ns": 49599584,
+                "p99_ns": 52790375
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 2601031000,
+                "p95_ns": 9298460000,
+                "p99_ns": 9898746000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "dc5da53cc08b696f2b6ca93e06beedab8c111059717cbbf0ddb6ce921bd658a1",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "dc5da53cc08b696f2b6ca93e06beedab8c111059717cbbf0ddb6ce921bd658a1",
+                "stored": "dc5da53cc08b696f2b6ca93e06beedab8c111059717cbbf0ddb6ce921bd658a1"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          },
+          {
+            "Repetition": 3,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 3002307166,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:48.609982Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 3772501458,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:49.380174Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 5001161375,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:50.60883Z"
+              },
+              {
+                "Action": "started",
+                "Service": "consumer",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 7675560500,
+                "PlannedNS": 5000000000,
+                "At": "2026-11-03T22:36:53.283221Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 0,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 947,
+              "ObserverQueryNS": 1676620996,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 56847000,
+              "ObservedEvents": 7500,
+              "VerificationNS": 43331916,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "complete",
+              "repetition": 3,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15068301708,
+              "DrainNS": 68301708,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 497.7335963493571,
+              "ack_latency": {
+                "p50_ns": 28240333,
+                "p95_ns": 48629000,
+                "p99_ns": 54380791
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 2648372000,
+                "p95_ns": 9346650000,
+                "p99_ns": 9947871000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "be610edd352d53b52d74587a65635f876d534f625922e0e0e66e2e5ca73aa08c",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "be610edd352d53b52d74587a65635f876d534f625922e0e0e66e2e5ca73aa08c",
+                "stored": "be610edd352d53b52d74587a65635f876d534f625922e0e0e66e2e5ca73aa08c"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          }
+        ],
+        "Notes": [
+          "Availability experiment; not a capacity estimate. Actual control timestamps and reconciled ID sets are retained.",
+          "A forced consumer kill does not claim to land in every database/offset commit window; the deterministic crash regression remains separate."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/recovery-consumer-attempt-1.json.gz",
+            "SHA256": "d1b207ce92acf905019a30d2a5a2767e02513f491850103650e77e16c4728ad0",
+            "Size": 149806,
+            "RawBytes": 722509
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "recovery-database": {
+      "Status": "limited",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/recovery-database-attempt-1.json.gz",
+        "SHA256": "04b716e0460bb18b75ded351395233776f321835aaf90f185712728a1773c570",
+        "Size": 154279,
+        "RawBytes": 713104
+      },
+      "Summary": {
+        "Kind": "database",
+        "Runs": [
+          {
+            "Repetition": 1,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 3001948416,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:35:29.786325Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 4201047416,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:35:30.98542Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 8002119875,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:35:34.786481Z"
+              },
+              {
+                "Action": "started",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 8979710916,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:35:35.764069Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 108,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 638,
+              "ObserverQueryNS": 1406738582,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 58872833,
+              "ObservedEvents": 7500,
+              "VerificationNS": 49764125,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "limited",
+              "limit_reasons": [
+                "observer_unavailable"
+              ],
+              "repetition": 1,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15117661000,
+              "DrainNS": 117661000,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 496.10849191551523,
+              "ack_latency": {
+                "p50_ns": 28212209,
+                "p95_ns": 48452917,
+                "p99_ns": 55638542
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 101946000,
+                "p95_ns": 6703691000,
+                "p99_ns": 7249316000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "269fb048d9e5ef16def41d920edbab24e93773b9b2b43deaf12dc2eb03b68f86",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "269fb048d9e5ef16def41d920edbab24e93773b9b2b43deaf12dc2eb03b68f86",
+                "stored": "269fb048d9e5ef16def41d920edbab24e93773b9b2b43deaf12dc2eb03b68f86"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          },
+          {
+            "Repetition": 2,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 3002000125,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:35:45.038146Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 4004943625,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:35:46.041085Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 8001898542,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:35:50.038027Z"
+              },
+              {
+                "Action": "started",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 8805051375,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:35:50.841178Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 104,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 663,
+              "ObserverQueryNS": 1327145886,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 62936292,
+              "ObservedEvents": 7500,
+              "VerificationNS": 57254875,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "limited",
+              "limit_reasons": [
+                "observer_unavailable"
+              ],
+              "repetition": 2,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15081202750,
+              "DrainNS": 81202750,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 497.3078158504301,
+              "ack_latency": {
+                "p50_ns": 27864500,
+                "p95_ns": 47399584,
+                "p99_ns": 62102417
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 95059000,
+                "p95_ns": 5196935000,
+                "p99_ns": 5650990000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "3c37a20a3ba8ca6c40ab373c3d7325801ce45e0af5d5b796e712c1ab050008d0",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "3c37a20a3ba8ca6c40ab373c3d7325801ce45e0af5d5b796e712c1ab050008d0",
+                "stored": "3c37a20a3ba8ca6c40ab373c3d7325801ce45e0af5d5b796e712c1ab050008d0"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          },
+          {
+            "Repetition": 3,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 3006794209,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:00.234632Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 3962677209,
+                "PlannedNS": 3000000000,
+                "At": "2026-11-03T22:36:01.190512Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 8001769084,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:36:05.229591Z"
+              },
+              {
+                "Action": "started",
+                "Service": "postgres",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 8869215834,
+                "PlannedNS": 8000000000,
+                "At": "2026-11-03T22:36:06.097035Z"
+              }
+            ],
+            "Pipeline": {
+              "ObserverOutages": 106,
+              "request_samples": null,
+              "AttemptedInWindow": 7500,
+              "AttemptedAfterWindow": 0,
+              "AcceptedInWindow": 7500,
+              "AcceptedAfterWindow": 0,
+              "ObserverPolls": 301,
+              "ObserverQueries": 648,
+              "ObserverQueryNS": 1614690879,
+              "ObserverLatePolls": 0,
+              "ObserverMaxGapNS": 54749291,
+              "ObservedEvents": 7500,
+              "VerificationNS": 44161292,
+              "AmbiguousUnobserved": 0,
+              "ContentMismatch": 0,
+              "outcome": "limited",
+              "limit_reasons": [
+                "observer_unavailable"
+              ],
+              "repetition": 3,
+              "Planned": 7500,
+              "Attempted": 7500,
+              "Accepted": 7500,
+              "Persisted": 7500,
+              "Ambiguous": 0,
+              "Rejected": 0,
+              "GeneratorMissed": 0,
+              "LateSchedules": 0,
+              "Missing": 0,
+              "Unexpected": 0,
+              "DuplicateRows": 0,
+              "AmbiguousPersisted": 0,
+              "BacklogAtWindowEnd": 0,
+              "WindowNS": 15000000000,
+              "ActiveNS": 15000000000,
+              "TotalNS": 15064425334,
+              "DrainNS": 64425334,
+              "PollIntervalNS": 50000000,
+              "AcceptedEPS": 500,
+              "PersistedEPS": 497.86167302862214,
+              "ack_latency": {
+                "p50_ns": 32365750,
+                "p95_ns": 55137917,
+                "p99_ns": 63149167
+              },
+              "receipt_to_observed_storage_upper_bound": {
+                "p50_ns": 103483000,
+                "p95_ns": 6651924000,
+                "p99_ns": 7205274000
+              },
+              "ack_ns": null,
+              "visibility_ns": null,
+              "id_set_sha256": {
+                "accepted": "b1a0304e4f22fb1165c2067a18238eb1404c3c1e056e9c99d2b06a99d43f1912",
+                "ambiguous": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "attempted": "b1a0304e4f22fb1165c2067a18238eb1404c3c1e056e9c99d2b06a99d43f1912",
+                "stored": "b1a0304e4f22fb1165c2067a18238eb1404c3c1e056e9c99d2b06a99d43f1912"
+              },
+              "backlog": null,
+              "correct": true
+            }
+          }
+        ],
+        "Notes": [
+          "Availability experiment; not a capacity estimate. Actual control timestamps and reconciled ID sets are retained.",
+          "A forced consumer kill does not claim to land in every database/offset commit window; the deterministic crash regression remains separate."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "limited",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/recovery-database-attempt-1.json.gz",
+            "SHA256": "04b716e0460bb18b75ded351395233776f321835aaf90f185712728a1773c570",
+            "Size": 154279,
+            "RawBytes": 713104
+          }
+        }
+      ],
+      "ErrorClass": ""
+    },
+    "recovery-outbox": {
+      "Status": "complete",
+      "Attempt": 1,
+      "CompletedRepetitions": [
+        1,
+        2,
+        3
+      ],
+      "Artifact": {
+        "Codec": "gzip",
+        "Path": "raw/recovery-outbox-attempt-1.json.gz",
+        "SHA256": "ed1018de8e098cc6acfd927391656cc543c9f08ce7249ce50154ea8ffa52139c",
+        "Size": 8533,
+        "RawBytes": 39469
+      },
+      "Summary": {
+        "Kind": "outbox",
+        "Runs": [
+          {
+            "FirstAttemptStatus": "http_503",
+            "FirstAttemptNS": 5117990125,
+            "Repetition": 1,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 125,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:03.61828Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 967424875,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:04.585703Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 8969845708,
+                "PlannedNS": 8967432917,
+                "At": "2026-11-03T22:37:12.588105Z"
+              },
+              {
+                "Action": "started",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 1,
+                "ElapsedNS": 9818350792,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:13.436601Z"
+              }
+            ],
+            "Outbox": [
+              {
+                "ElapsedNS": 967428750,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 6085495542,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 15070022458,
+                "Pending": 0,
+                "Acknowledged": 100
+              }
+            ]
+          },
+          {
+            "FirstAttemptStatus": "http_503",
+            "FirstAttemptNS": 5095342792,
+            "Repetition": 2,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 333,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:24.131524Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 847263416,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:24.978785Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 8851715791,
+                "PlannedNS": 8847285125,
+                "At": "2026-11-03T22:37:32.983213Z"
+              },
+              {
+                "Action": "started",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 2,
+                "ElapsedNS": 9588275541,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:33.71977Z"
+              }
+            ],
+            "Outbox": [
+              {
+                "ElapsedNS": 847278875,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 5942647166,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 12503463750,
+                "Pending": 0,
+                "Acknowledged": 100
+              }
+            ]
+          },
+          {
+            "FirstAttemptStatus": "http_503",
+            "FirstAttemptNS": 5112679375,
+            "Repetition": 3,
+            "Correct": true,
+            "Faults": [
+              {
+                "Action": "fault_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 208,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:44.287129Z"
+              },
+              {
+                "Action": "stopped",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 886253250,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:45.173379Z"
+              },
+              {
+                "Action": "restore_requested",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 8888072916,
+                "PlannedNS": 8886264375,
+                "At": "2026-11-03T22:37:53.175174Z"
+              },
+              {
+                "Action": "started",
+                "Service": "redpanda",
+                "ErrorClass": "",
+                "Repetition": 3,
+                "ElapsedNS": 9624534750,
+                "PlannedNS": 0,
+                "At": "2026-11-03T22:37:53.911634Z"
+              }
+            ],
+            "Outbox": [
+              {
+                "ElapsedNS": 886261750,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 5999003250,
+                "Pending": 100,
+                "Acknowledged": 0
+              },
+              {
+                "ElapsedNS": 13131595125,
+                "Pending": 0,
+                "Acknowledged": 100
+              }
+            ]
+          }
+        ],
+        "Notes": [
+          "One untimed warm-up order before three measured broker outages.100 pending local events per repetition; the first one-attempt dispatch exceeds the broker publish timeout.",
+          "Pending-local samples are observations after commands, not exact transition times. HTTP ACK still precedes PostgreSQL persistence."
+        ]
+      },
+      "History": [
+        {
+          "Attempt": 1,
+          "Status": "complete",
+          "ErrorClass": "",
+          "Artifact": {
+            "Codec": "gzip",
+            "Path": "raw/recovery-outbox-attempt-1.json.gz",
+            "SHA256": "ed1018de8e098cc6acfd927391656cc543c9f08ce7249ce50154ea8ffa52139c",
+            "Size": 8533,
+            "RawBytes": 39469
+          }
+        }
+      ],
+      "ErrorClass": ""
+    }
+  }
+}

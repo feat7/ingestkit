@@ -3,6 +3,7 @@ package benchmark
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/require"
+	"math"
 	"testing"
 	"time"
 )
@@ -40,4 +41,38 @@ func TestTimingExcludesSetup(t *testing.T) {
 	require.NoError(t, e)
 	require.Equal(t, 2*time.Second, elapsed)
 	require.EqualValues(t, 3, n)
+}
+
+func TestWorkloadNamespacesAndVariedPayloads(t *testing.T) {
+	c := WorkloadConfig{Namespace: "study/case-a", PayloadProfile: "varied", Seed: 7, Count: 20, PayloadBytes: 1024, DuplicateFraction: .25}
+	a, e := Workload(c)
+	require.NoError(t, e)
+	b, e := Workload(c)
+	require.NoError(t, e)
+	require.Equal(t, a, b)
+	distinct := map[byte]bool{}
+	for _, v := range a {
+		require.Len(t, v.Payload, 1024)
+		for _, ch := range v.Payload {
+			distinct[ch] = true
+		}
+	}
+	require.Greater(t, len(distinct), 40)
+	require.Equal(t, a[0], a[15])
+	c.Namespace = "study/case-b"
+	b, e = Workload(c)
+	require.NoError(t, e)
+	require.NotEqual(t, a[0].EventID, b[0].EventID)
+	require.NotEqual(t, a[0].EventType, b[0].EventType)
+	c.PayloadProfile = "unknown"
+	_, e = Workload(c)
+	require.Error(t, e)
+}
+func TestWorkloadRejectsNonFiniteFractions(t *testing.T) {
+	for _, fraction := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		require.NotPanics(t, func() {
+			_, e := Workload(WorkloadConfig{Count: 10, PayloadBytes: 256, DuplicateFraction: fraction})
+			require.Error(t, e)
+		})
+	}
 }

@@ -1,99 +1,95 @@
 # IngestKit
 
-**What does an event collector actually guarantee when a dependency fails?**
+A self-hosted event collector for trusted application backends. Send JSON over
+HTTPS, buffer it in Redpanda, and store it in PostgreSQL with stable event IDs.
+The repository includes copyable clients, a transactional outbox, failure tests
+and reproducible experiments.
 
-IngestKit is a small Go pipeline that makes that question testable. Send a stable
-UUID over HTTP, acknowledge it through Redpanda, and persist it in PostgreSQL.
-Stop the database, kill the consumer after a commit, or fail quarantine delivery:
-the tests check the resulting IDs and source offsets.
+**HTTP 202 means broker acknowledgement. PostgreSQL storage is asynchronous.**
+Retry uncertain delivery with the same UUID and content; storage keeps one row
+per `(tenant_id,event_id)` and retains the first stored content.
 
-[Read the engineering article](docs/article.md) · [Run the experiments](benchmarks/README.md) · [Delivery contract](docs/delivery.md)
+<a href="docs/assets/deployment.svg"><picture><source media="(max-width:600px)" srcset="docs/assets/deployment-mobile.svg"><img src="docs/assets/deployment.svg" alt="A backend sends HTTPS to Caddy; API, broker, consumer and PostgreSQL run privately on one Compose host."></picture></a>
 
-~~~mermaid
-flowchart LR
-  A[Application] -->|JSON + stable UUID| B[Go API]
-  B -->|acknowledged append| C[Redpanda]
-  C --> D[Go consumer]
-  D -->|COPY staging + merge| E[(PostgreSQL)]
-  D -->|malformed envelope| F[Quarantine topic]
-  E -. transaction commits before offset .-> C
-~~~
+[Deployment](deploy/README.md) · [Application integration](docs/integration.md) ·
+[Operations](docs/operations.md) · [Engineering article](docs/article.md)
 
-## Try it
+## Deploy
 
-Requires Docker with Compose v2+ and Go 1.24+. Start with the isolated checkout
-demo; it prints the three accepted IDs and verifies each stored row:
+Use a Linux host with Git, Docker/Compose 2.24.4+, OpenSSL and curl. Point your
+own hostname at it and make ports 80/443 reachable. Replace `events.example.com`
+below with that hostname. Go is built inside Docker.
 
 ~~~sh
 git clone https://github.com/feat7/ingestkit.git
 cd ingestkit
-make demo
-make demo-recovery
+deploy/configure.sh events.example.com
+docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 ~~~
 
-The recovery demo stops PostgreSQL, accepts events through the broker, then
-restores the database and reconciles the same IDs. Runs have separate projects,
-ports and volumes. They stop their services and preserve volumes; each prints
-its evidence directory and a command to clean up only that run. Use
-`DEMO_FLAGS=-cleanup` for disposable runs.
+Configuration is generated into ignored `deploy/.env` with mode 0600 and fresh
+secrets; existing files are never overwritten. Only Caddy publishes ports.
+See the [deployment guide](deploy/README.md) for DNS, resources and certificate
+prerequisites. Public certificate issuance requires working DNS/reachability;
+the automated HTTPS tests use a trusted private CA.
 
-For an interactive stack:
+## Send and verify
+
+For the initial generated key mapping, load the key without printing it and send
+the three checkout events:
 
 ~~~sh
-make up
-curl --fail-with-body http://localhost:8080/v1/events \
-  -H 'Authorization: Bearer local-demo-key' \
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
+curl --fail-with-body https://events.example.com/v1/events/batch \
+  -H "Authorization: Bearer $INGESTKIT_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"event_id":"00000000-0000-4000-8000-000000000001","event_type":"order_completed","occurred_at":"2026-11-03T00:00:00Z","payload":{"order_id":"order-1","amount":25}}'
-docker compose exec postgres psql -U ingestkit -d ingestkit_test \
-  -c 'SELECT event_id,event_type,payload FROM ingestkit.events;'
-make down
+  --data-binary @examples/checkout/events.json
+unset INGESTKIT_API_KEY
+
+docker compose --env-file deploy/.env -f deploy/compose.yml exec -T postgres \
+  psql -U ingestkit_admin -d ingestkit -c \
+  "SELECT tenant_id,event_id,event_type FROM ingestkit.events ORDER BY persisted_at DESC LIMIT 10;"
 ~~~
 
-**202 means broker acknowledgement; storage happens afterward.** A failed or
-timed-out HTTP request can still have delivered some records. Retry the same
-IDs. Storage keeps the first event for each `(tenant_id,event_id)` pair.
-[Python and Node callers](examples/checkout/README.md) show the HTTP contract
-without installing a generated SDK.
-
-## Evidence, including the awkward result
-
-On a shared M1 Max / OrbStack setup, three steady runs each accepted and stored
-10,000 distinct events at an offered 1,000 events/s. HTTP ACK p95 was 27–31ms;
-receipt-to-visible-storage p95 was 73–85ms, including SQL polling. Burst
-repetitions varied more. These are load points, **not a maximum-capacity claim**.
-
-The database comparison also found batch INSERT faster than the service's
-COPY/staging/merge path at batch size 100: median 0.492s versus 1.011s for
-10,000 unique submissions. Staging and replay handling have costs. All samples,
-settings, source revision and caveats are in [the local results](benchmarks/results/local-2026-11-03/README.md).
-
-![Database timings and storage visibility for every measured repetition](docs/assets/experiments.svg)
+Allow the consumer time to catch up before checking SQL. Repeating these fixed
+UUIDs still stores three logical events for the initial tenant. Use fresh UUIDs
+for new business events. Stop with the following command; named data volumes remain:
 
 ~~~sh
-make test
-make test-integration
-make bench-db
-make bench-pipeline
+docker compose --env-file deploy/.env -f deploy/compose.yml down
 ~~~
 
-Tests cover strict envelopes, byte limits, bounded publishing, tenant-scoped
-deduplication, database/broker outages, the database-commit/offset-commit crash
-window, quarantine failures, rebalance and shutdown. Integration checks use real
-isolated services and fail if their setup is missing.
+## Integrate
 
-## Scope
+Copy the standard-library [Python or Node client](docs/integration.md) into a
+backend. For durable application delivery, run the [order/outbox example](examples/outbox/README.md):
+business state and the serialized event are saved in one SQLite transaction,
+then a separate dispatcher sends pending work with stable IDs. Keys stay in
+trusted backend configuration. See the [API reference](docs/api.md) for limits,
+responses and permanent versus uncertain failures.
 
-This is an engineering reference, with reusable HTTP examples and a small store
-implementation. The local broker has one replica and finite retention. Disk/host
-loss and outages beyond retention are outside the tested recovery assumptions.
-There is no unconditional zero-loss, exactly-once or production-readiness claim.
-Deployment hardening, row-level database isolation and business payload schemas
-are outside this reference.
+## Inspect the evidence
 
-The old compiler, generated SDKs, installers and event-specific endpoints were
-removed. Existing external releases and legacy data were preserved; legacy data
-is not automatically imported. Small workloads may be better served by direct
-PostgreSQL writes.
+The [corrected HTTPS study](benchmarks/results/selfhost-2026-11-04/README.md)
+records 25 configurations with three measured repetitions: database batching,
+payloads, duplicates, HTTP load, concurrency and three recovery scenarios.
+All acknowledged IDs reconciled with stored content; generator limits and
+ambiguous outcomes remain explicit. These local runs do not establish maximum
+capacity. Batch INSERT had the lower median than COPY/staging/merge in all 11 DB
+configurations, so the deployed writer now uses atomic batch INSERT.
 
-[Architecture](docs/architecture.md) · [Development and configuration](docs/development.md) · [Contributing](CONTRIBUTING.md) · [Apache 2.0 license](LICENSE)
+To try an isolated local walkthrough, use Docker and Go 1.24+:
+
+~~~sh
+make demo DEMO_FLAGS=-cleanup
+make demo-recovery DEMO_FLAGS=-cleanup
+~~~
+
+[Development and tests](docs/development.md) · [Experiment controls](benchmarks/README.md) ·
+[Delivery semantics](docs/delivery.md) · [Architecture](docs/architecture.md)
+
+This is a single-host deployment with one broker replica and finite log retention.
+It does not protect against losing the host/disk or a recovery gap beyond retained
+data. PostgreSQL rows have no automatic expiry; the operator owns backups, disk
+monitoring and retention. It provides ingestion and replay-safe storage, without
+an analytics UI, schema compiler or database row-level tenant policies.

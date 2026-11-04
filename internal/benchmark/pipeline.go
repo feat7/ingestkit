@@ -20,7 +20,14 @@ import (
 	"time"
 )
 
+var errObserverUnavailable = errors.New("observer temporarily unavailable")
+
 type PipelineConfig struct {
+	ReconnectObserver                                       bool
+	SampleStarted                                           func(int, time.Time)
+	SampleFinished                                          func(int) error
+	HTTPClient                                              *http.Client
+	Namespace, PayloadProfile                               string
 	Pool                                                    *pgxpool.Pool
 	APIURL, APIKey, Tenant, Pattern                         string
 	Seed                                                    int64
@@ -30,7 +37,7 @@ type PipelineConfig struct {
 
 // No credentials or connection strings are included in the serializable config.
 func PublicPipelineConfig(c PipelineConfig) map[string]any {
-	return map[string]any{"tenant": c.Tenant, "pattern": c.Pattern, "seed": c.Seed, "target_events_per_second": c.Rate, "concurrency": c.Concurrency, "http_batch_size": c.BatchSize, "payload_bytes": c.PayloadBytes, "repetitions": c.Repetitions, "window_ns": c.Duration.Nanoseconds(), "warmup_ns": c.Warmup.Nanoseconds(), "drain_deadline_ns": c.DrainDeadline.Nanoseconds(), "poll_interval_ns": c.PollInterval.Nanoseconds()}
+	return map[string]any{"observer_reconnect": c.ReconnectObserver, "namespace": c.Namespace, "payload_profile": c.PayloadProfile, "https": strings.HasPrefix(c.APIURL, "https://"), "tenant": c.Tenant, "pattern": c.Pattern, "seed": c.Seed, "target_events_per_second": c.Rate, "concurrency": c.Concurrency, "http_batch_size": c.BatchSize, "payload_bytes": c.PayloadBytes, "repetitions": c.Repetitions, "window_ns": c.Duration.Nanoseconds(), "warmup_ns": c.Warmup.Nanoseconds(), "drain_deadline_ns": c.DrainDeadline.Nanoseconds(), "poll_interval_ns": c.PollInterval.Nanoseconds()}
 }
 
 type Latency struct {
@@ -50,12 +57,31 @@ func Percentiles(samples []int64) Latency {
 	return Latency{at(.5), at(.95), at(.99)}
 }
 
+type RequestObservation struct {
+	StartedNS, FinishedNS, ElapsedNS int64
+	Events, Status                   int
+	Accepted, Ambiguous              bool
+}
+
 type BacklogSample struct {
-	ElapsedNS         int64 `json:"elapsed_ns"`
-	Accepted, Visible int
+	PendingAcknowledged                     int
+	ObservationAvailable, FinalVerification bool
+	ElapsedNS                               int64 `json:"elapsed_ns"`
+	Accepted, Visible                       int
 }
 type PipelineRun struct {
-	Repetition                                                                                   int `json:"repetition"`
+	started                                                                                      time.Time
+	ObserverOutages                                                                              int
+	RequestSamples                                                                               []RequestObservation `json:"request_samples"`
+	AttemptedInWindow, AttemptedAfterWindow, AcceptedInWindow, AcceptedAfterWindow               int
+	ObserverPolls, ObserverQueries, ObserverQueryNS                                              int64
+	ObserverLatePolls, ObserverMaxGapNS                                                          int64
+	ObservedEvents                                                                               int
+	VerificationNS                                                                               int64
+	AmbiguousUnobserved, ContentMismatch                                                         int
+	Outcome                                                                                      string   `json:"outcome"`
+	LimitReasons                                                                                 []string `json:"limit_reasons,omitempty"`
+	Repetition                                                                                   int      `json:"repetition"`
 	Planned, Attempted, Accepted, Persisted, Ambiguous, Rejected, GeneratorMissed, LateSchedules int
 	Missing, Unexpected, DuplicateRows, AmbiguousPersisted, BacklogAtWindowEnd                   int
 	WindowNS, ActiveNS, TotalNS, DrainNS, PollIntervalNS                                         int64
@@ -113,10 +139,26 @@ func (r *PipelineRun) Reconcile() error {
 		r.PersistedEPS = float64(r.Persisted) * 1e9 / float64(r.TotalNS)
 	}
 	if r.WindowNS > 0 {
-		r.AcceptedEPS = float64(r.Accepted) * 1e9 / float64(r.WindowNS)
+		r.AcceptedEPS = float64(r.AcceptedInWindow) * 1e9 / float64(r.WindowNS)
 	}
-	r.Correct = r.Missing == 0 && r.Unexpected == 0 && r.DuplicateRows == 0 && r.TotalNS > 0
+	r.Correct = r.Missing == 0 && r.Unexpected == 0 && r.DuplicateRows == 0 && r.ContentMismatch == 0 && r.TotalNS > 0
+
+	r.AmbiguousUnobserved = len(ambiguous) - r.AmbiguousPersisted
+	r.LimitReasons = nil
+	for _, limit := range []struct {
+		count  int
+		reason string
+	}{{r.GeneratorMissed, "generator_missed_events"}, {r.LateSchedules, "late_schedules"}, {r.Rejected, "http_rejections"}, {r.Ambiguous, "ambiguous_delivery"}, {r.AttemptedAfterWindow, "request_queue_tail"}, {r.AcceptedAfterWindow, "late_acknowledgements"}, {int(r.ObserverLatePolls), "observer_poll_delays"}, {r.ObserverOutages, "observer_unavailable"}} {
+		if limit.count > 0 {
+			r.LimitReasons = append(r.LimitReasons, limit.reason)
+		}
+	}
+	r.Outcome = "complete"
+	if len(r.LimitReasons) > 0 {
+		r.Outcome = "limited"
+	}
 	if !r.Correct {
+		r.Outcome = "failed"
 		return fmt.Errorf("reconciliation: %d missing, %d unexpected, %d duplicate stored rows", r.Missing, r.Unexpected, r.DuplicateRows)
 	}
 	return nil
@@ -131,12 +173,14 @@ type PipelineReport struct {
 type StoredObservation struct {
 	ID         uuid.UUID
 	ReceivedAt time.Time
+	ObservedAt time.Time // SQL clock after the committed-row result has been read.
 }
 type sendResult struct {
+	Status              int
 	IDs                 []uuid.UUID
 	Accepted, Ambiguous bool
 	ElapsedNS           int64
-	Finished            time.Time
+	Started, Finished   time.Time
 }
 type sender func(context.Context, []uuid.UUID) sendResult
 type observer func(context.Context, []uuid.UUID) ([]StoredObservation, error)
@@ -147,7 +191,7 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 		active = c.Duration / 4
 	}
 	count := int(float64(c.Rate) * c.Duration.Seconds())
-	es, e := Workload(WorkloadConfig{Seed: c.Seed + int64(rep), Count: count, PayloadBytes: c.PayloadBytes})
+	es, e := Workload(WorkloadConfig{Namespace: c.Namespace, PayloadProfile: c.PayloadProfile, Seed: c.Seed + int64(rep), Count: count, PayloadBytes: c.PayloadBytes})
 	if e != nil {
 		return r, e
 	}
@@ -167,13 +211,18 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 				at := time.Now()
 				v := send(ctx, job)
 				v.IDs = job
-				v.ElapsedNS = time.Since(at).Nanoseconds()
+				v.Started = at
 				v.Finished = time.Now()
+				v.ElapsedNS = v.Finished.Sub(at).Nanoseconds()
 				results <- v
 			}
 		}()
 	}
 	started := time.Now()
+	r.started = started
+	if c.SampleStarted != nil {
+		c.SampleStarted(rep, started)
+	}
 	windowEnd := started.Add(c.Duration)
 	scheduleDone := make(chan [2]int, 1)
 	go func() {
@@ -218,10 +267,30 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 	observedAt := map[uuid.UUID]time.Time{}
 	// Every observation follows a completed SQL query on committed rows. The query
 	// end minus received_at is an upper bound, including polling and query delay.
+	var previousPoll time.Time
 	sample := func() error {
+		pollStarted := time.Now()
+		if !previousPoll.IsZero() {
+			gap := pollStarted.Sub(previousPoll).Nanoseconds()
+			r.ObserverMaxGapNS = max(r.ObserverMaxGapNS, gap)
+			if gap > int64(2*c.PollInterval) {
+				r.ObserverLatePolls++
+			}
+		}
+		previousPoll = pollStarted
+		r.ObserverPolls++
+		queryStarted := time.Now()
 		found, e := observe(ctx, ids)
+		r.ObserverQueryNS += time.Since(queryStarted).Nanoseconds()
+
+		available := true
 		if e != nil {
-			return e
+			if c.ReconnectObserver && errors.Is(e, errObserverUnavailable) {
+				r.ObserverOutages++
+				available = false
+			} else {
+				return e
+			}
 		}
 		now := time.Now()
 		for _, v := range found {
@@ -229,14 +298,18 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 				seen[v.ID] = true
 				observedAt[v.ID] = now
 				r.StoredIDs = append(r.StoredIDs, v.ID)
-				lat := now.Sub(v.ReceivedAt).Nanoseconds()
+				observedClock := v.ObservedAt
+				if observedClock.IsZero() {
+					observedClock = now
+				} // Injected observers may share the host clock.
+				lat := observedClock.Sub(v.ReceivedAt).Nanoseconds()
 				if lat < 0 {
 					return errors.New("negative visibility latency: clocks disagree")
 				}
 				r.VisibilityNS = append(r.VisibilityNS, lat)
 			}
 		}
-		r.Backlog = append(r.Backlog, BacklogSample{ElapsedNS: now.Sub(started).Nanoseconds(), Accepted: len(acceptedAt), Visible: len(seen)})
+		r.Backlog = append(r.Backlog, BacklogSample{ElapsedNS: now.Sub(started).Nanoseconds(), Accepted: len(acceptedAt), Visible: len(seen), ObservationAvailable: available})
 		return nil
 	}
 	window := time.NewTimer(c.Duration)
@@ -259,9 +332,20 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 				results = nil
 				continue
 			}
+			r.RequestSamples = append(r.RequestSamples, RequestObservation{StartedNS: v.Started.Sub(started).Nanoseconds(), FinishedNS: v.Finished.Sub(started).Nanoseconds(), ElapsedNS: v.ElapsedNS, Events: len(v.IDs), Status: v.Status, Accepted: v.Accepted, Ambiguous: v.Ambiguous})
 			r.AttemptedIDs = append(r.AttemptedIDs, v.IDs...)
 			r.Attempted += len(v.IDs)
+			if v.Started.After(windowEnd) {
+				r.AttemptedAfterWindow += len(v.IDs)
+			} else {
+				r.AttemptedInWindow += len(v.IDs)
+			}
 			if v.Accepted {
+				if v.Finished.After(windowEnd) {
+					r.AcceptedAfterWindow += len(v.IDs)
+				} else {
+					r.AcceptedInWindow += len(v.IDs)
+				}
 				r.AcceptedIDs = append(r.AcceptedIDs, v.IDs...)
 				r.AckNS = append(r.AckNS, v.ElapsedNS)
 				for _, id := range v.IDs {
@@ -295,11 +379,20 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 				missing++
 			}
 		}
-		if missing == 0 {
+
+		unknown := 0
+		for _, id := range r.AmbiguousIDs {
+			if !seen[id] {
+				unknown++
+			}
+		}
+		if missing == 0 && unknown == 0 {
 			break
 		}
 		if time.Now().After(deadline) {
-			result = errors.New("accepted events did not drain before deadline")
+			if missing > 0 {
+				result = errors.New("accepted events did not drain before deadline")
+			}
 			break
 		}
 		select {
@@ -309,6 +402,7 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 		}
 	}
 	end := time.Now()
+	r.ObservedEvents = len(seen)
 	r.TotalNS = end.Sub(started).Nanoseconds()
 	r.DrainNS = max(0, end.Sub(windowEnd).Nanoseconds())
 	for id, at := range acceptedAt {
@@ -317,13 +411,52 @@ func runPipelineSample(ctx context.Context, c PipelineConfig, rep int, send send
 			r.BacklogAtWindowEnd++
 		}
 	}
+	// Reconstruct acknowledgement counts from actual worker finish times. A
+	// blocked SQL probe must not shift completed ACKs to when its result is read.
+	finishes := make([]time.Time, 0, len(acceptedAt))
+	type pendingChange struct {
+		at    time.Time
+		delta int
+	}
+	changes := []pendingChange{}
+	for id, at := range acceptedAt {
+		finishes = append(finishes, at)
+		observed, ok := observedAt[id]
+		if !ok || observed.After(at) {
+			changes = append(changes, pendingChange{at, 1})
+			if ok {
+				changes = append(changes, pendingChange{observed, -1})
+			}
+		}
+	}
+	slices.SortFunc(finishes, func(a, b time.Time) int { return a.Compare(b) })
+	slices.SortFunc(changes, func(a, b pendingChange) int { return a.at.Compare(b.at) })
+	fi, ci, pendingCount := 0, 0, 0
+	for i := range r.Backlog {
+		at := started.Add(time.Duration(r.Backlog[i].ElapsedNS))
+		for fi < len(finishes) && !finishes[fi].After(at) {
+			fi++
+		}
+		for ci < len(changes) && !changes[ci].at.After(at) {
+			pendingCount += changes[ci].delta
+			ci++
+		}
+		r.Backlog[i].Accepted = fi
+		r.Backlog[i].PendingAcknowledged = pendingCount
+	}
 	r.Ack = Percentiles(r.AckNS)
 	r.Visibility = Percentiles(r.VisibilityNS)
 	reconcileErr := r.Reconcile()
 	return r, errors.Join(result, observationError, reconcileErr)
 }
 func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) {
-	r := PipelineReport{Kind: "pipeline", Config: PublicPipelineConfig(c), Notes: []string{"Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.", "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries.", "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound; includes SQL query and polling delay. Same-host clocks assumed; persisted_at is not used.", "PersistedEPS = all observed unique rows / (measured window plus request tail and drain); accepted EPS uses the measured window. See raw durations.", "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
+	if c.Namespace == "" {
+		c.Namespace = uuid.NewString()
+	}
+	if c.PayloadProfile == "" {
+		c.PayloadProfile = "varied"
+	}
+	r := PipelineReport{Kind: "pipeline", Config: PublicPipelineConfig(c), Notes: []string{"Target load is offered events/sec, not a capacity estimate. Burst offers the same count within the first quarter of the window.", "HTTP acknowledgement is measured per successful request, including client encoding/network/broker acknowledgement. No automatic load-driver retries. Visibility percentiles use only first observations made by the pending observer (ObservedEvents), not rows first found by final verification. AmbiguousUnobserved means absent at final bounded verification.", "Storage latency is a per-event receipt-to-first-observed-committed-row upper bound. Receipt and SQL clock timestamps share the deployment VM clock; the SQL clock is queried after reading the committed-row result. Includes polling, query and clock-probe delay; persisted_at is not used. Host time only schedules load/backlog.", "PersistedEPS = independently verified unique rows / (measured window plus request tail and complete observation/verification drain); accepted EPS counts only acknowledgements completed inside the measured window. Late starts and acknowledgements are reported separately. Limited outcomes are not achieved-load/capacity claims. See raw durations.", "ID sets are reconciled in memory; sorted unique IDs joined by newline (no trailing newline) are SHA-256 hashed for bounded public evidence. Recreate IDs from seed plus repetition and event index.",
 		"Generator misses mean its bounded queue could not keep up; late schedules count scheduler delays beyond one request interval. Shared-host generator/observer compete with services."}}
 	if c.Pool == nil || c.Rate <= 0 || c.Concurrency <= 0 || c.Concurrency > 1000 || c.Duration <= 0 || c.DrainDeadline <= 0 || c.PollInterval <= 0 || c.BatchSize <= 0 || c.BatchSize > 100 || c.Repetitions < 3 || c.Tenant == "" || (c.Pattern != "steady" && c.Pattern != "burst") {
 		return r, errors.New("invalid pipeline configuration")
@@ -332,24 +465,8 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 	if count <= 0 || count > 1000000 {
 		return r, errors.New("pipeline requires 1..1000000 events per sample")
 	}
-	observe := func(ctx context.Context, ids []uuid.UUID) ([]StoredObservation, error) {
-		rows, e := c.Pool.Query(ctx, "SELECT event_id,received_at FROM ingestkit.events WHERE tenant_id=$1 AND event_id=ANY($2::uuid[])", c.Tenant, ids)
-		if e != nil {
-			return nil, e
-		}
-		defer rows.Close()
-		out := []StoredObservation{}
-		for rows.Next() {
-			var v StoredObservation
-			if e = rows.Scan(&v.ID, &v.ReceivedAt); e != nil {
-				return nil, e
-			}
-			out = append(out, v)
-		}
-		return out, rows.Err()
-	}
-	run := func(cfg PipelineConfig, rep int) (PipelineRun, error) {
-		es, e := Workload(WorkloadConfig{Seed: cfg.Seed + int64(rep), Count: int(float64(cfg.Rate) * cfg.Duration.Seconds()), PayloadBytes: cfg.PayloadBytes})
+	run := func(cfg PipelineConfig, rep int) (runResult PipelineRun, runErr error) {
+		es, e := Workload(WorkloadConfig{Namespace: cfg.Namespace, PayloadProfile: cfg.PayloadProfile, Seed: cfg.Seed + int64(rep), Count: int(float64(cfg.Rate) * cfg.Duration.Seconds()), PayloadBytes: cfg.PayloadBytes})
 		if e != nil {
 			return PipelineRun{}, e
 		}
@@ -360,19 +477,27 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			ids = append(ids, v.EventID)
 		}
 		// Refuse collisions rather than overwriting/removing somebody else's dataset.
-		existing, e := observe(ctx, ids)
-		if e != nil {
+		existing, e := VerifyPipelineRows(ctx, c.Pool, cfg.Tenant, es, nil)
+		if e != nil && len(existing.StoredIDs) == 0 {
 			return PipelineRun{}, e
 		}
-		if len(existing) > 0 {
-			return PipelineRun{}, errors.New("seed IDs already exist; choose another seed or an isolated stack")
+		if len(existing.StoredIDs) > 0 {
+			return PipelineRun{}, errors.New("case namespace or event IDs already exist; choose a new namespace or an isolated stack")
 		}
 		defer func() {
 			end, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_, _ = c.Pool.Exec(end, "DELETE FROM ingestkit.events WHERE tenant_id=$1 AND event_id=ANY($2::uuid[])", c.Tenant, ids)
+			_, _ = c.Pool.Exec(end, "DELETE FROM ingestkit.events WHERE tenant_id=$1 AND event_id=ANY($2::uuid[]) AND event_type=$3", c.Tenant, ids, es[0].EventType)
 		}()
-		client := &http.Client{Timeout: 8 * time.Second}
+		defer func() {
+			if cfg.SampleFinished != nil {
+				runErr = errors.Join(runErr, cfg.SampleFinished(rep))
+			}
+		}()
+		client := cfg.HTTPClient
+		if client == nil {
+			client = &http.Client{Timeout: 8 * time.Second}
+		}
 		send := func(ctx context.Context, ids []uuid.UUID) sendResult {
 			v := sendResult{}
 			inputs := make([]event.Input, len(ids))
@@ -383,7 +508,9 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			if e != nil {
 				return v
 			}
-			req, e := http.NewRequestWithContext(ctx, "POST", cfg.APIURL+"/v1/events/batch", bytes.NewReader(raw))
+			requestCtx, requestEnd := context.WithTimeout(ctx, 8*time.Second)
+			defer requestEnd()
+			req, e := http.NewRequestWithContext(requestCtx, "POST", cfg.APIURL+"/v1/events/batch", bytes.NewReader(raw))
 			if e != nil {
 				return v
 			}
@@ -395,6 +522,7 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 				return v
 			}
 			defer res.Body.Close()
+			v.Status = res.StatusCode
 			if res.StatusCode != 202 {
 				v.Ambiguous = res.StatusCode >= 500
 				return v
@@ -409,7 +537,77 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 			v.Accepted = true
 			return v
 		}
-		return runPipelineSample(ctx, cfg, rep, send, observe)
+		pending, e := NewPendingObserver(ctx, c.Pool, cfg.Tenant, ids)
+		if e != nil {
+			return PipelineRun{}, e
+		}
+		totalQueries := int64(0)
+		closeObserver := func() error {
+			if pending == nil {
+				return nil
+			}
+			q, _ := pending.Stats()
+			totalQueries += q
+			end, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			err := pending.Close(end)
+			pending = nil
+			return err
+		}
+		defer closeObserver()
+		alreadyObserved := map[uuid.UUID]bool{}
+		observe := func(ctx context.Context, _ []uuid.UUID) ([]StoredObservation, error) {
+			probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			if pending == nil {
+				remaining := []uuid.UUID{}
+				for _, id := range ids {
+					if !alreadyObserved[id] {
+						remaining = append(remaining, id)
+					}
+				}
+				var err error
+				pending, err = NewPendingObserver(probeCtx, c.Pool, cfg.Tenant, remaining)
+				if err != nil {
+					if cfg.ReconnectObserver && ctx.Err() == nil {
+						return nil, errObserverUnavailable
+					}
+					return nil, err
+				}
+				totalQueries += 2
+			}
+			rows, err := pending.Observe(probeCtx)
+			if err != nil && cfg.ReconnectObserver && ctx.Err() == nil {
+				_ = closeObserver()
+				return nil, errObserverUnavailable
+			}
+			for _, row := range rows {
+				alreadyObserved[row.ID] = true
+			}
+			return rows, err
+		}
+		sample, sampleErr := runPipelineSample(ctx, cfg, rep, send, observe)
+		closeErr := closeObserver()
+		sample.ObserverQueries = totalQueries
+		verificationStarted := time.Now()
+		verifyCtx, verifyEnd := context.WithTimeout(ctx, c.DrainDeadline)
+		verified, verifyErr := VerifyPipelineRows(verifyCtx, c.Pool, cfg.Tenant, es, sample.AcceptedIDs)
+		verifyEnd()
+		sample.VerificationNS = time.Since(verificationStarted).Nanoseconds()
+		sample.ObserverQueryNS += sample.VerificationNS
+		sample.ObserverQueries++
+		sample.TotalNS = time.Since(sample.started).Nanoseconds()
+		sample.DrainNS = max(0, sample.TotalNS-sample.WindowNS)
+		sample.StoredIDs = verified.StoredIDs
+		sample.ContentMismatch = verified.ContentMismatch
+		reconcileErr := sample.Reconcile()
+		sample.Backlog = append(sample.Backlog, BacklogSample{ElapsedNS: sample.TotalNS, Accepted: sample.Accepted, Visible: sample.Persisted, PendingAcknowledged: sample.Missing, ObservationAvailable: verifyErr == nil, FinalVerification: true})
+		result := errors.Join(sampleErr, closeErr, verifyErr, reconcileErr)
+		if result != nil {
+			sample.Correct = false
+			sample.Outcome = "failed"
+		}
+		return sample, result
 	}
 	if c.Warmup > 0 {
 		warm := c
@@ -425,9 +623,7 @@ func RunPipeline(ctx context.Context, c PipelineConfig) (PipelineReport, error) 
 		if e != nil {
 			return r, e
 		}
-		if v.Accepted == 0 {
-			return r, errors.New("no accepted events; no useful pipeline measurement")
-		}
+
 	}
 	return r, nil
 }

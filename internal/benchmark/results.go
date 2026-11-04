@@ -63,12 +63,12 @@ func WriteReport(dir string, report any) error {
 			return errors.New("pipeline report requires three repetitions")
 		}
 		name = "pipeline"
-		records = append(records, []string{"repetition", "planned", "attempted", "accepted", "persisted", "generator_missed", "ambiguous", "rejected", "window_ns", "total_ns", "drain_ns", "ack_p95_ns", "visibility_p95_ns", "correct"})
+		records = append(records, []string{"repetition", "planned", "attempted", "accepted", "persisted", "generator_missed", "ambiguous", "rejected", "window_ns", "total_ns", "drain_ns", "ack_p95_ns", "visibility_p95_ns", "correct", "outcome", "accepted_in_window", "accepted_after_window", "attempted_after_window", "ambiguous_unobserved_at_final_verification", "observer_polls", "observer_sql_statements", "observer_elapsed_ns", "observed_events", "verification_ns", "observer_late_polls", "observer_max_gap_ns"})
 		for _, v := range r.Runs {
 			if !v.Correct {
 				return errors.New("incorrect pipeline run")
 			}
-			records = append(records, []string{strconv.Itoa(v.Repetition), strconv.Itoa(v.Planned), strconv.Itoa(v.Attempted), strconv.Itoa(v.Accepted), strconv.Itoa(v.Persisted), strconv.Itoa(v.GeneratorMissed), strconv.Itoa(v.Ambiguous), strconv.Itoa(v.Rejected), strconv.FormatInt(v.WindowNS, 10), strconv.FormatInt(v.TotalNS, 10), strconv.FormatInt(v.DrainNS, 10), strconv.FormatInt(v.Ack.P95, 10), strconv.FormatInt(v.Visibility.P95, 10), strconv.FormatBool(v.Correct)})
+			records = append(records, []string{strconv.Itoa(v.Repetition), strconv.Itoa(v.Planned), strconv.Itoa(v.Attempted), strconv.Itoa(v.Accepted), strconv.Itoa(v.Persisted), strconv.Itoa(v.GeneratorMissed), strconv.Itoa(v.Ambiguous), strconv.Itoa(v.Rejected), strconv.FormatInt(v.WindowNS, 10), strconv.FormatInt(v.TotalNS, 10), strconv.FormatInt(v.DrainNS, 10), strconv.FormatInt(v.Ack.P95, 10), strconv.FormatInt(v.Visibility.P95, 10), strconv.FormatBool(v.Correct), v.Outcome, strconv.Itoa(v.AcceptedInWindow), strconv.Itoa(v.AcceptedAfterWindow), strconv.Itoa(v.AttemptedAfterWindow), strconv.Itoa(v.AmbiguousUnobserved), strconv.FormatInt(v.ObserverPolls, 10), strconv.FormatInt(v.ObserverQueries, 10), strconv.FormatInt(v.ObserverQueryNS, 10), strconv.Itoa(v.ObservedEvents), strconv.FormatInt(v.VerificationNS, 10), strconv.FormatInt(v.ObserverLatePolls, 10), strconv.FormatInt(v.ObserverMaxGapNS, 10)})
 		}
 	case DatabaseReport:
 		if e := r.Validate(); e != nil {

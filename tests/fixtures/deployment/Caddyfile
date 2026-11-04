@@ -1,0 +1,13 @@
+{
+ admin off
+}
+localhost {
+ tls internal
+ @collector path /v1/events /v1/events/batch /health /ready
+ handle @collector {
+  reverse_proxy api:8080
+ }
+ handle {
+  respond 404
+ }
+}

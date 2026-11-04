@@ -22,7 +22,7 @@ func main() {
 	}
 }
 func run() (result error) {
-	mode := flag.String("mode", "database", "database or pipeline")
+	mode := flag.String("mode", "database", "database, pipeline or study")
 	pattern := flag.String("pattern", "steady", "steady or burst (same count in first quarter of window)")
 	count := flag.Int("count", 10000, "database submissions per method/repetition")
 	size := flag.Int("payload", 256, "encoded payload bytes")
@@ -34,12 +34,34 @@ func run() (result error) {
 	duration := flag.Duration("duration", 10*time.Second, "measured window per repetition")
 	warmup := flag.Duration("warmup", 2*time.Second, "pipeline warm-up window")
 	out := flag.String("out", "", "report directory (default own run directory)")
+	smoke := flag.Bool("smoke", false, "reduced study correctness cases (not performance evidence)")
+	resume := flag.Bool("resume", false, "resume a matching study output directory")
 	flag.Parse()
-	if *mode != "database" && *mode != "pipeline" {
-		return errors.New("mode must be database or pipeline")
+	if *mode != "database" && *mode != "pipeline" && *mode != "study" {
+		return errors.New("mode must be database, pipeline or study")
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	if *mode == "study" {
+		var unsupported string
+		flag.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "mode", "smoke", "resume", "out", "seed":
+			default:
+				unsupported = f.Name
+			}
+		})
+		if unsupported != "" {
+			return fmt.Errorf("study uses registered controls; -%s is only for single-run modes", unsupported)
+		}
+		if *resume && *out == "" {
+			return errors.New("resume requires the original -out directory")
+		}
+		return benchmark.RunStudy(ctx, benchmark.StudyConfig{OutputDirectory: *out, Smoke: *smoke, Resume: *resume, Seed: *seed, Writer: os.Stdout})
+	}
+	if *smoke || *resume {
+		return errors.New("smoke/resume flags require study mode")
+	}
 	s, e := runenv.Start(ctx, runenv.Options{Purpose: "bench-" + *mode})
 	if e != nil {
 		return e
