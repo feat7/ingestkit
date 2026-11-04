@@ -301,6 +301,8 @@ pins clean runtime revision213e4cc; the complete earlier COPY-writer study remai
 separate. The measured comparison led to atomic batch INSERT with no TEMP
 privilege; its original COPY transaction remains an explicit benchmark reference.
 [Figure sources and verification](../../figures/README.md) retain provenance and
-responsive layouts. Final regression and whole-branch review are the remaining
-completion gate, recorded separately when performed. No public deployment or
+responsive layouts. Final regression and fresh whole-branch review are complete;
+the one important Python deadline finding was reproduced, fixed and verified by
+the full suite. The [verification and review record](../reviews/2026-11-04-self-hosted-ingestion.md)
+preserves all rulings, costs and the deferred cosmetic issue. No public deployment or
 publication is part of this implementation.
