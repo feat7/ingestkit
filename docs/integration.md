@@ -121,4 +121,5 @@ The outbox example includes a crash test after HTTP acknowledgement but before
 the local pending row is updated. The [delivery guide](delivery.md) explains that
 retry gap and the worker's separate SQL/offset gap. Retrying uncertain HTTP
 outcomes must preserve the event IDs. Previous measured recovery bundles have
-been withdrawn pending benchmark revalidation.
+been archived outside the checkout. The [current connection study](../benchmarks/README.md)
+contains short local screens, not a sustained deployment capacity guarantee.

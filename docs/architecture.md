@@ -70,8 +70,8 @@ duplicate IDs, restricted privileges and the SQL/offset crash gap.
 
 The reference COPY benchmark creates a staging table, copies rows into it, then
 merges them into the destination. Its total measures that complete transaction,
-not plain COPY. Previous comparative results are withdrawn pending measurement
-revalidation; the deployed writer is not claimed to be universally fastest.
+not plain COPY. The current [connection study](../benchmarks/README.md)
+measures the deployed writer without claiming a universal speed advantage.
 
 ## Decide whether the queue helps your application
 

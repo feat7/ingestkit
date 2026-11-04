@@ -161,7 +161,8 @@ Routine shutdown does not need `down -v`, global prune or volume removal.
 ## What the recovery tests establish
 
 Previous recorded recovery bundles have been withdrawn from the public tree as
-part of measurement revalidation. Use the owned integration tests and local
+part of benchmark cleanup. The [current connection study](../benchmarks/README.md)
+retains overload results and metric validity separately. Use the owned integration tests and local
 recovery demo to check the supported failure paths. A completed start command
 does not prove that the consumer group has caught up: check readiness, offset
 lag and stored UUIDs. Observation gaps remain unknown intervals. These checks

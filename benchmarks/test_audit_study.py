@@ -119,6 +119,32 @@ class ArtifactAuditTests(unittest.TestCase):
         r['connections']['PeakOpenTCP']=5
         with self.assertRaises(audit.AuditError): audit.pipeline(r,g,c)
 
+    def test_evidence_inventory_rejects_tampering_and_extra_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);p=root/'sample.json';p.write_text('hello')
+            manifest={'Schema':2,'Artifacts':[dict(Path='sample.json',Size=5,SHA256='2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')]}
+            (root/'evidence-manifest.json').write_text(json.dumps(manifest))
+            audit.verify_inventory(root)
+            p.write_text('other')
+            with self.assertRaises(audit.AuditError):audit.verify_inventory(root)
+            p.write_text('hello');(root/'extra').write_text('unexpected')
+            with self.assertRaises(audit.AuditError):audit.verify_inventory(root)
+
+    def test_calibration_rejects_forged_inside_rate(self):
+        run=dict(Planned=100,Attempted=100,Accepted=100,AcceptedInWindow=100,GeneratorMissed=0,
+                 WindowNS=1_000_000_000,TotalNS=1_000_000_001,AcceptedEPS=100,Correct=True,
+                 Connections=dict(ActiveRequests=0,WaitingForConnection=0,PeakOpenTCP=1,Errors={},Protocols={'HTTP/1.1':1}),
+                 IDSetSHA256=dict(attempted='a'*64,accepted='a'*64,sink_received='a'*64),
+                 RequestSamples=[dict(StartedNS=0,FinishedNS=10,ElapsedNS=10,Status=202,Events=100,Accepted=True)])
+        audit.verify_calibration_run(run,100,1_000_000_000)
+        run['AcceptedEPS']=150
+        with self.assertRaises(audit.AuditError):audit.verify_calibration_run(run,100,1_000_000_000)
+
+    def test_observed_curve_cannot_exceed_verified_population(self):
+        r,g,c=self.valid_pipeline()
+        r['backlog']=[dict(elapsed_ns=30,Accepted=1,Visible=2,ObservationAvailable=True,FinalVerification=False)]
+        with self.assertRaises(audit.AuditError):audit.pipeline(r,g,c)
+
     def test_population_indices(self):
         group={'Namespace':'n','Seed':42,'Count':2,'Indices':{'accepted':[0,1]}}
         self.assertEqual(len(audit.populations(group)['accepted']),2)

@@ -4,11 +4,11 @@
   "meta": {
     "title": "Deploy an event collector",
     "locale": "en",
-    "output": ".archify/architecture-deployment-20261104-041835/deployment.html",
+    "output": ".archify/deployment/deployment.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:feat7/ingestkit.git",
-      "revision": "213e4cc50523882f0d0cf7533d064494387d3207",
+      "revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
       "link_mode": "local-only"
     }
   },
@@ -29,8 +29,8 @@
       "sources": [
         {
           "path": "examples/checkout/ingest_client.py",
-          "line": 42,
-          "end_line": 102
+          "line": 77,
+          "end_line": 169
         }
       ]
     },
@@ -113,7 +113,7 @@
         {
           "path": "internal/messaging/publisher.go",
           "line": 49,
-          "end_line": 64
+          "end_line": 68
         }
       ]
     },

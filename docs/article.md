@@ -152,11 +152,10 @@ new rows or rolls back; a replay keeps each existing row. The reference COPY
 comparison includes creating a temporary table, loading it and merging its rows.
 That is a different algorithm from direct COPY into the destination.
 
-Previous comparative tables and measured plots have been withdrawn while the
-benchmark is repaired. Their combined bundles contained database, pipeline and
-recovery measurements; retiring a bundle does not imply every recorded value
-was wrong. A new comparison must state the complete algorithm, transaction
-boundaries, duplicate policy, payload size and actual batch sizes.
+The current connection study does not compare writer methods. A writer
+comparison needs the complete algorithm, transaction boundaries, duplicate
+policy, payload size and actual batch sizes. Previous comparative bundles were
+archived unchanged and withdrawn from public claims.
 
 ## Count the work at each boundary
 
@@ -196,10 +195,17 @@ rewind with the database, and only retained records can fill the gap.
 
 ## Where the results apply
 
-The previous local measurement bundles are being replaced with an audited
-connection study. No current result in this article establishes maximum or
-sustained capacity. A future measured claim must state the hardware, duration,
-load-generator placement, batching, actual achieved rate and observation limits.
+The [audited connection study](../benchmarks/README.md) contains 36 ten-second
+windows on a shared local machine. With 128 workers and four TCP connections,
+connection acquisition averaged 873–969 ms. Eight connections reached roughly
+15k acknowledged events/s. Larger caps sometimes introduced uncertain responses;
+the producer reached its 1,000-record buffer limit. The sampled consumer pool
+showed no new acquisition wait, so its limit stayed unchanged.
+
+Offering 30k or 50k did not deliver those rates cleanly. Every acknowledged ID
+and its content passed an independent SQL check, while unknown publications
+stayed separate. The measurement guide shows all repetitions, payload sizes and
+validity limits. These short windows establish no sustained maximum capacity.
 
 The supported deployment is one host, one queue replica and finite retention.
 Losing that host or its disks can lose events. Your application owns its business

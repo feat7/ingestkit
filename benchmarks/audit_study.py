@@ -114,7 +114,14 @@ def pipeline(run, group, case):
     check(math.isclose(run["AcceptedEPS"],inside*1e9/window,rel_tol=1e-12), "ACK rate denominator differs")
     check(math.isclose(run["VerifiedCompletionEPS"],len(stored)*1e9/run["TotalNS"],rel_tol=1e-12), "storage rate denominator differs")
     unknown_count=len(set(ambiguous)-set(stored));check(unknown_count==run["AmbiguousUnobserved"], "unknown-by-verification count differs")
+    previous_visible=0;previous_time=0
     for point in run["backlog"]:
+        check(previous_time<=point["elapsed_ns"]<=run["TotalNS"],"observation timeline differs")
+        previous_time=point["elapsed_ns"]
+        check(previous_visible<=point["Visible"]<=run["Persisted"],"observed row count exceeds verified population")
+        previous_visible=point["Visible"]
+        if not point["FinalVerification"]:check(point["Visible"]<=run["ObservedEvents"],"observer population differs")
+        else:check(point["Visible"]==run["Persisted"],"final row count differs")
         expected=sum(q["Events"] for q in requests if q["Accepted"] and q["FinishedNS"]<=point["elapsed_ns"])
         check(point["Accepted"]==expected, "backlog ACK timeline differs")
     load_limited=any(run[k] for k in ("GeneratorMissed","LateSchedules","Rejected","Ambiguous","AttemptedAfterWindow","AcceptedAfterWindow"))
@@ -198,7 +205,91 @@ def validate_manifest(value, identity):
         check(re.search(r'NAME\s+'+re.escape(name)+r'\s+PARTITIONS\s+'+str(partitions)+r'\s+REPLICAS\s+1',topics),
               'topic partition/replica controls differ')
 
-def audit(directory, allow_smoke=False, secrets=()):
+def canonical_bytes(value):
+    return json.dumps(value,ensure_ascii=False,separators=(',',':'),allow_nan=False).replace('&','\\u0026').replace('<','\\u003c').replace('>','\\u003e').encode()
+
+def object_hash(value):
+    return hashlib.sha256(canonical_bytes(value)).hexdigest()
+
+def sorted_maps(value):
+    if isinstance(value,dict):return {k:sorted_maps(v) for k,v in sorted(value.items())}
+    if isinstance(value,list):return [sorted_maps(v) for v in value]
+    return value
+
+def verify_inventory(root):
+    manifest=json.loads((root/'evidence-manifest.json').read_text())
+    check(manifest['Schema']==2,'unsupported evidence inventory')
+    paths=[]
+    for ref in manifest['Artifacts']:
+        path=(root/ref['Path']).resolve()
+        check(path.is_relative_to(root.resolve()) and path.is_file(),'evidence escapes output')
+        check(path.stat().st_size==ref['Size']<=64*1024*1024,'evidence size differs')
+        check(hashlib.sha256(path.read_bytes()).hexdigest()==ref['SHA256'],'evidence checksum differs')
+        paths.append(ref['Path'])
+    actual={str(p.relative_to(root)) for p in root.rglob('*') if p.is_file() and p.name!='evidence-manifest.json'}
+    check(len(paths)==len(set(paths)) and set(paths)==actual,'evidence inventory differs')
+
+def verify_calibration_run(run,rate,window):
+    samples=run['RequestSamples'];conn=run['Connections']
+    attempted=sum(q['Events'] for q in samples)
+    accepted=sum(q['Events'] for q in samples if q['Accepted'])
+    inside=sum(q['Events'] for q in samples if q['Accepted'] and q['FinishedNS']<=window)
+    check(run['Correct'] and run['Planned']==int(rate*window/1e9),'calibration plan differs')
+    check(run['Attempted']==attempted and run['Accepted']==accepted and run['AcceptedInWindow']==inside and run['GeneratorMissed']+attempted==run['Planned'],'calibration accounting differs')
+    check(run['WindowNS']==window and run['TotalNS']>=window and math.isclose(run['AcceptedEPS'],inside*1e9/window,rel_tol=1e-12),'calibration rate denominator differs')
+    check(all(q['FinishedNS']>=q['StartedNS']>=0 and q['ElapsedNS']==q['FinishedNS']-q['StartedNS'] and q['Status']==202 for q in samples),'calibration timing/ACK differs')
+    check(conn['ActiveRequests']==0 and conn['WaitingForConnection']==0 and not conn['Errors'] and conn['Protocols']=={'HTTP/1.1':len(samples)} and 0<conn['PeakOpenTCP']<=128,'calibration transport differs')
+    hashes=run['IDSetSHA256']
+    check(set(hashes)=={'attempted','accepted','sink_received'} and len(set(hashes.values()))==1 and all(re.fullmatch('[0-9a-f]{64}',v) for v in hashes.values()),'calibration ID hashes differ')
+
+def verify_connection_evidence(root,index,repo=None):
+    verify_inventory(root)
+    identity=index['Identity']
+    check(object_hash([row['Case'] for row in index['Cases']])==identity['ControlsFingerprint'],'controls fingerprint differs')
+    for filename in index['ManifestFiles']:
+        refs={ref['Path']:ref for ref in index['MetadataArtifacts']}
+        check(filename in refs,'manifest is not an indexed artifact')
+        m=read_artifact(root,refs[filename])
+        host={k:m['host'].get(k,'') for k in ('go','os','architecture','generator_logical_cpus','kernel','docker_vm','memory_bytes','os_version','docker','compose')}
+        if m['host']['os']=='darwin':host['cpu']=m['host']['cpu']
+        else:
+            values=[]
+            for line in m['host']['cpu'].splitlines():
+                if ':' in line:
+                    k,v=line.split(':',1)
+                    if k.strip() in ('model name','Hardware','CPU architecture','CPU part'):values.append(k.strip()+':'+v.strip())
+            host['cpu']='\n'.join(sorted(set(values)))
+        fingerprint=object_hash(dict(Settings=sorted_maps(m['settings']),Database=sorted_maps(m['database']),Topics=m['TopicConfiguration'],Host=sorted_maps(host)))
+        check(fingerprint==identity['ConfigFingerprint'],'runtime fingerprint differs')
+    images=json.loads((root/'image-identity.json').read_text());signatures=[]
+    for image in images:
+        image['Config']=sorted_maps(image['Config'])
+        signatures.append(object_hash(image))
+    check(object_hash(sorted(signatures))==identity['ImagesFingerprint'],'image fingerprint differs')
+    calibration=json.loads((root/'calibration-index.json').read_text())
+    check(calibration['SourceSHA']==identity['SourceSHA'] and len(calibration['Artifacts'])==3,'calibration source/cardinality differs')
+    rates=[]
+    for ref in calibration['Artifacts']:
+        report=read_artifact(root,dict(ref,RawBytes=ref['Size']))
+        c=report['Config'];rate=c['target_events_per_second'];rates.append(rate)
+        check(report['Schema']==2 and report['Kind']=='tls_driver_calibration' and report['SourceSHA']==identity['SourceSHA'] and c['https'] is True,'calibration identity/transport differs')
+        check(c['http_batch_size']==100 and c['payload_bytes']==1024 and c['concurrency']==128 and c['http_max_conns_per_host']==128 and c['http_max_idle_conns_per_host']==128 and c['window_ns']==10_000_000_000,'calibration controls differ')
+        check(len(report['Runs'])==3,'calibration repetitions differ')
+        for run in report['Runs']:verify_calibration_run(run,rate,c['window_ns'])
+    check(sorted(rates)==[15000,30000,50000],'calibration rate cohort differs')
+    if repo is not None:
+        import subprocess
+        def git(*args):return subprocess.check_output(['git','-C',str(repo),*args])
+        files=[]
+        for entry in git('ls-tree','-rz',identity['SourceSHA']).split(b'\0'):
+            if not entry:continue
+            header,name=entry.split(b'\t');mode,kind,blob=header.split()
+            modes={b'100644':'-rw-r--r--',b'100755':'-rwxr-xr-x',b'120000':'Lrwxrwxrwx'}
+            check(mode in modes and kind==b'blob','unsupported source entry')
+            files.append(dict(Name=name.decode(),Mode=modes[mode],Digest=hashlib.sha256(git('cat-file','blob',blob.decode())).hexdigest()))
+        check(object_hash(sorted(files,key=lambda x:x['Name']))==identity['SourceFingerprint'],'source fingerprint differs')
+
+def audit(directory, allow_smoke=False, secrets=(), repo=None):
     root=Path(directory);index=json.loads((root/"index.json").read_text())
     check(index["Schema"]==2 and index["Status"]=="complete", "study is incomplete")
     identity=index["Identity"];mode=identity["Mode"]
@@ -214,6 +305,7 @@ def audit(directory, allow_smoke=False, secrets=()):
             validate_manifest(value,identity)
     cases=index["Cases"];validate_registry(cases,mode);check(len(cases)==(25 if mode=="full" else 12 if mode=="connections" else 2), "registry cardinality differs")
     check(len({row["Case"]["ID"] for row in cases})==len(cases), "duplicate case ID")
+    if mode=="connections":verify_connection_evidence(root,index,repo)
     totals={"database_runs":0,"pipeline_runs":0,"recovery_runs":0,"limited_cases":0}
     for row in cases:
         c=row["Case"];check(row["Status"] in ("complete","limited"), "case is not complete")
@@ -248,8 +340,8 @@ def audit(directory, allow_smoke=False, secrets=()):
     return totals
 
 if __name__=="__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("directory");parser.add_argument("--allow-smoke",action="store_true");args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument("directory");parser.add_argument("--allow-smoke",action="store_true");parser.add_argument("--repo",type=Path,help="verify source bytes from the recorded Git revision");args=parser.parse_args()
     try:
-        print(json.dumps(audit(args.directory,args.allow_smoke),sort_keys=True))
+        print(json.dumps(audit(args.directory,args.allow_smoke,repo=args.repo),sort_keys=True))
     except (AuditError,KeyError,ValueError,OSError) as error:
         parser.exit(1,"audit failed: "+str(error)+"\n")

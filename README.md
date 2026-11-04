@@ -88,11 +88,12 @@ make demo-recovery DEMO_FLAGS=-cleanup
 ~~~
 
 The second demo stops PostgreSQL, sends events, restarts the database and checks
-that the same IDs reached the table. Previous benchmark bundles and measured
-charts have been withdrawn while the load driver, SQL observer and connection
-limits are revalidated. The [measurement guide](benchmarks/README.md) explains
-the distinction between offered load, acknowledgements and verified storage.
-These local demonstrations do not establish maximum capacity.
+that the same IDs reached the table. The [connection study](benchmarks/README.md) retains all 36 short ingestion
+windows, including overloads and 256-byte, 1 KiB and 16 KiB payloads. Eight TCP
+connections reached about 14,950–14,970 acknowledged events/s in three ten-second
+windows; offering 30k or 50k introduced uncertain responses. These are shared-host
+screens, with no sustained-capacity claim. Every acknowledged ID and its content
+passed an independent SQL check.
 
 [Development and tests](docs/development.md) · [Run the experiments](benchmarks/README.md) ·
 [Delivery details](docs/delivery.md) · [How the components fit together](docs/architecture.md)

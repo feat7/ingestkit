@@ -98,8 +98,9 @@ python3 -m unittest discover -s examples/outbox -p 'test_*.py'
 scripts/test-integration.sh -run TestOutbox -v
 ~~~
 
-The [recorded recovery study](../../benchmarks/results/selfhost-2026-11-04/README.md)
-also tests 100 saved events per run during a broker outage longer than the publish
-deadline. A new dispatcher resends the pending events. That outage test is separate
-from the exact after-ACK kill test, and both supplement the transaction/worker
-checks needed for your own application.
+The [owned HTTPS tests](../../tests/integration/outbox_test.go) cover a broker
+outage longer than the publish deadline and a dispatcher killed after the ACK.
+A new dispatcher resends pending events with their original IDs. These checks
+supplement the transaction/worker checks needed for your own application. The
+old recorded recovery bundle was archived; the current connection study does
+not add a new measured outbox-recovery result.

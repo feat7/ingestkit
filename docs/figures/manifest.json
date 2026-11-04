@@ -1,0 +1,466 @@
+{
+  "schema": 2,
+  "scope": "Retained diagram export provenance and current source validation are distinct; new measured plots use only audited schema 2 evidence.",
+  "assets": [
+    {
+      "path": "docs/assets/acceptance-storage-mobile.svg",
+      "sha256": "ab5de9afdbdd795c61bef63c7b688c598ea3a6bb4f39be3af66dd5f72a997491",
+      "kind": "audited connection-study plot",
+      "generator": "benchmarks/plot_connections.py"
+    },
+    {
+      "path": "docs/assets/acceptance-storage.svg",
+      "sha256": "15dee3718b9185c2f688580e3f112f1cd067bbaeadcc2506b8d28cc0ebb01a7a",
+      "kind": "audited connection-study plot",
+      "generator": "benchmarks/plot_connections.py"
+    },
+    {
+      "path": "docs/assets/connection-pressure-mobile.svg",
+      "sha256": "70134595689261d4a8cc56570f1d023e4e6250c919826cece66d888e0db768c6",
+      "kind": "audited connection-study plot",
+      "generator": "benchmarks/plot_connections.py"
+    },
+    {
+      "path": "docs/assets/connection-pressure.svg",
+      "sha256": "8ca16509839229c9684ccc56a6226bf444de0bc7e278cb27495f6ed62065583e",
+      "kind": "audited connection-study plot",
+      "generator": "benchmarks/plot_connections.py"
+    },
+    {
+      "path": "docs/assets/delivery-mobile.svg",
+      "sha256": "e38e589350e5da8dfaa616c09b24111c7b2aedc5ef8a1d274d5262bfad5f41f7",
+      "kind": "retained source-backed export",
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207"
+    },
+    {
+      "path": "docs/assets/delivery.svg",
+      "sha256": "c1875b93d4318b47c4f3976f59843cd28bd0687c0d1ebdf0422de2d6bfc6b5a3",
+      "kind": "retained source-backed export",
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207"
+    },
+    {
+      "path": "docs/assets/deployment-mobile.svg",
+      "sha256": "fb45ed953b36166d44d96c9847366cc967a7a922aeac4c9ddb8df7436ac77add",
+      "kind": "retained source-backed export",
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207"
+    },
+    {
+      "path": "docs/assets/deployment.svg",
+      "sha256": "dc7a28badb795d3c1d9e920d4e0cf06c82f2142163c1501dfe9fdd47cec391a2",
+      "kind": "retained source-backed export",
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207"
+    },
+    {
+      "path": "docs/assets/event-journey-mobile.svg",
+      "sha256": "629b1c2d66492fe323b45a059e97b4b8b3b5fa2ed13d3567582670fdd2838f8d",
+      "kind": "retained source-backed export",
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5"
+    },
+    {
+      "path": "docs/assets/event-journey.svg",
+      "sha256": "dfca99dd66b31acb36729b92a242558d40a1eaedc5656577f1ff97b3af82df5c",
+      "kind": "retained source-backed export",
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5"
+    },
+    {
+      "path": "docs/assets/worker-replay-mobile.svg",
+      "sha256": "60c217e551a4607ff0eef8a75aa141213825ff4a6111418e5c1f6af3630c55da",
+      "kind": "retained source-backed export",
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5"
+    },
+    {
+      "path": "docs/assets/worker-replay.svg",
+      "sha256": "9a62c01f33ff94b851a8600495dbc9539178e6ac90a63e27008eabec5d66624c",
+      "kind": "retained source-backed export",
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5"
+    }
+  ],
+  "source_validation": {
+    "event-journey.architecture.json": {
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+      "current_source_validation_revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+      "ranges": [
+        {
+          "path": "examples/outbox/app.py",
+          "line": 38,
+          "end_line": 54,
+          "sha256": "7223ed8d1c8b49a96fa8b8da1c185e1db28c6dd19654030fa700f6c3290a6a26",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 73,
+          "end_line": 95,
+          "sha256": "cdaee2e253c05aea1b13c0eeea1cfcd827535c2159e684ea0731d77f478eec0c",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 142,
+          "end_line": 158,
+          "sha256": "ccfcdb3a2e5c2849453b0f0613c274cb25aeda0bec8203e2bb85e1651ea43d2d",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/Caddyfile",
+          "line": 4,
+          "end_line": 11,
+          "sha256": "5ae077880ae99eacae7d0da711ba24748da68bae37c87c399f1d224a628ffcbe",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/api/ingest.go",
+          "line": 31,
+          "end_line": 53,
+          "sha256": "63542e96d7114ec558dc63538783b773eb05b72e394f90fa0f0b8077bd8eafe5",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 107,
+          "sha256": "0a15f59abed93d42cf9fbf880f0b67c5ae1317ad25881967b97ad0da16c492ae",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 123,
+          "sha256": "68ca6232cb279b31a3341a81405339d344a6b58943e761b5ee8c83a0700a6cdb",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 14,
+          "end_line": 30,
+          "sha256": "7d9f5140cc55e2edbbd07a9a4b62334ebd9e634bbb2a6a0d80796b9f7c770117",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 65,
+          "end_line": 100,
+          "sha256": "3678800e7869a61b8ab2ca8f2d0559087af9e9232a009e818f3892adcdfb2077",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39,
+          "sha256": "cebc6b1503ff154ead5b2a7bd20997eacec6ff188a65003f7cc5099983542f42",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 11,
+          "sha256": "83c29a24dde1a2a2185d0f9d4cd63d90990eee15c80826491425eb2604c331d7",
+          "validation": "unchanged source fragment"
+        }
+      ],
+      "source_json_sha256": "4ceaded29c9740c02216ca70a3199aeb3be4741c5904da29e3714304a6adaf13"
+    },
+    "worker-replay.sequence.json": {
+      "original_export_revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+      "current_source_validation_revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+      "ranges": [
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 118,
+          "end_line": 141,
+          "sha256": "a39d2ae9d801e98798df9fe8b998a0dc03af38a34b2ca5f0ba933d9acd4c61e5",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 14,
+          "end_line": 30,
+          "sha256": "7d9f5140cc55e2edbbd07a9a4b62334ebd9e634bbb2a6a0d80796b9f7c770117",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/failure_integration_test.go",
+          "line": 81,
+          "end_line": 155,
+          "sha256": "330e48f5473830f8c8d62268f193fff1c02bc8488f722c435a3140f435264bfa",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39,
+          "sha256": "cebc6b1503ff154ead5b2a7bd20997eacec6ff188a65003f7cc5099983542f42",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 11,
+          "sha256": "83c29a24dde1a2a2185d0f9d4cd63d90990eee15c80826491425eb2604c331d7",
+          "validation": "unchanged source fragment"
+        }
+      ],
+      "source_json_sha256": "571bf202842e4aadcbade4efef6b9c4f4c8555e211837d3cff45985c442da626"
+    },
+    "deployment.architecture.json": {
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207",
+      "current_source_validation_revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+      "ranges": [
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 77,
+          "end_line": 169,
+          "sha256": "c8319d6a02aaa44318835a0c54151d03b0786bc03b0cceaca4df58b44a8623c6",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 5,
+          "end_line": 17,
+          "sha256": "e49921122190df5931d54b969f30fac6053316ed405ce6d08188c3895b461173",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/Caddyfile",
+          "line": 1,
+          "end_line": 12,
+          "sha256": "bc957133ead65e3f2a6f50db7022203350299b809f2d77ceb318928b9633ed6f",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/api/ingest.go",
+          "line": 12,
+          "end_line": 53,
+          "sha256": "6ed64c988494fc6f10eabcd36e8fd4e007327b276a032bb31ae2525448613438",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/api/middleware/auth.go",
+          "line": 42,
+          "end_line": 69,
+          "sha256": "f289cf1a7a8f8f16243dfd675c9ba4b5195905dd58277b7f28060231c33b4018",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 77,
+          "end_line": 94,
+          "sha256": "5701ded6c9c00dbc53c6cf911777db45cf403a647364029427a13914053642f3",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 32,
+          "end_line": 59,
+          "sha256": "066070a2062f1f41fb57c54aa922a4c2e35a8bee89b91b6156a9a32b857ba6bf",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 68,
+          "sha256": "ab22a78034de0a8bfc6b6a191e8f5d5346b15ab6153e8d49ae89848b21919e89",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 11,
+          "end_line": 107,
+          "sha256": "1066460620c09849496b8b00494f5e6cf58ce54df6755094e7d9ceeb2b6be34e",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 143,
+          "sha256": "efc6376143d3326f6568075a2ffee03185f136a639eaf35226f6c85601a48285",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 95,
+          "end_line": 113,
+          "sha256": "377b25422a29065a4ffe5e9a95a6dfba9f83c9e898ecdad82eb828097f7fa376",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39,
+          "sha256": "cebc6b1503ff154ead5b2a7bd20997eacec6ff188a65003f7cc5099983542f42",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 1,
+          "end_line": 12,
+          "sha256": "2af18868acc3a99b90aa83f9f493c406b8fb57bd22e00b8459c005d169a24cfc",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 18,
+          "end_line": 31,
+          "sha256": "b5acfd9f9ac1f9e4aee3fc3906853c63199db7478ca049e5c60e04320500a52d",
+          "validation": "unchanged source fragment"
+        }
+      ],
+      "source_json_sha256": "362b5abe03b846b93cbc5605a081f8749cec5a9e0f9e546dfcb70f613266e162"
+    },
+    "delivery.sequence.json": {
+      "original_export_revision": "213e4cc50523882f0d0cf7533d064494387d3207",
+      "current_source_validation_revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+      "ranges": [
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 77,
+          "end_line": 169,
+          "sha256": "c8319d6a02aaa44318835a0c54151d03b0786bc03b0cceaca4df58b44a8623c6",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "internal/api/ingest.go",
+          "line": 35,
+          "end_line": 53,
+          "sha256": "736524b6888fa95af757305a3be84e3cdf566de6a2604c28b23615bdbe2f8cee",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 84,
+          "end_line": 107,
+          "sha256": "c4e8c1ba22e703e7add8d18e9694e18e8ec3e42058a6029e13a9697674b8fc3b",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 68,
+          "sha256": "ab22a78034de0a8bfc6b6a191e8f5d5346b15ab6153e8d49ae89848b21919e89",
+          "validation": "reviewed same behavior after instrumentation or client deadline changes"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 32,
+          "end_line": 59,
+          "sha256": "066070a2062f1f41fb57c54aa922a4c2e35a8bee89b91b6156a9a32b857ba6bf",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 11,
+          "end_line": 107,
+          "sha256": "1066460620c09849496b8b00494f5e6cf58ce54df6755094e7d9ceeb2b6be34e",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 143,
+          "sha256": "efc6376143d3326f6568075a2ffee03185f136a639eaf35226f6c85601a48285",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "deploy/compose.yml",
+          "line": 95,
+          "end_line": 113,
+          "sha256": "377b25422a29065a4ffe5e9a95a6dfba9f83c9e898ecdad82eb828097f7fa376",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39,
+          "sha256": "cebc6b1503ff154ead5b2a7bd20997eacec6ff188a65003f7cc5099983542f42",
+          "validation": "unchanged source fragment"
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 12,
+          "sha256": "b4b6d73ec9ffb8e0ddbf42ffcdd1df1e6011c60c82716478827f26a173e083ab",
+          "validation": "unchanged source fragment"
+        }
+      ],
+      "source_json_sha256": "37ec6e32a90ab3751beafc520349b6d066980d3df26833a8b23f3bb6c810d775"
+    }
+  },
+  "generators": [
+    {
+      "path": "benchmarks/plot_connections.py",
+      "sha256": "42689ff9ea9154c5dac21d6c7c9213e9cf17c8dc08035bf4bb90dd0b9f28fc90"
+    },
+    {
+      "path": "docs/figures/render_story_guides.py",
+      "sha256": "ac41d8ccd485e8afe2928dde01783f380b4a220a6acee92e8e07aaf66b73c9ca"
+    },
+    {
+      "path": "docs/figures/render_mobile_guides.py",
+      "sha256": "d26714747a5d83c48735de4cea3f8a02c49fd81a267b5eda7d5962c9643a834f"
+    }
+  ],
+  "measurement": {
+    "bundle": "benchmarks/results/connections-2026-11-04-7b54d30a",
+    "source_revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
+    "index_sha256": "1311ebb9e7fd6a172e0c64c3793aa543f32aea5f5eca5f59d99aff787e0f0f6d",
+    "evidence_manifest_sha256": "f7f88a325c15597e4e4c8141cfc651cb1211b3c7ed531601e7266d202933f10e",
+    "pipeline_windows": 36,
+    "calibration_windows": 9,
+    "scope": "Local short screening; all repetitions and limited outcomes retained; no sustained maximum-capacity claim."
+  },
+  "export_tools": {
+    "python": "3.12.14",
+    "matplotlib": "3.11.2",
+    "retained_diagrams_archify": "3.2.0"
+  },
+  "checks": {
+    "svg_xml_and_no_scripts": true,
+    "desktop_png_review": true,
+    "phone_png_review": true,
+    "phone_plot_width_inches": 3.8,
+    "source_range_hashes_verified": true,
+    "source_json_automated_gates": {
+      "deployment": {
+        "gates": {
+          "validate": "pass",
+          "deliver": "pass",
+          "check": "pass",
+          "browser-check": "pass"
+        },
+        "specification_sha256": "362b5abe03b846b93cbc5605a081f8749cec5a9e0f9e546dfcb70f613266e162",
+        "visual_review": "not-requested"
+      },
+      "replay": {
+        "gates": {
+          "validate": "pass",
+          "deliver": "pass",
+          "check": "pass",
+          "browser-check": "pass"
+        },
+        "specification_sha256": "571bf202842e4aadcbade4efef6b9c4f4c8555e211837d3cff45985c442da626",
+        "visual_review": "not-requested"
+      },
+      "delivery": {
+        "gates": {
+          "validate": "pass",
+          "deliver": "pass",
+          "check": "pass",
+          "browser-check": "pass"
+        },
+        "specification_sha256": "37ec6e32a90ab3751beafc520349b6d066980d3df26833a8b23f3bb6c810d775",
+        "visual_review": "not-requested"
+      },
+      "journey": {
+        "gates": {
+          "validate": "pass",
+          "deliver": "pass",
+          "check": "pass",
+          "browser-check": "pass"
+        },
+        "specification_sha256": "4ceaded29c9740c02216ca70a3199aeb3be4741c5904da29e3714304a6adaf13",
+        "visual_review": "not-requested"
+      }
+    },
+    "measured_svg_regeneration_byte_identical": true
+  }
+}

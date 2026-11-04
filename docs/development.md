@@ -22,6 +22,7 @@ python3 -m unittest discover -s examples/checkout -p 'test_*.py'
 node --test examples/checkout/*.test.mjs
 python3 -m unittest discover -s examples/outbox -p 'test_*.py'
 python3 -m unittest discover -s benchmarks -p 'test_*.py'
+python3 -m unittest discover -s scripts -p 'test_archive_benchmark_evidence.py'
 make test-integration
 make down
 ~~~
@@ -94,6 +95,8 @@ are optional development dependencies; the collector does not need them.
 
 The [operator guide](operations.md) has the deployed procedures for logs, key
 rotation and fresh-target restore. Both the broker process's fsync bypass and
-topic write caching affect durability. Previous measurement bundles have been
-archived outside the checkout and withdrawn from public claims. See the
-[measurement guide](../benchmarks/README.md) for the revalidation work.
+topic write caching affect durability. Previous measurement bundles are archived outside the checkout. The current
+[measurement guide](../benchmarks/README.md) covers the fixed connection suite,
+TLS-driver calibration, payload cohort and independent audit. A full run can
+consume substantial local resources; use the smoke study for harness changes
+and run timing work separately from other tests.
