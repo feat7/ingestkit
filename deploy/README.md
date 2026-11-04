@@ -14,7 +14,7 @@ Local automated tests use a private certificate authority; they do not test
 public certificate issuance.
 
 Allow memory for Redpanda's 1 GiB allocation plus PostgreSQL, Go and Docker.
-The [measured environment](../benchmarks/results/selfhost-2026-11-04/manifest-1.json)
+The [measured environment](../benchmarks/results/connections-2026-11-04-7b54d30a/manifest-1.json)
 had a Docker VM with 10 CPUs and about 16 GiB RAM; that is not a minimum sizing
 recommendation. Disk use depends on traffic and retention. Both the queue and
 database live on this host, so losing its disk can lose both.

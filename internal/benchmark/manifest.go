@@ -22,6 +22,8 @@ import (
 )
 
 type Manifest struct {
+	Observations map[string]any `json:"observations"`
+
 	BrokerFsyncBypass          bool              `json:"broker_fsync_bypass"`
 	CapturedAt                 time.Time         `json:"captured_at"`
 	SourceSHA                  string            `json:"source_sha"`
@@ -43,6 +45,18 @@ func localOutput(ctx context.Context, name string, args ...string) string {
 func CaptureManifest(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool) (Manifest, error) {
 	m := Manifest{CapturedAt: time.Now().UTC(), SourceSHA: localOutput(ctx, "git", "rev-parse", "HEAD"), SourceDirty: localOutput(ctx, "git", "status", "--porcelain", "--untracked-files=all") != "", Host: map[string]string{"go": runtime.Version(), "os": runtime.GOOS, "architecture": runtime.GOARCH, "generator_logical_cpus": fmt.Sprint(runtime.NumCPU()), "kernel": localOutput(ctx, "uname", "-sr"), "disk_space": localOutput(ctx, "df", "-k", "."), "docker": localOutput(ctx, "docker", "version", "--format", "{{json .Server}}"), "compose": localOutput(ctx, "docker", "compose", "version"), "docker_vm": localOutput(ctx, "docker", "info", "--format", "CPUs={{.NCPU}} MemoryBytes={{.MemTotal}} StorageDriver={{.Driver}} Kernel={{.KernelVersion}} OS={{.OperatingSystem}}")}, Database: map[string]string{}, Settings: map[string]any{"producer_buffer_bytes": 67108864, "producer_buffer_records": 1000, "producer_ack": "all ISR; idempotent", "publish_timeout_ns": int64(5 * time.Second), "consumer_max_poll_records": 500, "consumer_processing_deadline_ns": int64(15 * time.Second), "consumer_session_timeout_ns": int64(10 * time.Second), "consumer_rebalance_timeout_ns": int64(60 * time.Second), "topology": "one broker; one database; one API; one consumer"}, Caveats: []string{"Local Docker VM; generator and SQL observer run on the same physical host as services and compete for resources.", "Single broker, replication factor one. Disk-flush configuration does not establish tolerance of broker disk/host loss.", "Topic and database settings are captured below. Source defaults at the recorded revision define remaining client settings.", "Host filesystem reported by df is not a calibrated Docker VM disk specification. No dedicated disk latency or cloud cost measurement.", "Resource samples are coarse Docker snapshots, not isolation or proof of a particular bottleneck."}}
 
+	m.Observations = RuntimeSnapshot(ctx, s, p)
+	m.Settings["driver_pool_max_conns"] = p.Stat().MaxConns()
+	m.Settings["consumer_write_parallelism"] = 1
+	m.Settings["caddy_adapted_config"] = map[string]any{"status": "unavailable"}
+	adapted, e := s.Compose(ctx, "exec", "-T", "gateway", "sh", "-c", "caddy adapt --config /etc/caddy/Caddyfile --pretty 2>/dev/null")
+	if e == nil {
+		var config any
+		if json.Unmarshal([]byte(adapted), &config) == nil {
+			m.Settings["caddy_adapted_config"] = config
+		}
+	}
+	m.Settings["caddy_defaults_provenance"] = "Adapted Caddyfile plus defaults of captured gateway image; runtime socket counters unavailable"
 	// Topic write.caching does not reveal Seastar's process-wide fsync bypass.
 	// Read the actual broker rather than inferring it from a Compose mode name.
 	command := `for p in /proc/[0-9]*; do case "$(readlink "$p/exe" 2>/dev/null)" in */redpanda) cat "$p/cmdline"; exit 0;; esac; done; exit 1`
@@ -164,14 +178,15 @@ func WriteJSON(path string, value any) error {
 }
 
 type ResourceSample struct {
-	At         time.Time `json:"at"`
-	Statistics string    `json:"docker_statistics"`
-	Error      bool      `json:"error"`
+	At         time.Time      `json:"at"`
+	Statistics string         `json:"docker_statistics"`
+	Error      bool           `json:"error"`
+	Runtime    map[string]any `json:"runtime"`
 }
 
 // SampleResources returns only this stack's container stats. Cancellation stops
 // the sampler; the caller waits for the result before deleting its containers.
-func SampleResources(ctx context.Context, s *runenv.Stack) <-chan []ResourceSample {
+func SampleResources(ctx context.Context, s *runenv.Stack, pools ...*pgxpool.Pool) <-chan []ResourceSample {
 	done := make(chan []ResourceSample, 1)
 	go func() {
 		var samples []ResourceSample
@@ -183,7 +198,15 @@ func SampleResources(ctx context.Context, s *runenv.Stack) <-chan []ResourceSamp
 			call, cancel := context.WithTimeout(ctx, 5*time.Second)
 			out, e := s.Compose(call, "stats", "--no-stream", "--format", "json")
 			cancel()
-			samples = append(samples, ResourceSample{At: time.Now().UTC(), Statistics: out, Error: e != nil})
+			var pool *pgxpool.Pool
+			if len(pools) > 0 {
+				pool = pools[0]
+			}
+			probe, end := context.WithTimeout(ctx, 3*time.Second)
+			snapshot := RuntimeSnapshot(probe, s, pool)
+			snapshot["offset_progress"] = CaptureOffsetProgress(probe, s)
+			end()
+			samples = append(samples, ResourceSample{At: time.Now().UTC(), Statistics: out, Error: e != nil, Runtime: snapshot})
 			timer := time.NewTimer(time.Second)
 			select {
 			case <-ctx.Done():

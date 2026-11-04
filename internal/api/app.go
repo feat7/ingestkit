@@ -51,6 +51,7 @@ func NewApp(config Config, publisher EventPublisher, metrics *telemetry.Metrics)
 		}
 		return middleware.SendError(c, status, "request_failed", "request could not be processed")
 	}})
+	metrics.SetAPIConnectionLimit(app.Config().Concurrency)
 	app.Use(middleware.RequestID(), recover.New())
 	app.Use(func(c *fiber.Ctx) error {
 		start := time.Now()

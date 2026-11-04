@@ -50,6 +50,9 @@ func NewPublisher(c PublisherConfig, m *telemetry.Metrics) (*Publisher, error) {
 	if err != nil {
 		return nil, err
 	}
+	if m != nil {
+		m.RegisterProducer(client, c.MaxBufferedRecords, c.MaxBufferedBytes)
+	}
 	return &Publisher{client: client, topic: c.Topic, timeout: c.PublishTimeout, metrics: m, produce: client.TryProduce}, nil
 }
 func (p *Publisher) Publish(ctx context.Context, events []event.Envelope) error {
@@ -65,11 +68,13 @@ func (p *Publisher) Publish(ctx context.Context, events []event.Envelope) error 
 }
 func (p *Publisher) send(ctx context.Context, records []*kgo.Record) (err error) {
 	start := time.Now()
+	failureReason := "broker_error"
 	defer func() {
 		if p.metrics != nil {
 			o := "success"
 			if err != nil {
 				o = "error"
+				p.metrics.ObservePublishFailure(failureReason)
 			}
 			p.metrics.ObservePublish(o, time.Since(start))
 		}
@@ -85,11 +90,16 @@ func (p *Publisher) send(ctx context.Context, records []*kgo.Record) (err error)
 		case e := <-results:
 			if e != nil {
 				if errors.Is(e, kgo.ErrMaxBuffered) {
+					failureReason = "buffer_saturated"
 					return fmt.Errorf("%w: retry with same event IDs", ErrSaturated)
+				}
+				if errors.Is(e, context.DeadlineExceeded) || errors.Is(e, context.Canceled) || errors.Is(e, kgo.ErrRecordTimeout) {
+					failureReason = "timeout"
 				}
 				return fmt.Errorf("%w: %v", ErrUnavailable, e)
 			}
 		case <-ctx.Done():
+			failureReason = "timeout"
 			return fmt.Errorf("%w: %v; delivery may have occurred, retry with same IDs", ErrUnavailable, ctx.Err())
 		}
 	}

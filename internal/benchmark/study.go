@@ -21,6 +21,8 @@ import (
 )
 
 type StudyConfig struct {
+	Suite string
+
 	OutputDirectory string
 	Smoke, Resume   bool
 	Seed            int64
@@ -69,7 +71,7 @@ type PopulationEvidence struct {
 }
 
 func pipelineCaseConfig(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool, client *http.Client, c Case, seed int64, namespace string) PipelineConfig {
-	return PipelineConfig{Pool: p, HTTPClient: client, APIURL: s.APIURL, APIKey: s.APIKey(), Tenant: "default", Namespace: namespace, PayloadProfile: c.PayloadProfile, Seed: seed, Rate: c.Rate, Concurrency: c.Concurrency, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes, Repetitions: c.Repetitions, Duration: c.Window, Warmup: c.Warmup, DrainDeadline: c.Drain, PollInterval: c.Poll, Pattern: c.Pattern, ReconnectObserver: c.Recovery == "database", SampleFinished: func(int) error { return waitConsumerCaughtUp(ctx, s) }}
+	return PipelineConfig{HTTPMaxConnsPerHost: c.HTTPMaxConnsPerHost, HTTPMaxIdleConnsPerHost: c.HTTPMaxIdleConnsPerHost, Pool: p, HTTPClient: client, APIURL: s.APIURL, APIKey: s.APIKey(), Tenant: "default", Namespace: namespace, PayloadProfile: c.PayloadProfile, Seed: seed, Rate: c.Rate, Concurrency: c.Concurrency, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes, Repetitions: c.Repetitions, Duration: c.Window, Warmup: c.Warmup, DrainDeadline: c.Drain, PollInterval: c.Poll, Pattern: c.Pattern, ReconnectObserver: c.Recovery == "database", SampleFinished: func(int) error { return WaitConsumerCaughtUp(ctx, s) }}
 }
 func doneCase(status string) bool { return status == "complete" || status == "limited" }
 func validateStudyRepetitions(c Case, value any) error {
@@ -238,7 +240,7 @@ func populations(c Case, report any, namespace string, seed int64) []PopulationE
 	return result
 }
 func writeStudyIndex(out string, j StudyJournal, cases []Case, status string) error {
-	index := StudyIndex{Schema: 1, Status: status, Identity: j.Identity, RunNamespace: j.RunNamespace, ManifestFiles: j.ManifestFiles, Resources: j.Resources, MetadataArtifacts: j.MetadataArtifacts, Notes: []string{"Smoke runs verify correctness only. Full runs retain every configured repetition; limited outcomes are not capacity claims.", "Raw captures contain empirical samples and UUID population indices (or explicit outbox UUIDs); gzip mtime=0 with SHA256. Submitted IDs regenerate from namespace/seed/index.", "Failed and interrupted attempts remain in case History. A resumed incomplete case restarts all three repetitions on a fresh owned stack; completed captures are immutable."}}
+	index := StudyIndex{Schema: 2, Status: status, Identity: j.Identity, RunNamespace: j.RunNamespace, ManifestFiles: j.ManifestFiles, Resources: j.Resources, MetadataArtifacts: j.MetadataArtifacts, Notes: []string{"Smoke runs verify correctness only. Full runs retain every configured repetition; limited outcomes are not capacity claims.", "Raw captures contain empirical samples and UUID population indices (or explicit outbox UUIDs); gzip mtime=0 with SHA256. Submitted IDs regenerate from namespace/seed/index.", "Failed and interrupted attempts remain in case History. A resumed incomplete case restarts all three repetitions on a fresh owned stack; completed captures are immutable."}}
 	for _, c := range cases {
 		progress := j.Cases[c.ID]
 		index.Cases = append(index.Cases, StudyCaseResult{Case: c, Status: progress.Status, Attempt: progress.Attempt, Artifact: progress.Artifact, History: progress.History, Summary: progress.Summary})
@@ -292,11 +294,28 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	if cfg.OnCaseStart != nil && !cfg.Smoke {
 		return errors.New("custom study hooks are restricted to correctness smoke runs")
 	}
+	if cfg.Suite == "" {
+		cfg.Suite = "core"
+	}
+	if cfg.Suite != "core" && cfg.Suite != "connections" {
+		return errors.New("suite must be core or connections")
+	}
 	cases := StudyCases()
 	mode := "full"
+	if cfg.Suite == "connections" {
+		cases = ConnectionCases()
+		mode = "connections"
+	}
 	if cfg.Smoke {
 		cases = smokeCases()
 		mode = "smoke"
+	}
+	for _, c := range cases {
+		if c.Kind == "pipeline" {
+			if err := ValidatePipelineWorkload(PipelineConfig{Rate: c.Rate, Duration: c.Window, BatchSize: c.BatchSize, PayloadBytes: c.PayloadBytes}); err != nil {
+				return err
+			}
+		}
 	}
 	sha, sourceHash, dirty, err := sourceIdentity(ctx, root, out)
 	if err != nil {
@@ -307,7 +326,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	}
 	identity := StudyIdentity{SourceSHA: sha, SourceFingerprint: sourceHash, ControlsFingerprint: fingerprint(cases), Mode: mode, Seed: cfg.Seed, SourceDirty: dirty}
 	journalPath := filepath.Join(out, "journal.json")
-	journal := StudyJournal{Schema: 1, Identity: identity, RunNamespace: uuid.NewString(), Cases: map[string]CaseProgress{}}
+	journal := StudyJournal{Schema: 2, Identity: identity, RunNamespace: uuid.NewString(), Cases: map[string]CaseProgress{}}
 	if cfg.Resume {
 		journal, err = readJournal(journalPath)
 		if err != nil {
@@ -419,7 +438,12 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 		}
 		fmt.Fprintf(writer, "owned stack evidence: %s\n", s.Directory)
 	}()
-	p, err := pgxpool.New(ctx, s.DatabaseURL)
+	poolConfig, err := pgxpool.ParseConfig(s.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	poolConfig.ConnConfig.RuntimeParams["application_name"] = "ingestkit-benchmark"
+	p, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -463,7 +487,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 	}
 	sampleCtx, cancel := context.WithCancel(ctx)
 	resourceCancel = cancel
-	resourceDone = SampleResources(sampleCtx, s)
+	resourceDone = SampleResources(sampleCtx, s, p)
 	client, err := s.HTTPClient()
 	if err != nil {
 		return err
@@ -503,15 +527,20 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			measurementErr = errors.New("unknown study case")
 		}
 		caseEnd()
-		if measurementErr == nil {
-			measurementErr = validateStudyRepetitions(c, report)
+		if measurementErr == nil || verifiedObservationOnly(c, report, measurementErr) {
+			measurementErr = errors.Join(measurementErr, validateStudyRepetitions(c, report))
 		}
 		progress.CompletedRepetitions = completedRepetitions(report)
 		progress.Status = studyOutcome(report)
+		observationLimited := verifiedObservationOnly(c, report, measurementErr)
 		if measurementErr != nil {
 			_ = os.WriteFile(filepath.Join(s.Directory, fmt.Sprintf("%s-attempt-%d-error.txt", c.ID, progress.Attempt)), []byte(measurementErr.Error()), 0600)
 			progress.Status = "failed"
 			progress.ErrorClass = "measurement_failed"
+			if observationLimited {
+				progress.Status = "limited"
+				progress.ErrorClass = "observation_failed"
+			}
 			if ctx.Err() != nil {
 				progress.Status = "incomplete"
 				progress.ErrorClass = "interrupted"
@@ -522,7 +551,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			return e
 		}
 		progress.Summary = summary
-		capture := StudyCapture{Schema: 1, Identity: identity, Case: c, Namespace: namespace, Status: progress.Status, ErrorClass: progress.ErrorClass, Report: report, Populations: populations(c, report, namespace, cfg.Seed)}
+		capture := StudyCapture{Schema: 2, Identity: identity, Case: c, Namespace: namespace, Status: progress.Status, ErrorClass: progress.ErrorClass, Report: report, Populations: populations(c, report, namespace, cfg.Seed)}
 		path := filepath.Join(rawDir, fmt.Sprintf("%s-attempt-%d.json.gz", c.ID, progress.Attempt))
 		ref, e := WriteCompressed(path, capture)
 		if e != nil {
@@ -539,7 +568,7 @@ func RunStudy(ctx context.Context, cfg StudyConfig) (result error) {
 			return e
 		}
 		fmt.Fprintf(writer, "case %s: %s (%d repetitions retained)\n", c.ID, progress.Status, len(progress.CompletedRepetitions))
-		if measurementErr != nil {
+		if measurementErr != nil && !observationLimited {
 			return fmt.Errorf("case %s failed; retained capture and private evidence", c.ID)
 		}
 	}

@@ -10,6 +10,8 @@ import (
 )
 
 type Metrics struct {
+	runtime                     *runtimeMetrics
+	publishFailures             *prometheus.CounterVec
 	registry                    *prometheus.Registry
 	http                        *prometheus.CounterVec
 	httpTime                    *prometheus.HistogramVec
@@ -20,7 +22,7 @@ type Metrics struct {
 }
 
 func New() *Metrics {
-	m := &Metrics{registry: prometheus.NewRegistry(),
+	m := &Metrics{registry: prometheus.NewRegistry(), runtime: newRuntimeMetrics(), publishFailures: prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ingestkit_publish_failures_total", Help: "Publish failure class; timeout includes deadline or cancellation."}, []string{"reason"}),
 		http:       prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ingestkit_http_total", Help: "HTTP request outcomes."}, []string{"route", "status"}),
 		httpTime:   prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "ingestkit_http_seconds", Help: "HTTP handler latency.", Buckets: prometheus.DefBuckets}, []string{"route"}),
 		publish:    prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "ingestkit_publish_seconds", Help: "Broker publish call latency and outcomes.", Buckets: prometheus.DefBuckets}, []string{"outcome"}),
@@ -32,7 +34,7 @@ func New() *Metrics {
 		batches:    prometheus.NewHistogram(prometheus.HistogramOpts{Name: "ingestkit_batch_events", Help: "Events per committed write batch.", Buckets: []float64{1, 10, 50, 100, 250, 500}}),
 		quarantine: prometheus.NewCounterVec(prometheus.CounterOpts{Name: "ingestkit_quarantine_total", Help: "Broker quarantine outcomes."}, []string{"outcome"}),
 	}
-	m.registry.MustRegister(m.http, m.httpTime, m.publish, m.stored, m.duplicates, m.retries, m.writes, m.receipts, m.batches, m.quarantine)
+	m.registry.MustRegister(m.runtime, m.publishFailures, m.http, m.httpTime, m.publish, m.stored, m.duplicates, m.retries, m.writes, m.receipts, m.batches, m.quarantine)
 	return m
 }
 func (m *Metrics) Handler() http.Handler {

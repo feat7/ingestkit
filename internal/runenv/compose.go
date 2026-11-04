@@ -21,12 +21,12 @@ type Options struct {
 	ExposeDependencies                bool
 }
 type Stack struct {
-	APIURL, ConsumerURL, DatabaseURL, Brokers, Project, Directory string
-	root, token, identity                                         string
-	env                                                           []string
-	owned                                                         bool
-	profile, caPath                                               string
-	exposeDependencies                                            bool
+	APIURL, APIProbeURL, ConsumerURL, DatabaseURL, Brokers, Project, Directory string
+	root, token, identity                                                      string
+	env                                                                        []string
+	owned                                                                      bool
+	profile, caPath                                                            string
+	exposeDependencies                                                         bool
 }
 
 func projectName(purpose string) string {

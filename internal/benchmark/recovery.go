@@ -127,7 +127,7 @@ func RunRecoveryCase(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool, c Ca
 	}
 	config.SampleFinished = func(rep int) error {
 		if rep == 0 {
-			return waitConsumerCaughtUp(ctx, s)
+			return WaitConsumerCaughtUp(ctx, s)
 		}
 		mu.Lock()
 		done := completed[rep]
@@ -137,7 +137,7 @@ func RunRecoveryCase(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool, c Ca
 		}
 		err := <-done
 		if err == nil {
-			err = waitConsumerCaughtUp(ctx, s)
+			err = WaitConsumerCaughtUp(ctx, s)
 		}
 		mu.Lock()
 		failures[rep] = err
@@ -264,7 +264,7 @@ func runOutboxRecovery(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool, c 
 	if _, e = waitStoredInputs(ctx, p, warm, c.Drain); e != nil {
 		return report, e
 	}
-	if e = waitConsumerCaughtUp(ctx, s); e != nil {
+	if e = WaitConsumerCaughtUp(ctx, s); e != nil {
 		return report, e
 	}
 	deleteOutboxRows(p, warm)
@@ -361,7 +361,7 @@ func outboxRecoverySample(ctx context.Context, s *runenv.Stack, p *pgxpool.Pool,
 	run.Outbox = append(run.Outbox, OutboxPoint{ElapsedNS: time.Since(start).Nanoseconds(), Acknowledged: c.Count})
 	run.StoredIDs, err = waitStoredInputs(ctx, p, events, c.Drain)
 	if err == nil {
-		err = waitConsumerCaughtUp(ctx, s)
+		err = WaitConsumerCaughtUp(ctx, s)
 	}
 	run.Correct = err == nil && len(run.StoredIDs) == c.Count
 	return run, err

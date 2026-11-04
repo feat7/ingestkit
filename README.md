@@ -88,12 +88,12 @@ make demo-recovery DEMO_FLAGS=-cleanup
 ~~~
 
 The second demo stops PostgreSQL, sends events, restarts the database and checks
-that the same IDs reached the table. The [experiment results](benchmarks/results/selfhost-2026-11-04/README.md)
-go further: 25 configurations, three runs each, with saved samples and explicit
-limits. The database comparison led to a simpler writer: batch INSERT had a lower
-median time than COPY/staging/merge in all 11 tested database configurations.
-Unknown delivery outcomes remain unknown in the reports; these runs do not
-establish maximum capacity.
+that the same IDs reached the table. The [connection study](benchmarks/README.md) retains all 36 short ingestion
+windows, including overloads and 256-byte, 1 KiB and 16 KiB payloads. Eight TCP
+connections reached about 14,950–14,970 acknowledged events/s in three ten-second
+windows; offering 30k or 50k introduced uncertain responses. These are shared-host
+screens, with no sustained-capacity claim. Every acknowledged ID and its content
+passed an independent SQL check.
 
 [Development and tests](docs/development.md) · [Run the experiments](benchmarks/README.md) ·
 [Delivery details](docs/delivery.md) · [How the components fit together](docs/architecture.md)

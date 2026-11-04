@@ -4,11 +4,11 @@
   "meta": {
     "title": "A worker crash can replay an event without adding a row",
     "locale": "en",
-    "output": ".archify/sequence-worker-replay-20261104-123448/worker-replay.html",
+    "output": ".archify/worker-replay/worker-replay.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:feat7/ingestkit.git",
-      "revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+      "revision": "043f584cf8638269a53afd5c9ec35a2721bc4148",
       "link_mode": "local-only"
     },
     "legend": {

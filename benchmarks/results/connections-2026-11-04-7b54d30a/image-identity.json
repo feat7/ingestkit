@@ -1,0 +1,209 @@
+[
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "",
+    "Layers": [
+      "sha256:e5593b7179d10a64cfe451e886e3ab13ccd476f906dc670865322ae1dbdf969f",
+      "sha256:d737727c53fdc066e3cb6aeb96ea4aae4917bf36487f829d54552e326c2768ef",
+      "sha256:2ca6562e75cb95a2e0dfd1687d54c1171a6e0a7acb70fea2450bd95df43c033e",
+      "sha256:7e39707c1f719a76447eaf2ea052d1d1c525014f3e81bb7c04da29853559539d",
+      "sha256:b72650920513ba2ec02fe2ffaad0c14ebdf147208b7a1208b94f1a89596dac91",
+      "sha256:6d2d0c71784a8fc33f5be511215efc07dcbf8d7cb6b2cf601e967338997d00ff"
+    ],
+    "Config": {
+      "User": "redpanda",
+      "ExposedPorts": {
+        "8081/tcp": {},
+        "8082/tcp": {},
+        "9092/tcp": {},
+        "9644/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "EDITOR=nano",
+        "REDPANDA_PROTECTED_MODE=false"
+      ],
+      "Entrypoint": [
+        "/entrypoint.sh"
+      ],
+      "Cmd": [
+        "redpanda",
+        "start",
+        "--overprovisioned"
+      ],
+      "Volumes": {
+        "/var/lib/redpanda/data": {}
+      },
+      "Labels": {
+        "org.opencontainers.image.authors": "Redpanda Data <hi@redpanda.com>"
+      },
+      "ArgsEscaped": true
+    }
+  },
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "v8",
+    "Layers": [
+      "sha256:2f7dba9f9c89c5b6e380a5b9715b862f20d7e33da6e6923a90f089210f2a5de9",
+      "sha256:75c603cdd8cbb64c6533bb3622f4bf9402d7266aeedac641b5776e21758e5d92",
+      "sha256:b1ffc5d14a06124c3f72236c1e5643a60685e001e5e1033b5633e3db9ab4729a",
+      "sha256:e33c43b193ef565348ee443846b6d5fb32e86b94808715295f14d7ea2fdd736c",
+      "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+    ],
+    "Config": {
+      "ExposedPorts": {
+        "2019/tcp": {},
+        "443/tcp": {},
+        "443/udp": {},
+        "80/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "CADDY_VERSION=v2.11.7",
+        "XDG_CONFIG_HOME=/config",
+        "XDG_DATA_HOME=/data"
+      ],
+      "Cmd": [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/Caddyfile",
+        "--adapter",
+        "caddyfile"
+      ],
+      "WorkingDir": "/srv",
+      "Labels": {
+        "org.opencontainers.image.description": "a powerful, enterprise-ready, open source web server with automatic HTTPS written in Go",
+        "org.opencontainers.image.documentation": "https://caddyserver.com/docs",
+        "org.opencontainers.image.licenses": "Apache-2.0",
+        "org.opencontainers.image.source": "https://github.com/caddyserver/caddy-docker",
+        "org.opencontainers.image.title": "Caddy",
+        "org.opencontainers.image.url": "https://caddyserver.com",
+        "org.opencontainers.image.vendor": "Light Code Labs",
+        "org.opencontainers.image.version": "v2.11.7"
+      }
+    }
+  },
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "v8",
+    "Layers": [
+      "sha256:a278e6f39431cd0ed74238a3d377893ad0d905d68b676bf9a65529080669756b",
+      "sha256:4eb609b5c207767c621bef9f057fc82a5e118a86e2861ec11f0492b68c70e7ff",
+      "sha256:43f7e2ffcc6bdf1b5acd5fe65b6d7894db3951e667862c4889fb41543c19a2db",
+      "sha256:1e7303f44bd2d940773dbb5b6917a50a804dbcf0d6c44acf3bd6f6b9a4011029",
+      "sha256:6e31417a4f55a8dcc81a97bc4d1e04a0b4f4b508c6c75a20e7b5e2a84c2469ad",
+      "sha256:9fbe53904c7d5923d1b6aedd807f8d0961e6d1763bee1d2fb38366f7a3268c2c",
+      "sha256:97c0e8d2247f3aa5ec54b6351e0f69698e0784381c037ceb59e8450fa4e0f3d0",
+      "sha256:c4fb8fcca03809026b9afe7bbcc6562feff8f577a3e319fd686783e1896d8a9f",
+      "sha256:2b01aabedbf52058513f6e5433e82842a6457d64fc53eb93033f0cc288b108ce"
+    ],
+    "Config": {
+      "ExposedPorts": {
+        "5432/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "GOSU_VERSION=1.19",
+        "LANG=en_US.utf8",
+        "PG_MAJOR=18",
+        "PG_VERSION=18.6",
+        "PG_SHA256=555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f",
+        "DOCKER_PG_LLVM_DEPS=llvm21-dev \t\tclang21",
+        "PGDATA=/var/lib/postgresql/18/docker"
+      ],
+      "Entrypoint": [
+        "docker-entrypoint.sh"
+      ],
+      "Cmd": [
+        "postgres"
+      ],
+      "Volumes": {
+        "/var/lib/postgresql": {}
+      },
+      "WorkingDir": "/",
+      "StopSignal": "SIGINT"
+    }
+  },
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "",
+    "Layers": [
+      "sha256:6694fb7051cccf3694de44021052e8ac5da5543c60dd62c19915b478929df6de",
+      "sha256:a618b6093cb88e39e359381fe696bc86a849a2a8ac6635a88115c9e117f2c0f1"
+    ],
+    "Config": {
+      "User": "65532:65532",
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      ],
+      "Entrypoint": [
+        "/consumer"
+      ],
+      "WorkingDir": "/",
+      "Labels": {
+        "com.docker.compose.service": "consumer",
+        "com.docker.compose.version": "5.5.0"
+      }
+    }
+  },
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "",
+    "Layers": [
+      "sha256:6694fb7051cccf3694de44021052e8ac5da5543c60dd62c19915b478929df6de",
+      "sha256:12b81b6783378e3e068f6cdd9fc1cde3794e45bd0cfa14f16da1c7c5f91bbddc"
+    ],
+    "Config": {
+      "User": "65532:65532",
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      ],
+      "Entrypoint": [
+        "/api"
+      ],
+      "WorkingDir": "/",
+      "Labels": {
+        "com.docker.compose.service": "api",
+        "com.docker.compose.version": "5.5.0"
+      }
+    }
+  },
+  {
+    "Architecture": "arm64",
+    "OS": "linux",
+    "Variant": "",
+    "Layers": [
+      "sha256:b2848c02ac6ff53d265469b5b30f649f335e546a83330cd8916d54e65e640409",
+      "sha256:a144100df0072f2e5acf8828440aa9c5ddb01ee00a7c4c7fe6d60d48d6bd5dac",
+      "sha256:754ccc0000d33731f985684b0a42ea2351012327728c99acce9026e6b9df7708",
+      "sha256:d346f289d32e0b3fada1530bef71b31df728473a06236c545d317065eaef0192",
+      "sha256:37f157239026b48cb5ba52dff0e64f977cfa12acbe88d9dac5853ed97592dbd3"
+    ],
+    "Config": {
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      ],
+      "Entrypoint": [
+        "migrate"
+      ],
+      "Cmd": [
+        "--help"
+      ],
+      "WorkingDir": "/",
+      "Labels": {
+        "org.opencontainers.image.created": "2026-09-09T05:55:05Z",
+        "org.opencontainers.image.revision": "504568a3cbd23b8754760f55a3d89aec1b0c4963",
+        "org.opencontainers.image.source": "https://github.com/golang-migrate/migrate",
+        "org.opencontainers.image.title": "migrate",
+        "org.opencontainers.image.version": "4.20.1"
+      },
+      "ArgsEscaped": true
+    }
+  }
+]

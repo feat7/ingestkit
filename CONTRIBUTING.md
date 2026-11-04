@@ -12,7 +12,10 @@ Explain what a change does and how you checked it in the pull request.
 Integration tests may create and remove only their own Compose projects. Keep
 shared databases and other runs intact. Commit measured code before a timing
 study, run studies sequentially, and keep unknown or limited outcomes in the
-report. Performance claims need raw results and environment settings; weakening
+report. Use the registered `connections` suite for its fixed cap, rate and
+payload cohorts; keep failed observation timing unavailable. Check the driver
+calibration and actual socket use before diagnosing a server limit. Performance
+claims need raw results and environment settings; weakening
 durability changes the question. [Figure sources and checks](docs/figures/README.md)
 cover data accuracy and visual review.
 

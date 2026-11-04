@@ -1,164 +1,166 @@
-# Run and read the experiments
+# What limited event ingestion on this machine?
 
-The experiments answer three questions: how to write batches to PostgreSQL,
-what happens at different HTTP loads, and whether saved events survive specific
-outages. A case is one fixed configuration, measured three times after warm-up.
-The registered study has 11 database cases, 11 HTTP cases and 3 recovery cases.
+Four TCP connections left the client waiting. Eight reached roughly 15,000
+acknowledged events/s in short windows. Raising the cap further introduced
+uncertain responses, and offering 50,000 events/s reduced successful acceptance.
+The producer's 1,000-record buffer filled; the sampled consumer database pool
+showed no new acquisition waits.
 
-Start with the [current writer results](results/selfhost-2026-11-04/README.md).
-The [earlier COPY-writer study](results/selfhost-copy-2026-11-04/README.md) is also
-complete. Batch INSERT had a lower median write time than COPY/staging/merge in
-all 11 database cases, so the deployed worker changed to batch INSERT and the
-whole study ran again. These are local measurements with recorded limits.
+These are local screening results from an Apple M1 Max with 64 GiB RAM. OrbStack
+provided a shared 10-CPU, roughly 16 GiB Linux VM. The driver ran on macOS beside
+the VM. Other host workloads were present. One API, broker, consumer and
+PostgreSQL instance ran behind trusted HTTPS, with durability enabled. The
+[immutable bundle](results/connections-2026-11-04-7b54d30a/index.json) records
+source `043f584`, images, settings and all 36 ingestion windows.
 
-## Run a small check before a full study
+## Connection limits changed the result
 
-The experiment host needs Go 1.24+, Docker/Compose 2.24.4+, Python 3.9+ and OpenSSL.
-The driver starts its own HTTPS deployment and trusts its extracted private CA.
-It publishes observation ports only on loopback, saves evidence, then removes
-only that run's services. A deployment server itself does not need Go installed.
+Every row below used 128 HTTP workers, 128 idle connections retained per host,
+1 KiB payloads and 100 events/request. Each repetition offered 150,000 events
+over ten seconds, after a two-second case warm-up. Ranges include all three
+repetitions.
+
+| Configured TCP cap | Observed peak TCP | 202-acknowledged events/s inside window | Events with uncertain responses, per repetition |
+|---|---|---|---|
+| 4 | 4 | 10,640–11,500 | 0 / 0 / 0 |
+| 8 | 8 | 14,950–14,970 | 0 / 0 / 0 |
+| 16 | 11–16 | 14,730–14,970 | 2,200 / 0 / 100 |
+| 32 | 10–14 | 14,880–14,950 | 0 / 700 / 200 |
+| 64 | 16–22 | 14,730–14,900 | 700 / 2,400 / 1,000 |
+| 128 | 15–31 | 14,360–14,900 | 0 / 2,200 / 6,000 |
+| Unlimited | 19–95 | 13,360–14,940 | 15,900 / 900 / 300 |
+
+<a href="../docs/assets/connection-pressure.svg"><picture><source media="(max-width:600px)" srcset="../docs/assets/connection-pressure-mobile.svg"><img src="../docs/assets/connection-pressure.svg" alt="All three repetitions at each TCP cap. Four connections caused long acquisition waits; larger caps did not consistently improve acceptance."></picture></a>
+
+With a cap of four, as many as 128 HTTP calls were active in the client, but only
+four TCP connections were open. Mean connection acquisition took 873–969 ms.
+That duration includes transport waiting, dialing and TLS. The cap-eight runs
+averaged 1.8–122.9 ms. Idle retention controls which completed connections remain
+available for reuse; it does not cap active requests. All measured requests used
+HTTP/1.1. HTTP/2 can carry several requests on one connection, so the recorder
+tracks sockets and requests separately and has a real multiplexing test.
+Counters reset per window after warm-up; an existing socket can be reused
+without a new dial or TLS handshake in that window.
+
+## Offering 30k or 50k did not deliver that rate
+
+These cases kept workers, active cap and idle retention at 128, with the same
+1 KiB/100-event requests. The 15k row reuses the cap-128 baseline above.
+
+| Offered events/s | Acknowledged events/s inside each window | Events with uncertain responses in each repetition |
+|---|---|---|
+| 15,000 | 14,900 / 14,750 / 14,360 | 0 / 2,200 / 6,000 |
+| 30,000 | 26,030 / 23,860 / 19,110 | 38,900 / 60,700 / 107,100 |
+| 50,000 | 7,890 / 6,230 / 5,350 | 396,000 / 430,000 / 424,100 |
+
+At 30k, the driver started all 300,000 planned events in every repetition,
+including request tails. At 50k it started 482,900 / 499,000 / 482,600 of the
+500,000 planned events. Requests after the window and acknowledgements received
+after it are counted separately. The driver never retries load requests.
+
+Every acknowledged ID and its expected content passed an independent SQL check.
+Some uncertain publishes also reached storage: 6,930 / 6,549 / 5,008 events in the
+50k repetitions. A 503 or lost response therefore remains uncertain; applications
+must retry the same IDs. Successful delivery verification does not make an
+incomplete offered load a capacity result.
+
+<a href="../docs/assets/acceptance-storage.svg"><picture><source media="(max-width:600px)" srcset="../docs/assets/acceptance-storage-mobile.svg"><img src="../docs/assets/acceptance-storage.svg" alt="The three 50k-offered repetitions show acknowledgements, observed rows, final content verification and sampled queue-position lag on separate timelines."></picture></a>
+
+The observer keeps a bounded deadline for uncertain IDs that may never appear.
+Its final verification duration includes that wait. `VerifiedCompletionEPS`
+divides verified rows by the complete window and verification duration; it is an
+audit-completion rate. Receipt-to-observed-storage timing includes SQL/polling
+delay. Its percentile is unavailable when observation is partial or failed.
+Observed-pending counts and saved queue positions are different measurements;
+neither is an exact count of rows still needing a database write.
+
+## Which resource showed pressure?
+
+The API producer reached its configured 1,000 buffered records and reported
+`buffer_saturated` failures. At 100 events/request, ten fully outstanding
+requests can account for 1,000 records; buffers can also contain records from
+requests that have already returned an uncertain result. Its separate byte limit
+was 64 MiB. Socket counts do not reveal either buffer limit.
+
+The consumer pool allowed ten PostgreSQL connections. Coarse samples showed
+zero or one acquired connection, no cancelled acquisitions, and a constant
+9.55 ms cumulative empty-pool wait recorded during startup. That wait did not
+increase during the sampled study. The writer remained serial. Increasing its
+pool limit would have no demonstrated benefit here.
+
+The separate SQL session-count snapshots at recorded source `043f584` did not
+check row-stream errors. Their completeness cannot be established retrospectively,
+so the auditor and plot loader mark them unavailable. The raw capture stays
+unchanged. Pool statistics above come from the consumer's private metrics,
+independently of that query. The current collector checks both row scans and
+terminal stream errors.
+
+The driver descriptor limit was 245,760; its open-descriptor count was unavailable
+on this macOS process and stays null. Service descriptor limits and actual counts
+were sampled privately; the API used at most 113 descriptors in those samples.
+No driver descriptor-limit error was observed. The manifest includes adapted
+Caddy configuration and image defaults; proxy socket counters were unavailable.
+These observations support producer pressure and client waiting, without
+isolating every cause of the shared machine's performance.
+
+## Larger payloads used a separate, matched cohort
+
+Each case below offered 1,000 events/s with ten events/request, 128 workers and
+active/idle caps of 128. A 100-event request with 16 KiB payloads would exceed
+the unchanged 1 MiB API body limit. All 10,000 events in each repetition were
+acknowledged and verified; a few acknowledgements arrived after the window.
+
+| Payload | Acknowledged events/s inside each ten-second window |
+|---|---|
+| 256 bytes | 1,000 / 999 / 999 |
+| 1 KiB | 998 / 999 / 998 |
+| 16 KiB | 995 / 996 / 997 |
+
+All twelve cases retain a `limited` classification, including scheduler delays
+and late acknowledgements in otherwise successful cases. The sweep ran in a
+fixed order on one deployment; it was not randomized across fresh hosts. Three
+ten-second windows cannot establish sustained maximum capacity or an optimal
+connection setting for another deployment.
+
+## Reproduce and audit
+
+Use Go, Docker/Compose, Python 3.9+ and a machine with room for the deployment.
+Full studies create one owned stack and collect private evidence under ignored
+`tmp/runs/`. They remove only their own resources. The recorded run had a separate
+host guard; it never triggered, observed at least 38% memory available, and
+sampled a driver peak of about 2.86 GiB. Check resources before a new full run.
 
 ~~~sh
-# Small correctness subset; three repetitions per case, not publication evidence.
-make bench-study-smoke STUDY_FLAGS='-out tmp/studies/my-smoke -seed 42'
-
-# Full measurements: commit sources, run sequentially, choose a fresh directory.
-make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42'
-
-# Resume using the exact original source, seed, controls and runtime identity.
-make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42 -resume'
-
-# Independent read-only audit of a complete recorded study.
-python3 benchmarks/audit_study.py benchmarks/results/selfhost-2026-11-04
+make bench-study-smoke
+make bench-study STUDY_FLAGS='-suite connections -out tmp/studies/connections-new'
+python3 benchmarks/audit_study.py benchmarks/results/connections-2026-11-04-7b54d30a --repo .
 ~~~
 
-The command prints its output directory and each case's status. With no path,
-it chooses a fresh ignored `tmp/studies/<UUID>` directory. An existing directory
-requires `-resume`. Full measurements need clean committed source. Smoke runs
-may be explicitly marked dirty and test correctness; they are not publishable
-timing evidence.
+The audit checks artifact bytes, request/event accounting, ID hashes, metric
+validity, fixed controls, runtime/image fingerprints and historical Git source
+bytes. Use a clone containing source revision `043f584`; `--repo` requires its
+Git objects. The bundle also contains three TLS-driver calibrations, each with
+three windows at 150, 300 and 500 requests/s. They sent the planned work without
+misses; one 300 requests/s window acknowledged 100 events after its end. The sink
+has no broker or database and provides no ingestion durability result.
+Interrupted calibrations now save completed and partial windows with an explicit
+`incomplete` report status; they cannot pass the publication audit.
 
-Run timing studies one at a time. Keep source, concurrent tests and figure jobs
-unchanged during a comparison, and leave unrelated services alone. The recorded
-host had other workloads; that shared use is part of its reported limitations.
+~~~sh
+go run ./cmd/bench -mode calibrate -rate 50000 -batch 100 -payload 1024 \
+  -concurrency 128 -max-conns 128 -max-idle-conns 128 -duration 10s \
+  -out tmp/calibration-50000
+~~~
 
-## What changes between cases
+`core` remains the default study suite for database, pipeline and recovery
+comparisons. It has no replacement published result in this bundle. The reference
+COPY method stages rows and merges them for duplicate handling; it is a different
+algorithm from direct COPY into the destination. This connection study makes no
+new writer-method speed claim.
 
-Database methods rotate order across the three runs. These are matched sweeps,
-not every possible combination of settings.
-
-| Question | Configurations | Settings kept the same |
-| --- | --- | --- |
-| SQL batching | Batches 1/10/50/100/500/1000 | 5,000 submissions/method, 256 B, no duplicates |
-| SQL payload size | 1 KiB/16 KiB | Batch 100; compare with 256 B/batch 100 above |
-| Repeated IDs | 10/50/90% | Batch 100, 256 B; compare with 0% above |
-| HTTP batching | Batches 1/10/100 | Target 1,000 events/s, 256 B, 32 clients |
-| HTTP sending rate | 100/5,000/10,000 events/s | Batch 100, 256 B, 32 clients; 1,000/s baseline above |
-| HTTP payload size | 1 KiB/16 KiB | Batch 10; compare with 256 B/batch 10 above |
-| Burst | Same total sent in the first quarter of the window | Batch 100, 256 B, 32 clients |
-| Concurrent clients | 8/64 clients | Batch 1, target 1,000/s, 256 B; 32-client baseline above |
-| PostgreSQL outage | Stop requested at 3s; start at 8s | 15-second target of 500/s, batch 100 |
-| Worker restart | KILL requested at 3s; start at 5s | Same 15-second target of 500/s |
-| Outbox with broker outage | 100 saved application events; broker stopped for 8s after stop completion | Failed attempt lasts more than 5s; a new dispatcher sends the original UUIDs |
-
-HTTP load cases run for ten seconds after two seconds of warm-up. SQL observation
-aims for a query every 50 ms and allows 30 seconds to finish observing outstanding
-events. Large payloads use batch 10 to fit the 1 MiB request limit. The study fixes
-the API request limit at 10,000/s, info logging, broker allocation at one core/1 GiB,
-and topic retention at seven days. Actual process flags, topic/database settings
-and verified HTTPS protocol are captured. Environment variables cannot silently
-retune a matched case.
-
-Inputs are varied ASCII JSON at the exact requested byte size, generated
-reproducibly from the recorded seed and namespace. The namespace separates one
-run's event IDs from another's. Duplicate submissions keep the same IDs and bytes.
-
-For the database comparison, input generation, table reset, warm-up and content
-checks happen outside the write timer. Single INSERT commits every row; batch
-INSERT and the independent COPY/staging/merge method commit every batch. They
-use the same indexed table and keep the first stored content for a repeated ID.
-Submitted events/s includes repeats; unique inserted rows/s counts only new rows.
-
-## Read the counts before the rate
-
-An offered rate is what the driver tried to schedule. Attempted events are what
-it actually sent. Acknowledged events have a successful matching HTTP response.
-Verified stored events are the unique rows found by the independent final check.
-A sending schedule the client missed is not a record the collector lost.
-
-| Measure | What is sampled or counted |
-| --- | --- |
-| HTTP ACK latency | One sample for each successfully acknowledged request |
-| SQL visibility upper bound | One sample for each event first observed after commit, from API receipt through completed SQL observation; includes polling/query delay |
-| In-window ACK rate | Responses finished within the target window, divided by that window |
-| Verified stored rate | Unique verified rows divided by the window, unfinished requests, observation and final verification together |
-
-`ObservedEvents` counts events with latency samples. `VerificationNS` records
-final-check time. A row found only at the final check gets no invented latency.
-The observer tracks unseen IDs in a temporary table on its own connection, so
-out-of-order commits remain observable. The final check independently compares
-IDs, types, times and payloads, and touches only that run's namespace/IDs. It
-never truncates a shared table or cleans another run's rows.
-
-A `limited` result keeps missed schedules, late starts, request/ACK tails,
-rejections, uncertain delivery, delayed polls and observer outages visible.
-A response just outside a finite window does not establish saturation. An
-uncertain ID absent at the final deadline stays unknown; absence then does not
-prove it can never arrive later. Missing acknowledged IDs, unexpected content/IDs
-or duplicate physical rows fail correctness and cannot become a speed result.
-
-p50/p95/p99 use the nearest-rank calculation on their separate raw samples.
-For example, p95 describes the time by which 95% of those samples finished.
-Receipt and SQL observation use the deployment clock; the host schedules load
-with monotonic time. Reports include query/poll time and the largest observation
-gaps. Only the deliberate PostgreSQL-outage experiment reconnects the observer
-and rebuilds its unseen-ID list, while recording the SQL gap. It does not infer
-commit times during the gap. Fault times record control requests/completions;
-starting a container is not proof that processing has recovered. Recovery cases
-are separate from capacity measurements.
-
-## Find the files behind a result
-
-| Artifact | Contents |
-| --- | --- |
-| `index.json`, `summary.csv` | All configurations, statuses, summaries, attempts and raw-file checksums |
-| `manifest-N.json` | Source commit/fingerprint, host/VM, runtime settings and exact image IDs/digests |
-| `raw/<case>-attempt-N.json.gz` | All methods/runs, raw timing, queue observations and ID sets |
-| `resources-N.json.gz` | Coarse snapshots of this run's containers; these do not establish a bottleneck |
-| `journal.json` | Progress, compatibility identity and the history of interrupted attempts |
-
-Each file reference includes SHA256 and raw/compressed sizes. Gzip timestamps
-are zero. A capture is limited to 128 MiB raw and 64 MiB compressed. HTTP ID sets
-use compact submission indices with namespace/seed/count; outbox UUIDs are stored
-explicitly. Private credentials, CA files and Docker/error logs remain in the
-ignored run directory.
-
-## Resume the same experiment
-
-Resume keeps completed captures unchanged. A partially completed case runs all
-three repetitions again on a fresh isolated stack and keeps its interrupted
-history. It rejects a changed source/file set, seed, case controls, host/runtime
-controls or image content/configuration. Exact image IDs remain in the manifests.
-Compatibility ignores only Compose's project-specific image label, which changed
-config IDs without changing filesystem or execution; other configuration/layers
-remain part of the fingerprint. Source or configuration changes need a new study.
-
-Ctrl-C/SIGTERM allows bounded cleanup of that run's resources. An uncatchable
-process or host kill can leave them behind. Inspect the private evidence and
-remove only that project; do not use global prune or benchmark over an abandoned
-stack.
-
-## Other commands and figures
-
-`make bench-db` and `make bench-pipeline` run configurable single experiments
-on development HTTP. `BENCH_FLAGS` controls count/batch/payload/duplicates or
-rate/duration/concurrency/pattern; see `go run ./cmd/bench -h`. They still need
-committed source and create their own stacks. They are separate from the registered
-HTTPS study, which rejects ad-hoc workload flags.
-
-The [figure guide](../docs/figures/README.md) explains the questions behind each
-plot and how to regenerate it from the audited index. [Historical captures](results/local-2026-11-03/README.md)
-retain a correction: topic write caching was off, but development mode still
-bypassed process-level fsync. Their old raw bytes remain unchanged. The corrected
-studies inspect and reject that bypass. No local capture here establishes maximum
-capacity, cloud cost, production adoption or recovery from losing the only host/disk.
+The previous schema 1 bundles, charts and receipts were archived unchanged with
+verified checksums and removed from the public tree. Valid overload observations
+in the current bundle are retained. A sustained 30k/50k claim needs a dedicated
+deployment, a separate generator and a bounded continuous-run design beyond the
+current one-million-events-per-sample guard. See [figure sources](../docs/figures/README.md)
+and the [deployment guide](../deploy/README.md).

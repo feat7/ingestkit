@@ -1,0 +1,402 @@
+{
+  "thresholds": {
+    "min_memory_free_percent": 30,
+    "max_driver_rss_gib": 4,
+    "consecutive_host_load_above_8": 2,
+    "poll_seconds": 15
+  },
+  "samples": [
+    {
+      "at": 1793804333.988378,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 514592,
+      "host_load_1m": 4.9,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804349.0088608,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 684656,
+      "host_load_1m": 5.6,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804364.023108,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 776400,
+      "host_load_1m": 6.69,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804379.044703,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 950016,
+      "host_load_1m": 6.97,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804394.061166,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 753120,
+      "host_load_1m": 6.49,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804409.07923,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 635184,
+      "host_load_1m": 5.87,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804424.111147,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 782848,
+      "host_load_1m": 5.17,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804439.141649,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 595184,
+      "host_load_1m": 5.05,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804454.1758778,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 427264,
+      "host_load_1m": 4.52,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804469.198268,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 634368,
+      "host_load_1m": 4.63,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804484.243018,
+      "memory_free_percent": 41,
+      "driver_rss_kib": 566224,
+      "host_load_1m": 6.68,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804499.2704608,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 352224,
+      "host_load_1m": 6.47,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804514.289835,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 602880,
+      "host_load_1m": 6.12,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804529.3089359,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 921952,
+      "host_load_1m": 6.39,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804544.33508,
+      "memory_free_percent": 46,
+      "driver_rss_kib": 927184,
+      "host_load_1m": 5.86,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804559.373421,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 894224,
+      "host_load_1m": 5.61,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804574.394188,
+      "memory_free_percent": 46,
+      "driver_rss_kib": 892800,
+      "host_load_1m": 5.76,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804589.435308,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 697696,
+      "host_load_1m": 5.17,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804604.457917,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 477232,
+      "host_load_1m": 5.87,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804619.498231,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 512160,
+      "host_load_1m": 6.42,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804634.540045,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 501696,
+      "host_load_1m": 6.45,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804649.574424,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 753136,
+      "host_load_1m": 5.55,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804664.599943,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 1413024,
+      "host_load_1m": 6.6,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804679.626594,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 802752,
+      "host_load_1m": 6.4,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804694.645229,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 431728,
+      "host_load_1m": 5.5,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804709.665191,
+      "memory_free_percent": 41,
+      "driver_rss_kib": 1485120,
+      "host_load_1m": 5.27,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804724.690284,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 1728816,
+      "host_load_1m": 5.37,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804739.725631,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 731600,
+      "host_load_1m": 5.16,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804754.740761,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 1189344,
+      "host_load_1m": 5.16,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804769.755577,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 1590080,
+      "host_load_1m": 5.67,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804784.77742,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 883696,
+      "host_load_1m": 4.93,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804799.818461,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 844304,
+      "host_load_1m": 4.73,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804814.842108,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 1108576,
+      "host_load_1m": 5.33,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804829.860872,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 1043568,
+      "host_load_1m": 4.67,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804844.884043,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 1006224,
+      "host_load_1m": 4.53,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804859.901508,
+      "memory_free_percent": 45,
+      "driver_rss_kib": 2399792,
+      "host_load_1m": 4.77,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804874.93033,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 1893648,
+      "host_load_1m": 6.74,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804889.946738,
+      "memory_free_percent": 39,
+      "driver_rss_kib": 612912,
+      "host_load_1m": 6.28,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804904.9626439,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 1805360,
+      "host_load_1m": 5.94,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804920.014216,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 2217312,
+      "host_load_1m": 6.24,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804935.035247,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 2997648,
+      "host_load_1m": 6.64,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804950.075233,
+      "memory_free_percent": 41,
+      "driver_rss_kib": 1125584,
+      "host_load_1m": 6.35,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804965.095745,
+      "memory_free_percent": 42,
+      "driver_rss_kib": 1673488,
+      "host_load_1m": 5.99,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804980.120642,
+      "memory_free_percent": 40,
+      "driver_rss_kib": 2244656,
+      "host_load_1m": 6.16,
+      "stop_reason": null
+    },
+    {
+      "at": 1793804995.1438138,
+      "memory_free_percent": 40,
+      "driver_rss_kib": 2990624,
+      "host_load_1m": 5.82,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805010.179904,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 2769184,
+      "host_load_1m": 5.32,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805025.1932402,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 2443648,
+      "host_load_1m": 5.46,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805040.214219,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 2242640,
+      "host_load_1m": 5.57,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805055.237601,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 1544064,
+      "host_load_1m": 5.21,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805070.256232,
+      "memory_free_percent": 44,
+      "driver_rss_kib": 1462240,
+      "host_load_1m": 4.72,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805085.2731872,
+      "memory_free_percent": 39,
+      "driver_rss_kib": 802640,
+      "host_load_1m": 4.33,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805100.297358,
+      "memory_free_percent": 40,
+      "driver_rss_kib": 344656,
+      "host_load_1m": 3.97,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805115.314585,
+      "memory_free_percent": 39,
+      "driver_rss_kib": 743536,
+      "host_load_1m": 4.06,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805130.33066,
+      "memory_free_percent": 43,
+      "driver_rss_kib": 776048,
+      "host_load_1m": 4.55,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805145.3500428,
+      "memory_free_percent": 39,
+      "driver_rss_kib": 838352,
+      "host_load_1m": 4.56,
+      "stop_reason": null
+    },
+    {
+      "at": 1793805160.3778439,
+      "memory_free_percent": 38,
+      "driver_rss_kib": 707296,
+      "host_load_1m": 6.54,
+      "stop_reason": null
+    }
+  ]
+}

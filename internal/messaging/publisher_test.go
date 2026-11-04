@@ -5,12 +5,33 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/feat7/ingestkit/internal/event"
+	"github.com/feat7/ingestkit/internal/telemetry"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func TestPublisherFailureMetricsHaveBoundedReasons(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		err    error
+		reason string
+	}{{"buffer", kgo.ErrMaxBuffered, "buffer_saturated"}, {"broker", errors.New("private-token-and-payload"), "broker_error"}, {"timeout", context.DeadlineExceeded, "timeout"}, {"record_timeout", kgo.ErrRecordTimeout, "timeout"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := telemetry.New()
+			p := testPublisher(func(ctx context.Context, r *kgo.Record, cb func(*kgo.Record, error)) { cb(r, tc.err) })
+			p.metrics = m
+			require.Error(t, p.Publish(context.Background(), []event.Envelope{publisherEvent()}))
+			w := httptest.NewRecorder()
+			m.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/metrics", nil))
+			require.Contains(t, w.Body.String(), `ingestkit_publish_failures_total{reason="`+tc.reason+`"} 1`)
+			require.NotContains(t, w.Body.String(), "private-token-and-payload")
+		})
+	}
+}
 
 func publisherEvent() event.Envelope {
 	return event.Envelope{Input: event.Input{EventID: uuid.New(), EventType: "test", OccurredAt: time.Now().UTC(), Payload: json.RawMessage("{\"x\":1}")}, TenantID: "test", ReceivedAt: time.Now().UTC()}
