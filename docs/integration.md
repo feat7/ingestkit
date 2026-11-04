@@ -1,19 +1,27 @@
-# Use IngestKit from a backend
+# Send events from your application
 
-Deploy the [self-contained server](../deploy/README.md), then send ordinary HTTPS
-requests. The [HTTP contract](api.md) is the interface; you can copy either small
-helper into your project without installing an SDK or running Go there. The
-Python example requires Python 3.9+; the Node example requires Node 20+.
+Deploy the [collector](../deploy/README.md), then call it over HTTPS from your
+backend. The [API reference](api.md) describes the request and response. You can
+copy either helper into your project; they need no SDK installation or Go runtime.
+Use Python 3.9+ or Node 20+.
 
-Keep API keys on a trusted backend. Browser/mobile clients should call your own
-backend, which decides the event and supplies identity. Map overlapping keys to
-the same tenant during [key rotation](operations.md). Do not send a tenant ID in
-the event body.
+Before choosing a client, decide where an unsent event will live. If your
+application already saves work and can retry it after a restart, the direct
+clients below can send that work. For an event that must be saved with a business
+change, use the [order/outbox example](../examples/outbox/README.md). It commits
+the order and its pending event together, then sends outside that transaction.
+A process can die between a standalone order commit and an HTTP call; retries
+alone cannot recover an event that was never saved.
+
+Keep keys on your backend. A browser or mobile app calls your backend, which
+chooses the event and its identity. The key selects the tenant; leave tenant ID
+out of the event body. During [key rotation](operations.md), both keys can point
+to that same tenant.
 
 ## Python
 
-From this checkout, the module can be imported directly. If copying the helper,
-change the import to `from ingest_client import Client, IngestError`.
+This import works from the repository. If you copy the helper into your project,
+use `from ingest_client import Client, IngestError` instead.
 
 ~~~python
 import os
@@ -37,13 +45,14 @@ except IngestError as error:
     raise
 ~~~
 
-Use `client.send_batch(events)` for a list. Both methods return the validated
-acknowledgement IDs. Construct the event once and retain it across retries.
+Create the event once, save it and reuse it on retry. Calling `client.send_batch(events)`
+sends a list; both methods return only the IDs whose response they have checked.
+Save the UUID along with the event body so a replacement process has the same work.
 
 ## Node
 
-Copy `examples/checkout/ingest-client.mjs` into your backend, or use this import
-when running a module from the repository root:
+Copy `examples/checkout/ingest-client.mjs` into your backend, or use the import
+below from a module in the repository root:
 
 ~~~js
 import {randomUUID} from 'node:crypto';
@@ -71,14 +80,14 @@ try {
 }
 ~~~
 
-Use `client.sendBatch(events)` for a list. Both modules serialize once per call,
-reuse identical bytes across bounded retries, validate acknowledgement IDs and
-leave the original event object unchanged. Keep event IDs and bodies when a
-process exits: an in-memory retry loop is not durable delivery.
+Use `client.sendBatch(events)` for a list. Both helpers serialize once per call,
+keep the original object unchanged, and resend identical bytes during their
+bounded retries. The application's saved event must also survive process exit;
+the client cannot recover an object that existed only in memory.
 
-## Try both callers
+## Try the included events
 
-After loading `INGESTKIT_API_KEY` as shown in the deployment guide:
+Load `INGESTKIT_API_KEY` as shown in the deployment guide, then run:
 
 ~~~sh
 export API_URL=https://events.example.com
@@ -87,34 +96,24 @@ python3 examples/checkout/send.py
 SEND_MODE=single node examples/checkout/send.mjs
 ~~~
 
-Both use the same fixed checkout UUIDs, so running them repeatedly still stores
-three logical events for that tenant. Set `EVENTS_FILE` to your own JSON fixture
-with an `events` array, and use fresh UUIDs for new business events. The CLIs fail
-with a nonzero exit status when acknowledgement is absent or invalid.
+The two commands use the same three checkout UUIDs. Running either repeatedly
+still leaves three logical events for that tenant. `EVENTS_FILE` selects a JSON
+fixture with an `events` array; give new business events fresh UUIDs. The commands
+exit nonzero if the response is missing or its IDs do not match.
 
-Public HTTPS uses the system CA roots. For an owned local deployment with a
-private CA, set `INGESTKIT_CA_FILE=/absolute/path/to/root.crt`; Python's `ca_file`
-and Node's `caFile` options provide the same trust. No certificate bypass is used.
+HTTP 202 means Redpanda accepted those IDs. It does not tell you whether the
+worker has finished the PostgreSQL write. Check SQL when your workflow needs
+that confirmation, and keep IDs/content after an uncertain response.
 
-The [transactional outbox example](../examples/outbox/README.md) implements the
-order→dispatch→SQL workflow with SQLite, including a real after-ACK crash test.
+## HTTPS trust and recovery
 
-An HTTP send after committing your application's transaction still leaves a gap:
-the process can die between those operations. An application outbox closes that
-creation gap by saving the business row and serialized event in one local
-transaction, then dispatching it with stable IDs. The collector's deduplication
-handles dispatch retries; it does not make your application transaction and HTTP
-request atomic.
+Public HTTPS uses the system's trusted certificate authorities. For your local
+test deployment, use `INGESTKIT_CA_FILE=/absolute/path/to/root.crt`, Python's
+`ca_file` option or Node's `caFile` option to trust its private CA. The helpers
+keep certificate verification enabled.
 
-## Choose a delivery boundary
-
-Use the direct clients when the application already retains work durably and can
-retry it, or when occasional loss before sending is acceptable for that event.
-Use an application outbox when creating the business state must also create
-pending delivery atomically. In both cases, keep UUIDs/content across uncertain
-responses; a matching 202 is broker acknowledgement, not a database query result.
-
-The [recovery captures](../benchmarks/results/selfhost-2026-11-04/README.md) include
-three broker-outage/outbox repetitions with 100 saved events each. The separate
-after-ACK child-kill regression checks the local marking gap exactly. The
-[delivery guide](delivery.md) explains the independent consumer SQL/offset gap.
+The outbox example includes a real crash test after HTTP acknowledgement but
+before the local pending row is updated. The [recovery study](../benchmarks/results/selfhost-2026-11-04/README.md)
+also runs a broker outage three times with 100 saved events each. These test
+different gaps: a local acknowledgement update, a queue outage, and the separate
+worker SQL/offset gap described in the [delivery guide](delivery.md).

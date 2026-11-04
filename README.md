@@ -1,24 +1,24 @@
 # IngestKit
 
-A self-hosted event collector for trusted application backends. Send JSON over
-HTTPS, buffer it in Redpanda, and store it in PostgreSQL with stable event IDs.
-The repository includes copyable clients, a transactional outbox, failure tests
-and reproducible experiments.
+Collect events from your backend and save them in PostgreSQL. A queue in between
+lets IngestKit keep accepting events during a temporary database outage.
 
-**HTTP 202 means broker acknowledgement. PostgreSQL storage is asynchronous.**
-Retry uncertain delivery with the same UUID and content; storage keeps one row
-per `(tenant_id,event_id)` and retains the first stored content.
+For example, your checkout service sends an `order_completed` event with a saved
+ID. Redpanda holds it in the queue until a background worker writes it to
+PostgreSQL. If the request times out, resend the same ID; the database keeps one
+row for that event. The API key selects the tenant, a label stored with your events.
 
-<a href="docs/assets/deployment.svg"><picture><source media="(max-width:600px)" srcset="docs/assets/deployment-mobile.svg"><img src="docs/assets/deployment.svg" alt="A backend sends HTTPS to Caddy; API, broker, consumer and PostgreSQL run privately on one Compose host."></picture></a>
+<a href="docs/assets/event-journey.svg"><picture><source media="(max-width:600px)" srcset="docs/assets/event-journey-mobile.svg"><img src="docs/assets/event-journey.svg" alt="An application sends an event over HTTPS. Redpanda holds it until a background worker writes it to PostgreSQL."></picture></a>
 
-[Deployment](deploy/README.md) · [Application integration](docs/integration.md) ·
-[Operations](docs/operations.md) · [Engineering article](docs/article.md)
+HTTP 202 means the queue accepted the event. The database write happens
+separately. [Read the story of an event, an outage and a retry](docs/article.md).
 
-## Deploy
+## Run it on your server
 
-Use a Linux host with Git, Docker/Compose 2.24.4+, OpenSSL and curl. Point your
-own hostname at it and make ports 80/443 reachable. Replace `events.example.com`
-below with that hostname. Go is built inside Docker.
+You need a Linux host with Git, Docker/Compose 2.24.4+, OpenSSL and curl.
+Point a hostname you own at the server and allow traffic on ports 80 and 443.
+Replace `events.example.com` below with that hostname. Docker builds the Go
+programs, so you do not need to install Go on the server.
 
 ~~~sh
 git clone https://github.com/feat7/ingestkit.git
@@ -27,16 +27,17 @@ deploy/configure.sh events.example.com
 docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 ~~~
 
-Configuration is generated into ignored `deploy/.env` with mode 0600 and fresh
-secrets; existing files are never overwritten. Only Caddy publishes ports.
-See the [deployment guide](deploy/README.md) for DNS, resources and certificate
-prerequisites. Public certificate issuance requires working DNS/reachability;
-the automated HTTPS tests use a trusted private CA.
+The setup script writes fresh secrets to ignored `deploy/.env` with file mode
+0600, so only its owner can read it. It refuses to overwrite existing settings.
+Caddy handles HTTPS; the API, queue and database have no public ports. The
+[deployment guide](deploy/README.md) covers resources, DNS and certificates.
+Public certificates need working DNS and reachable ports; automated tests use
+a local certificate authority that the test client explicitly trusts.
 
-## Send and verify
+## Send an event and find it in the database
 
-For the initial generated key mapping, load the key without printing it and send
-the three checkout events:
+For the initial generated configuration, load the API key without printing it
+and send the three checkout events included in the repository:
 
 ~~~sh
 INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
@@ -51,45 +52,54 @@ docker compose --env-file deploy/.env -f deploy/compose.yml exec -T postgres \
   "SELECT tenant_id,event_id,event_type FROM ingestkit.events ORDER BY persisted_at DESC LIMIT 10;"
 ~~~
 
-Allow the consumer time to catch up before checking SQL. Repeating these fixed
-UUIDs still stores three logical events for the initial tenant. Use fresh UUIDs
-for new business events. Stop with the following command; named data volumes remain:
+Give the worker time to save the events before running the SQL query. Sending
+this fixture again still leaves three events for the initial tenant. For new
+business events, create new IDs. The database key is `(tenant_id,event_id)`:
+your API key selects the tenant, and your application supplies the event ID.
+The first content saved for that key stays in the table.
+
+Stop the services with this command. Docker keeps their named data volumes:
 
 ~~~sh
 docker compose --env-file deploy/.env -f deploy/compose.yml down
 ~~~
 
-## Integrate
+## Send events from your application
 
-Copy the standard-library [Python or Node client](docs/integration.md) into a
-backend. For durable application delivery, run the [order/outbox example](examples/outbox/README.md):
-business state and the serialized event are saved in one SQLite transaction,
-then a separate dispatcher sends pending work with stable IDs. Keys stay in
-trusted backend configuration. See the [API reference](docs/api.md) for limits,
-responses and permanent versus uncertain failures.
+The [Python and Node examples](docs/integration.md) are small modules you can
+copy into a backend. They need no third-party packages. Keep the API key on
+your server and save each event's ID and content before sending it.
 
-## Inspect the evidence
+For events that must survive an application crash, try the
+[order and outbox example](examples/outbox/README.md). It saves an order and a
+pending event in the same database transaction. A separate command sends the
+pending events and can pick up where a previous process stopped. The
+[API reference](docs/api.md) explains request limits and which failures to retry.
+The [operator guide](docs/operations.md) covers backups, key rotation and a queue
+that stops making progress.
 
-The [corrected HTTPS study](benchmarks/results/selfhost-2026-11-04/README.md)
-records 25 configurations with three measured repetitions: database batching,
-payloads, duplicates, HTTP load, concurrency and three recovery scenarios.
-All acknowledged IDs reconciled with stored content; generator limits and
-ambiguous outcomes remain explicit. These local runs do not establish maximum
-capacity. Batch INSERT had the lower median than COPY/staging/merge in all 11 DB
-configurations, so the deployed writer now uses atomic batch INSERT.
+## Try an outage locally
 
-To try an isolated local walkthrough, use Docker and Go 1.24+:
+With Docker and Go 1.24+ installed, run:
 
 ~~~sh
 make demo DEMO_FLAGS=-cleanup
 make demo-recovery DEMO_FLAGS=-cleanup
 ~~~
 
-[Development and tests](docs/development.md) · [Experiment controls](benchmarks/README.md) ·
-[Delivery semantics](docs/delivery.md) · [Architecture](docs/architecture.md)
+The second demo stops PostgreSQL, sends events, restarts the database and checks
+that the same IDs reached the table. The [experiment results](benchmarks/results/selfhost-2026-11-04/README.md)
+go further: 25 configurations, three runs each, with saved samples and explicit
+limits. The database comparison led to a simpler writer: batch INSERT had a lower
+median time than COPY/staging/merge in all 11 tested database configurations.
+Unknown delivery outcomes remain unknown in the reports; these runs do not
+establish maximum capacity.
 
-This is a single-host deployment with one broker replica and finite log retention.
-It does not protect against losing the host/disk or a recovery gap beyond retained
-data. PostgreSQL rows have no automatic expiry; the operator owns backups, disk
-monitoring and retention. It provides ingestion and replay-safe storage, without
-an analytics UI, schema compiler or database row-level tenant policies.
+[Development and tests](docs/development.md) · [Run the experiments](benchmarks/README.md) ·
+[Delivery details](docs/delivery.md) · [How the components fit together](docs/architecture.md)
+
+This deployment runs on one host with one Redpanda replica and keeps queue
+records for seven days by default.
+Losing the host or its disks can lose data. An outage longer than the queue's
+retention can leave events unrecoverable. PostgreSQL rows do not expire
+automatically; plan backups, disk monitoring and database retention for your use.

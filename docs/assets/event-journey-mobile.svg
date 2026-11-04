@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 770" role="img" aria-labelledby="title desc">
+<title id="title">From one event to a saved row</title><desc id="desc">The application sends a saved event ID over HTTPS. Redpanda holds it while a worker saves a PostgreSQL row.</desc>
+<style>
+:root{--paper:#faf9f6;--ink:#18323c;--muted:#526671;--line:#b4c3c9;--blue:#205f72;--panel:#edf3f3}
+@media(prefers-color-scheme:dark){:root{--paper:#12212b;--ink:#edf2f4;--muted:#bbccd3;--line:#526671;--blue:#7bc6d6;--panel:#1a303c}}
+text{font-family:Arial,sans-serif;fill:var(--ink)}
+.title{font-size:21px;font-weight:700}.heading{font-size:18px;font-weight:700}
+.copy{font-size:16px}.small{font-size:13px;fill:var(--muted)}
+.card{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.arrow{stroke:var(--blue);stroke-width:2;fill:none}
+</style>
+<rect width="360" height="770" rx="12" fill="var(--paper)"/>
+<text x="20" y="34" class="title">Follow one event</text>
+<text x="20" y="61" class="copy">Keep the same event ID on retry.</text>
+<rect x="20" y="90" width="320" height="76" rx="12" class="card"/>
+<text x="36" y="119" class="heading">1. Your application</text>
+<text x="36" y="147" class="copy">Saves the ID and event body.</text>
+<path d="M180 170V198" class="arrow"/>
+<path d="M175 192L180 198L185 192" class="arrow"/>
+<text x="194" y="188" class="small">send</text>
+<rect x="20" y="202" width="320" height="76" rx="12" class="card"/>
+<text x="36" y="231" class="heading">2. HTTPS endpoint</text>
+<text x="36" y="259" class="copy">Caddy and Go check the request.</text>
+<path d="M180 282V310" class="arrow"/>
+<path d="M175 304L180 310L185 304" class="arrow"/>
+<text x="194" y="300" class="small">append</text>
+<rect x="20" y="314" width="320" height="76" rx="12" class="card"/>
+<text x="36" y="343" class="heading">3. Redpanda queue</text>
+<text x="36" y="371" class="copy">Holds the event for the worker.</text>
+<path d="M180 394V422" class="arrow"/>
+<path d="M175 416L180 422L185 416" class="arrow"/>
+<text x="194" y="412" class="small">read later</text>
+<rect x="20" y="426" width="320" height="76" rx="12" class="card"/>
+<text x="36" y="455" class="heading">4. Database worker</text>
+<text x="36" y="483" class="copy">Retries when a write fails.</text>
+<path d="M180 506V534" class="arrow"/>
+<path d="M175 528L180 534L185 528" class="arrow"/>
+<text x="194" y="524" class="small">save</text>
+<rect x="20" y="538" width="320" height="76" rx="12" class="card"/>
+<text x="36" y="567" class="heading">5. PostgreSQL</text>
+<text x="36" y="595" class="copy">One row per tenant + event ID.</text>
+<text x="20" y="659" class="copy">202 confirms queue acceptance.</text>
+<text x="20" y="685" class="copy">The database write runs separately.</text>
+<text x="20" y="724" class="small">Queue recovery needs retained data and disks.</text>
+<text x="20" y="746" class="small">Source 799106a; full diagram linked.</text>
+</svg>

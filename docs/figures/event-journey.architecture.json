@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "From an order event to a database row",
+    "locale": "en",
+    "output": ".archify/architecture-event-journey-20261104-123448/event-journey.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:feat7/ingestkit.git",
+      "revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+      "link_mode": "local-only"
+    },
+    "legend": {
+      "mode": "hidden"
+    }
+  },
+  "components": [
+    {
+      "id": "application",
+      "type": "external",
+      "label": "1. Your application",
+      "sublabel": "Saves an event ID",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        164,
+        72
+      ],
+      "sources": [
+        {
+          "path": "examples/outbox/app.py",
+          "line": 38,
+          "end_line": 54
+        },
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 73,
+          "end_line": 95
+        },
+        {
+          "path": "examples/checkout/ingest_client.py",
+          "line": 142,
+          "end_line": 158
+        }
+      ]
+    },
+    {
+      "id": "endpoint",
+      "type": "backend",
+      "label": "2. HTTPS endpoint",
+      "sublabel": "Caddy + Go API",
+      "pos": [
+        310,
+        40
+      ],
+      "size": [
+        164,
+        72
+      ],
+      "sources": [
+        {
+          "path": "deploy/Caddyfile",
+          "line": 4,
+          "end_line": 11
+        },
+        {
+          "path": "internal/api/ingest.go",
+          "line": 31,
+          "end_line": 53
+        }
+      ]
+    },
+    {
+      "id": "queue",
+      "type": "messagebus",
+      "label": "3. Event queue",
+      "sublabel": "Redpanda holds the event",
+      "pos": [
+        580,
+        40
+      ],
+      "size": [
+        164,
+        72
+      ],
+      "sources": [
+        {
+          "path": "internal/messaging/publisher.go",
+          "line": 49,
+          "end_line": 94
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "4. Database worker",
+      "sublabel": "Retries failed writes",
+      "pos": [
+        580,
+        240
+      ],
+      "size": [
+        164,
+        72
+      ],
+      "sources": [
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 114,
+          "end_line": 123
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 14,
+          "end_line": 30
+        },
+        {
+          "path": "internal/messaging/process.go",
+          "line": 65,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "row",
+      "type": "database",
+      "label": "5. PostgreSQL",
+      "sublabel": "One row per tenant + ID",
+      "pos": [
+        310,
+        240
+      ],
+      "size": [
+        164,
+        72
+      ],
+      "sources": [
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 11
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "send",
+      "from": "application",
+      "to": "endpoint",
+      "label": "HTTPS + key",
+      "variant": "security"
+    },
+    {
+      "id": "enqueue",
+      "from": "endpoint",
+      "to": "queue",
+      "label": "Append event"
+    },
+    {
+      "id": "read",
+      "from": "queue",
+      "to": "worker",
+      "label": "Read later",
+      "variant": "dashed"
+    },
+    {
+      "id": "store",
+      "from": "worker",
+      "to": "row",
+      "label": "Batch INSERT"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What the response means",
+      "items": [
+        "HTTP 202 follows queue acknowledgement. The database worker runs separately."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "While PostgreSQL is down",
+      "items": [
+        "The worker retries. Queued events depend on retained data and surviving disks."
+      ]
+    }
+  ]
+}

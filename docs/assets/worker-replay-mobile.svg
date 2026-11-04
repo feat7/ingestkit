@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 664" role="img" aria-labelledby="title desc">
+<title id="title">A replay keeps the existing row</title><desc id="desc">After a worker stops between SQL commit and queue-position commit, the same event is read again. Its unique key keeps one row.</desc>
+<style>
+:root{--paper:#faf9f6;--ink:#18323c;--muted:#526671;--line:#b4c3c9;--blue:#205f72;--panel:#edf3f3}
+@media(prefers-color-scheme:dark){:root{--paper:#12212b;--ink:#edf2f4;--muted:#bbccd3;--line:#526671;--blue:#7bc6d6;--panel:#1a303c}}
+text{font-family:Arial,sans-serif;fill:var(--ink)}
+.title{font-size:21px;font-weight:700}.heading{font-size:18px;font-weight:700}
+.copy{font-size:16px}.small{font-size:13px;fill:var(--muted)}
+.card{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.arrow{stroke:var(--blue);stroke-width:2;fill:none}
+</style>
+<rect width="360" height="664" rx="12" fill="var(--paper)"/>
+<text x="20" y="34" class="title">One row after a restart</text>
+<text x="20" y="63" class="copy">The worker saves the row first.</text>
+<rect x="20" y="96" width="320" height="182" rx="12" class="card"/>
+<text x="36" y="130" class="heading">Before the crash</text>
+<text x="36" y="170" class="copy">PostgreSQL has the saved row.</text>
+<text x="36" y="200" class="copy">The queue position is not saved.</text>
+<text x="36" y="230" class="copy">The worker stops here.</text>
+<rect x="20" y="350" width="320" height="182" rx="12" class="card"/>
+<text x="36" y="384" class="heading">After restart</text>
+<text x="36" y="424" class="copy">The worker reads the same ID.</text>
+<text x="36" y="454" class="copy">PostgreSQL keeps the existing row.</text>
+<text x="36" y="484" class="copy">The worker saves its queue position.</text>
+<path d="M180 286V338" class="arrow"/>
+<path d="M175 332L180 338L185 332" class="arrow"/>
+<text x="194" y="316" class="small">restart</text>
+<text x="20" y="576" class="copy">Unique key: tenant + event ID.</text>
+<text x="20" y="605" class="small">A repeat does not update the saved content.</text>
+<text x="20" y="640" class="small">Source 799106a; full sequence linked.</text>
+</svg>

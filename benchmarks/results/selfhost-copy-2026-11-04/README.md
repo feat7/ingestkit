@@ -1,33 +1,32 @@
-# COPY-writer reference study
+# Results with the original COPY writer
 
-Completed 4 November 2026 from clean source `dccf4b3`. This is the first corrected
-self-hosted HTTPS study, before the evidence-driven switch of the deployed writer
-to batch INSERT. Keep these captures as a reference; the final writer study is
-[recorded separately](../selfhost-2026-11-04/README.md).
+This complete study ran on 4 November 2026 from clean source `dccf4b3`, before
+the deployed worker changed to batch INSERT. It uses the corrected HTTPS
+self-hosted setup. The [second study](../selfhost-2026-11-04/README.md) measures
+the changed writer. Keep this first capture as the comparison that led to it.
 
-All 25 registered cases completed: 99 database method/repetition rows, 33 pipeline
-windows and 9 recovery repetitions. Nine cases are explicitly limited. Independent
-Python checks reconciled raw samples, nearest-rank percentiles, request/ID
-populations, rates, summaries, immutable checksums, registered controls and runtime
-durability/HTTPS settings. An exact scan against this owned run’s generated
-credentials passed. Each case uses three measured repetitions; all accepted event
-IDs reconciled with independently verified content. Limits are retained in index
-and raw captures and do not establish maximum capacity.
+All 25 cases completed with three measured runs each: 99 database method/run
+rows, 33 HTTP load windows and 9 recovery runs. Nine cases report limits. Every
+acknowledged event ID was found with its expected stored content. Independent
+Python checks verified raw samples, nearest-rank percentiles, request/ID sets,
+rates, summaries, checksums, case controls, durability settings and HTTPS. A scan
+for the run's exact generated credentials found none in the captures. All limits
+remain in the index and raw files; these are not maximum-capacity measurements.
 
-Batch INSERT had the lower median elapsed time than COPY/staging/merge in all
-11 database configurations. This motivates the separate writer change and new
-measurements; it does not make a universal claim about PostgreSQL COPY.
+Batch INSERT had a lower median elapsed time than COPY/staging/merge in all 11
+database configurations. That result led to a separate writer change and a new
+full study. It does not establish a general ranking of PostgreSQL COPY.
 
-Source and actual image/runtime/host controls are in [manifest-1.json](manifest-1.json).
-The generator and SQL observer shared an M1 Max physical host with the Docker VM
-and existing workloads. Only owned containers were controlled. PostgreSQL fsync
-and synchronous commit were on; the broker’s process bypass was false and topic
-write caching was false. One broker/replica is not protection from host/disk loss.
-Local private-CA HTTPS was verified; public certificate issuance was not tested.
+[manifest-1.json](manifest-1.json) records source, images, runtime and host settings.
+The sender and SQL observer shared an M1 Max host with its Docker VM and other
+workloads; only this run's containers were controlled. PostgreSQL fsync and
+synchronous commit were on. The broker's process bypass and topic write caching
+were false. A single broker replica does not recover data lost with the only host
+or disk. Private-CA HTTPS was verified; public certificate issuance was not tested.
 
-Read [index.json](index.json) for all case controls, summaries, limits and raw
-artifact references, [summary.csv](summary.csv) for the case listing, and
-[journal.json](journal.json) for progress history. Run `python3
+[index.json](index.json) contains all settings, summaries, limits and raw-file
+references. [summary.csv](summary.csv) lists the cases; [journal.json](journal.json)
+records progress. Run `python3
 benchmarks/audit_study.py benchmarks/results/selfhost-copy-2026-11-04` from the
-repository root for a read-only independent audit. Raw gzip files have zero
-timestamps and SHA-256 references; no failed/limited cases were discarded.
+repository root for an independent read-only audit. Raw gzip timestamps are zero
+and files have SHA-256 references. No failed or limited case was discarded.

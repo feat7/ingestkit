@@ -1,103 +1,120 @@
-# Delivery semantics
+# What "accepted" and "saved" mean
 
-The [HTTP reference](api.md) defines the request envelope, limits and responses.
-The promise is broker acknowledgement followed by asynchronous, replay-safe
-PostgreSQL storage. The application must retain stable IDs and content when
-delivery is uncertain.
+The application, queue and database finish their work at different times. HTTP
+202 confirms that Redpanda accepted the event. A background worker saves it in
+PostgreSQL afterward. Keep the original event ID and content whenever you are
+unsure whether a request arrived. The [HTTP reference](api.md) lists the request
+fields, limits and responses. The API key selects the tenant label; event IDs
+are unique within that tenant.
 
-<a href="assets/delivery.svg"><picture><source media="(max-width:600px)" srcset="assets/delivery-mobile.svg"><img src="assets/delivery.svg" alt="The API acknowledges the broker; the consumer commits SQL before offsets; a crash between commits replays the same UUID."></picture></a>
+## What happens if the worker stops after writing?
 
-[Full sequence](assets/delivery.svg) · [Figure sources](figures/README.md)
+The worker saves the event first, then saves its position in the queue. That
+position is called an offset. It tells the next worker where to resume.
 
-The lower sequence segment is an alternative crash path. HTTP response timing
-and consumer processing are concurrent after broker acceptance; the figure is
-not a global ordering of every network packet.
+<a href="assets/worker-replay.svg"><picture><source media="(max-width:600px)" srcset="assets/worker-replay-mobile.svg"><img src="assets/worker-replay.svg" alt="The row commits before the queue position. A restarted worker reads the same ID again and PostgreSQL keeps one row."></picture></a>
 
-## Three boundaries
+If the process stops between those operations, the next worker reads the same
+event again. PostgreSQL's unique `(tenant_id,event_id)` key ignores the repeated
+insert. The first stored content stays unchanged. Sending different content
+with the same ID is a caller error; the database does not compare or update it.
 
-| Boundary | What it establishes | What remains pending |
+The [full HTTP sequence](assets/delivery.svg), [compact sequence](assets/delivery-mobile.svg)
+and [figure sources](figures/README.md) give the wider request path. HTTP response
+timing and worker processing can overlap after queue acceptance. The lower segment
+in the full sequence is an alternative crash path, not a global packet order.
+
+## What each completed operation tells you
+
+| Completed operation | What is known | What may still need to happen |
 | --- | --- | --- |
-| HTTP 202 with matching IDs | The broker acknowledged all response records | Consumer processing and PostgreSQL storage |
-| SQL statement commits | A valid consumer segment stored atomically; conflicting IDs kept their first stored content | Source-offset commit |
-| Source offsets commit | Successfully handled source records can be skipped by this consumer group | Later application processing and operator retention/backup policy |
+| HTTP 202 with matching IDs | The queue acknowledged every record named in the response | The worker saves the events to PostgreSQL |
+| SQL statement commits | The valid segment is saved atomically; repeated IDs keep their first content | The worker saves its queue position |
+| Source offsets commit | This consumer group can resume past the handled records | Later application processing, retention and backups |
 
-The publisher waits at most five seconds and uses bounded buffers. A timeout,
-503 or interrupted response can be ambiguous: some records may already exist in
-the log. A validated HTTP batch is not a broker transaction and can span several
-partitions/SQL segments. Retry the same UUIDs and content. The supplied clients
-check the complete acknowledgement rather than assuming any 202 is success.
+The publisher waits at most five seconds and keeps buffering bounded. A timeout,
+503 or interrupted response may occur after some records reached the queue.
+The API validates an HTTP batch together, but publication is not a broker
+transaction and the batch can span partitions and SQL segments. Resend the same
+UUIDs and content. The example clients check all returned IDs before calling a
+request successful.
 
-PostgreSQL has a unique `(tenant_id,event_id)` key. Replaying a segment after SQL
-commit and before offset commit cannot create another row. Reusing an ID with
-different content is a caller error: conflicts are ignored, not compared or
-updated. Tenant scoping at HTTP is not database row-level isolation. There is no
-transaction spanning Kafka and PostgreSQL or unconditional exactly-once claim.
+The unique key makes repeated storage safe. It does not create one transaction
+across Kafka and PostgreSQL, or an unconditional exactly-once guarantee. HTTP
+checks the tenant selected by the key; PostgreSQL row-level isolation is separate.
 
-A separate [application outbox](../examples/outbox/README.md) saves business state
-and an event in one local transaction. Its acknowledged state means broker ACK,
-not PostgreSQL persistence. A crash after HTTP ACK but before marking the outbox
-row leaves that event pending; a new dispatcher resends its original bytes/UUID.
+An [application outbox](../examples/outbox/README.md) covers an earlier gap: it
+saves the business change and pending event in one local transaction. If its
+dispatcher stops after receiving 202 but before marking the local row, the event
+stays pending. The next process resends the original UUID and bytes. An
+acknowledged outbox row confirms queue acceptance, not the PostgreSQL write.
 
-## Failure behavior
+## How failures are handled
 
-| Failure | Behavior |
+| Failure | What the collector does |
 | --- | --- |
-| PostgreSQL unavailable or writes denied | Retry; keep affected source progress uncommitted |
-| SQL commit followed by consumer crash | Replay the same IDs; ignore storage duplicates |
-| Malformed broker envelope | Preserve original bytes/key/headers/source coordinates in the separate quarantine topic |
-| Quarantine unavailable | Do not advance past that record |
-| Rebalance or offset-commit failure | Rejoin from committed offsets; unfinished work may replay |
-| Broker unavailable | HTTP may fail uncertainly; application outbox retains pending events |
-| Shutdown deadline exceeded | Exit with failure; do not claim a successful drain |
+| PostgreSQL is unavailable or denies writes | Retries and keeps the affected queue position uncommitted |
+| Worker crashes after SQL commit | Reads the same IDs again; PostgreSQL ignores the duplicate inserts |
+| Broker record has an invalid envelope | Saves its original bytes/key/headers and source coordinates in the quarantine topic |
+| Quarantine write fails | Keeps the source position before that record |
+| Consumer group rebalances or an offset commit fails | Resumes from committed offsets; unfinished work may be read again |
+| Broker is unavailable | HTTP may fail with an uncertain outcome; the application outbox keeps its pending events |
+| Shutdown runs out of time | Exits with failure instead of reporting a completed drain |
 
-The consumer polls at most 500 records and processes each partition sequentially.
-Its processing/retry window is fifteen seconds; its group session timeout is ten
-seconds. Source progress follows successful storage or acknowledged quarantine.
-Fetch-byte settings guide requests; they are not a hard process-memory ceiling.
-Shutdown stops new polls and gives current work ten seconds; it does not drain
-the whole retained log.
+The worker polls at most 500 records and processes each partition sequentially.
+It has fifteen seconds for a processing/retry cycle and a ten-second group
+session timeout. It advances only after storage or acknowledged quarantine.
+Fetch-byte settings guide broker requests; they do not cap total process memory.
+Shutdown stops new polls and allows ten seconds for current work, not the whole
+retained queue.
 
-Consumer readiness includes failed storage, quarantine and offset operations.
-Connectivity alone cannot clear a processing failure. After fixing the cause,
-the matching operation must succeed (or a process restart starts fresh state).
-Use [safe diagnostics and progress checks](operations.md), not API readiness
-alone, to assess a stuck consumer.
+Consumer readiness tracks failed storage, quarantine and offset operations.
+A successful connectivity check cannot clear one of those failures. After the
+cause is fixed, the failed operation must succeed; restarting the process starts
+fresh health state. Check [diagnostics and actual progress](operations.md), since
+API readiness alone cannot tell you whether database storage is moving.
 
-## Durability and observation
+## How long recovery remains possible
 
-The deployment uses one broker replica and seven-day event/quarantine retention.
-Topic `write.caching=false` and the actual broker process's
-`--unsafe-bypass-fsync=false` are both verified. PostgreSQL fsync and synchronous
-commit remain enabled. These are configuration checks, not a physical power-loss
-experiment or protection from losing the only host/disk. An outage beyond retained
-data can leave an unrecoverable gap. PostgreSQL rows have no automatic expiry.
-Restoring an older database does not rewind broker offsets; see the explicit
-[backup/restore and retained-log replay procedure](operations.md).
+The deployment has one broker replica. Event and quarantine records have seven-day
+retention. Both topic `write.caching=false` and the actual process flag
+`--unsafe-bypass-fsync=false` are verified. PostgreSQL fsync and synchronous
+commit stay enabled. These checks establish the configuration; they are not a
+physical power-loss experiment. Losing the only host or disk can lose data, and
+an outage longer than retained history can leave a gap that cannot be recovered.
+PostgreSQL rows have no automatic expiry.
 
-`persisted_at` is an insertion timestamp, not an exact physical commit clock.
-The study records API receipt to the first completed SQL observation of a
-committed row, including polling/query overhead. Receipt and SQL observation use
-the deployment clock; host monotonic timing schedules requests. Final ID/content
-verification is independent. An observer gap cannot provide exact commit times.
+An older database restore does not rewind the queue's saved offsets. Plan replay
+from retained data using the [restore procedure](operations.md).
 
-## Representable payloads
+The study's `persisted_at` is an insertion timestamp, not an exact commit clock.
+Storage timing starts when the API receives an event and ends when a completed
+SQL query first sees its committed row. It includes polling/query delay. Receipt
+and SQL observation use the deployment clock; the host uses monotonic time for
+request scheduling. A final independent query checks IDs and content. No exact
+commit time can be recovered from a gap in observation.
 
-The API validates structure and PostgreSQL JSONB representation, not business
-schema. Payloads must be objects, valid UTF-8 with paired Unicode surrogate
-escapes, no NUL in strings/keys, and numeric representations within 131,072 integer
-digits and 16,383 fractional digits. The root counts as level one of a conservative
-64-level nesting bound. Envelope text and tenant IDs also reject NUL and invalid
-Unicode. These checks run before HTTP publication and on broker decoding; an
-incompatible broker record is quarantined rather than retried as a valid event.
-See [PostgreSQL JSON restrictions](https://www.postgresql.org/docs/18/datatype-json.html).
+## JSON the database can store
 
-For private inspection, define the deployment `dc` helper from the operator guide:
+The API checks event structure and PostgreSQL JSONB limits. Your application
+checks the business schema. A payload must be a JSON object with valid UTF-8,
+paired Unicode surrogate escapes and no NUL (zero character) in strings or keys. Numbers must
+fit within 131,072 integer digits and 16,383 fractional digits. The nesting limit
+is 64 levels, counting the root as one. Envelope text and tenant IDs also reject
+NUL and invalid Unicode.
+
+The same checks run before HTTP publication and when reading broker records.
+An incompatible broker record goes to quarantine instead of blocking the queue
+as a repeatedly failing valid event. See [PostgreSQL's JSON restrictions](https://www.postgresql.org/docs/18/datatype-json.html).
+
+For private inspection, first define the deployment `dc` helper from the operator
+guide, then run:
 
 ~~~sh
 dc exec -T redpanda rpk topic consume ingestkit.dlq -n 1 -X brokers=redpanda:9092
 ~~~
 
-Quarantine contains data, including base64 original bytes. Inspect privately,
-repair the envelope and resubmit through the authenticated API with its original
-ID. If the original ID is invalid, choose a new one deliberately. Do not bulk
-replay unchecked quarantine or skip source offsets to hide an error.
+Quarantine includes event data and base64-encoded original bytes. Inspect it
+privately, repair the envelope and send it through the authenticated API with
+the original ID. Choose a new ID deliberately if the original is invalid.
+Do not replay unreviewed records in bulk or skip offsets to hide a failure.

@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "A worker crash can replay an event without adding a row",
+    "locale": "en",
+    "output": ".archify/sequence-worker-replay-20261104-123448/worker-replay.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:feat7/ingestkit.git",
+      "revision": "799106aeed58f6618bdc4b3711a84e11000fb0b5",
+      "link_mode": "local-only"
+    },
+    "legend": {
+      "mode": "hidden"
+    }
+  },
+  "participants": [
+    {
+      "id": "queue",
+      "type": "messagebus",
+      "label": "Queue",
+      "sublabel": "Redpanda",
+      "sources": [
+        {
+          "path": "internal/messaging/reader.go",
+          "line": 118,
+          "end_line": 141
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker",
+      "sublabel": "Go consumer",
+      "sources": [
+        {
+          "path": "internal/messaging/process.go",
+          "line": 14,
+          "end_line": 30
+        },
+        {
+          "path": "internal/messaging/failure_integration_test.go",
+          "line": 81,
+          "end_line": 155
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "Database",
+      "sublabel": "PostgreSQL",
+      "sources": [
+        {
+          "path": "internal/persistence/events.go",
+          "line": 22,
+          "end_line": 39
+        },
+        {
+          "path": "migrations/showcase/000001_events.up.sql",
+          "line": 2,
+          "end_line": 11
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 140,
+      "to": 340,
+      "label": "Before the crash"
+    },
+    {
+      "from": 370,
+      "to": 650,
+      "label": "After the worker restarts"
+    }
+  ],
+  "messages": [
+    {
+      "id": "first-read",
+      "from": "queue",
+      "to": "worker",
+      "y": 170,
+      "label": "Read event"
+    },
+    {
+      "id": "first-write",
+      "from": "worker",
+      "to": "database",
+      "y": 210,
+      "label": "Save event",
+      "variant": "emphasis"
+    },
+    {
+      "id": "first-commit",
+      "from": "database",
+      "to": "worker",
+      "y": 250,
+      "label": "Commit: one row",
+      "variant": "return",
+      "note": "Worker stops before saving its queue position."
+    },
+    {
+      "id": "replay",
+      "from": "queue",
+      "to": "worker",
+      "y": 400,
+      "label": "Read same event again"
+    },
+    {
+      "id": "second-write",
+      "from": "worker",
+      "to": "database",
+      "y": 445,
+      "label": "Same event ID",
+      "variant": "emphasis"
+    },
+    {
+      "id": "duplicate",
+      "from": "database",
+      "to": "worker",
+      "y": 490,
+      "label": "Still one row",
+      "variant": "return",
+      "note": "The unique tenant + event ID key ignores this repeat."
+    },
+    {
+      "id": "position",
+      "from": "worker",
+      "to": "queue",
+      "y": 590,
+      "label": "Save read position"
+    },
+    {
+      "id": "position-ok",
+      "from": "queue",
+      "to": "worker",
+      "y": 630,
+      "label": "Position saved",
+      "variant": "return"
+    }
+  ]
+}

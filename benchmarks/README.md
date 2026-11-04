@@ -1,17 +1,22 @@
-# Experiments
+# Run and read the experiments
 
-Read the [corrected self-hosted study](results/selfhost-2026-11-04/README.md) for
-all 25 configurations, repetitions, controls and limits. The complete
-[COPY-writer reference](results/selfhost-copy-2026-11-04/README.md) is preserved
-separately. The final deployed writer uses batch INSERT, chosen after the first
-study favored it over COPY/staging/merge in all 11 database configurations.
+The experiments answer three questions: how to write batches to PostgreSQL,
+what happens at different HTTP loads, and whether saved events survive specific
+outages. A case is one fixed configuration, measured three times after warm-up.
+The registered study has 11 database cases, 11 HTTP cases and 3 recovery cases.
 
-## Run the registered study
+Start with the [current writer results](results/selfhost-2026-11-04/README.md).
+The [earlier COPY-writer study](results/selfhost-copy-2026-11-04/README.md) is also
+complete. Batch INSERT had a lower median write time than COPY/staging/merge in
+all 11 database cases, so the deployed worker changed to batch INSERT and the
+whole study ran again. These are local measurements with recorded limits.
 
-Use Go 1.24+, Docker/Compose 2.24.4+, Python 3.9+ and OpenSSL on the local experiment
-host. The driver starts one owned HTTPS deployment, trusts its extracted private
-CA, exposes only owned loopback observation ports, saves evidence and removes
-only its own resources. The deployment server itself does not need Go.
+## Run a small check before a full study
+
+The experiment host needs Go 1.24+, Docker/Compose 2.24.4+, Python 3.9+ and OpenSSL.
+The driver starts its own HTTPS deployment and trusts its extracted private CA.
+It publishes observation ports only on loopback, saves evidence, then removes
+only that run's services. A deployment server itself does not need Go installed.
 
 ~~~sh
 # Small correctness subset; three repetitions per case, not publication evidence.
@@ -27,122 +32,133 @@ make bench-study STUDY_FLAGS='-out benchmarks/results/my-study -seed 42 -resume'
 python3 benchmarks/audit_study.py benchmarks/results/selfhost-2026-11-04
 ~~~
 
-The command prints the chosen output path, each case and its status. An omitted
-path selects a fresh ignored `tmp/studies/<UUID>` directory. Existing output is
-refused without `-resume`. Full runs require clean committed source; smoke may
-be explicitly marked dirty and is never publication timing evidence. Do not
-edit source, run concurrent test/plot workloads, or stop unrelated user services
-while timing a comparison. The recorded host had existing workloads, noted in
-its environment limitations.
+The command prints its output directory and each case's status. With no path,
+it chooses a fresh ignored `tmp/studies/<UUID>` directory. An existing directory
+requires `-resume`. Full measurements need clean committed source. Smoke runs
+may be explicitly marked dirty and test correctness; they are not publishable
+timing evidence.
 
-## Fixed controls
+Run timing studies one at a time. Keep source, concurrent tests and figure jobs
+unchanged during a comparison, and leave unrelated services alone. The recorded
+host had other workloads; that shared use is part of its reported limitations.
 
-Every configuration has three measured repetitions after warm-up. The database
-methods rotate order. The registry is deliberately not a full Cartesian product.
+## What changes between cases
 
-| Question | Configurations | Matched controls |
+Database methods rotate order across the three runs. These are matched sweeps,
+not every possible combination of settings.
+
+| Question | Configurations | Settings kept the same |
 | --- | --- | --- |
 | SQL batching | Batches 1/10/50/100/500/1000 | 5,000 submissions/method, 256 B, no duplicates |
-| SQL payload | 1 KiB/16 KiB | Batch 100; compare with 256 B/batch 100 above |
-| Repeated IDs | 10/50/90% | Batch 100,256 B; compare with 0% above |
-| HTTP batching | Batches 1/10/100 | Offered 1,000 events/s, 256 B, 32 clients |
-| Offered load | 100/5,000/10,000 events/s | Batch 100,256 B, 32 clients;1,000/s baseline above |
-| HTTP payload | 1 KiB/16 KiB | Batch 10; compare with 256 B/batch 10 above |
-| Burst | Same total in first quarter of window | Batch 100,256 B, 32 clients |
-| Client concurrency | 8/64 clients | Batch 1, 1,000 offered/s, 256 B;32-client baseline above |
-| PostgreSQL outage | Stop requested 3s; start requested 8s | 15-second 500/s workload, batch 100 |
-| Consumer kill/restart | KILL requested 3s; start requested 5s | Same 15-second 500/s workload |
-| Outbox + broker outage | 100 durable application events, broker stopped 8s after stop completion | Failed attempt exceeds 5s; new dispatcher replays original UUIDs |
+| SQL payload size | 1 KiB/16 KiB | Batch 100; compare with 256 B/batch 100 above |
+| Repeated IDs | 10/50/90% | Batch 100, 256 B; compare with 0% above |
+| HTTP batching | Batches 1/10/100 | Target 1,000 events/s, 256 B, 32 clients |
+| HTTP sending rate | 100/5,000/10,000 events/s | Batch 100, 256 B, 32 clients; 1,000/s baseline above |
+| HTTP payload size | 1 KiB/16 KiB | Batch 10; compare with 256 B/batch 10 above |
+| Burst | Same total sent in the first quarter of the window | Batch 100, 256 B, 32 clients |
+| Concurrent clients | 8/64 clients | Batch 1, target 1,000/s, 256 B; 32-client baseline above |
+| PostgreSQL outage | Stop requested at 3s; start at 8s | 15-second target of 500/s, batch 100 |
+| Worker restart | KILL requested at 3s; start at 5s | Same 15-second target of 500/s |
+| Outbox with broker outage | 100 saved application events; broker stopped for 8s after stop completion | Failed attempt lasts more than 5s; a new dispatcher sends the original UUIDs |
 
-Ordinary pipeline windows are ten seconds after two-second warm-up, with a
-30-second observation drain deadline and 50 ms target polling. Large payloads use
-batch 10 to fit the existing 1 MiB request cap. The selfhost study fixes API limit
-10,000 requests/s, info logging, broker 1 core/1 GiB and seven-day topic retention.
-Actual process arguments, topic/database settings and trusted HTTPS protocol are
-captured; no environment variable silently tunes matched cases.
+HTTP load cases run for ten seconds after two seconds of warm-up. SQL observation
+aims for a query every 50 ms and allows 30 seconds to finish observing outstanding
+events. Large payloads use batch 10 to fit the 1 MiB request limit. The study fixes
+the API request limit at 10,000/s, info logging, broker allocation at one core/1 GiB,
+and topic retention at seven days. Actual process flags, topic/database settings
+and verified HTTPS protocol are captured. Environment variables cannot silently
+retune a matched case.
 
-Payloads are reproducible varied ASCII JSON at the exact encoded byte length.
-Each case/repetition uses a recorded namespace and seed. Duplicate submissions
-reuse identical bytes/IDs. For SQL, generation/reset/warm-up/content verification
-are outside elapsed time. Single INSERT commits each row; batch INSERT and the
-independent COPY/staging/merge reference commit each batch against the same
-indexed table/conflict policy. Submitted/s and inserted unique/s differ when
-there are duplicates; those cases do less new-row work.
+Inputs are varied ASCII JSON at the exact requested byte size, generated
+reproducibly from the recorded seed and namespace. The namespace separates one
+run's event IDs from another's. Duplicate submissions keep the same IDs and bytes.
 
-## Interpret the populations
+For the database comparison, input generation, table reset, warm-up and content
+checks happen outside the write timer. Single INSERT commits every row; batch
+INSERT and the independent COPY/staging/merge method commit every batch. They
+use the same indexed table and keep the first stored content for a repeated ID.
+Submitted events/s includes repeats; unique inserted rows/s counts only new rows.
 
-- HTTP ACK latency: one sample per successfully acknowledged request.
-- SQL visibility upper bound: one sample per event first seen by the pending-ID
-  observer after commit, from API receipt through completed SQL observation.
-  It includes polling/query delay, not just database execution.
-- In-window ACK rate: only acknowledgements completed inside the target window,
-  divided by that window. Late starts/ACKs are separate counters.
-- Verified stored rate: independent unique-row count divided by the full window,
-  request tail, observation drain and final verification. It is not an intrinsic
-  server-capacity estimate.
-- `ObservedEvents` identifies latency samples. `VerificationNS` records the final
-  census overhead; rows found only then do not receive invented latency samples.
+## Read the counts before the rate
 
-The temporary pending-ID relation is connection-owned, not a timestamp cursor.
-Transactions committing out of order remain observable. Final ID/type/time/payload
-reconciliation is independent of observation bookkeeping and scopes only the
-owned namespace/IDs. It never truncates a shared table or cleans an unrelated run.
+An offered rate is what the driver tried to schedule. Attempted events are what
+it actually sent. Acknowledged events have a successful matching HTTP response.
+Verified stored events are the unique rows found by the independent final check.
+A sending schedule the client missed is not a record the collector lost.
 
-`limited` retains generator misses, late schedules, request/ACK tails, rejected or
-ambiguous delivery, late polls and observer outages. A normal finite-window tail
-does not by itself diagnose saturation. Fewer attempted events means the driver
-missed its target; it does not mean the collector lost unattempted events.
-An ambiguous ID absent at the final deadline remains **unknown**, not proven
-undelivered. Acknowledged missing IDs, unexpected content/IDs or duplicate physical
-rows fail correctness; they cannot become a successful speed result.
+| Measure | What is sampled or counted |
+| --- | --- |
+| HTTP ACK latency | One sample for each successfully acknowledged request |
+| SQL visibility upper bound | One sample for each event first observed after commit, from API receipt through completed SQL observation; includes polling/query delay |
+| In-window ACK rate | Responses finished within the target window, divided by that window |
+| Verified stored rate | Unique verified rows divided by the window, unfinished requests, observation and final verification together |
 
-Receipt and SQL observation share the deployment clock; host monotonic time
-schedules load. Nearest-rank p50/p95/p99 are computed from their distinct raw
-populations. Slow polls/query duration/max gaps are reported. During the deliberate
-PostgreSQL outage only, the observer reconnects and rebuilds pending IDs while
-recording unavailable observations. No exact commit time is inferred in that gap.
-Fault timestamps record actual control requests/completions, not an assumed
-instant service recovery. Availability experiments are separate from capacity.
+`ObservedEvents` counts events with latency samples. `VerificationNS` records
+final-check time. A row found only at the final check gets no invented latency.
+The observer tracks unseen IDs in a temporary table on its own connection, so
+out-of-order commits remain observable. The final check independently compares
+IDs, types, times and payloads, and touches only that run's namespace/IDs. It
+never truncates a shared table or cleans another run's rows.
 
-## Artifacts and resume
+A `limited` result keeps missed schedules, late starts, request/ACK tails,
+rejections, uncertain delivery, delayed polls and observer outages visible.
+A response just outside a finite window does not establish saturation. An
+uncertain ID absent at the final deadline stays unknown; absence then does not
+prove it can never arrive later. Missing acknowledged IDs, unexpected content/IDs
+or duplicate physical rows fail correctness and cannot become a speed result.
+
+p50/p95/p99 use the nearest-rank calculation on their separate raw samples.
+For example, p95 describes the time by which 95% of those samples finished.
+Receipt and SQL observation use the deployment clock; the host schedules load
+with monotonic time. Reports include query/poll time and the largest observation
+gaps. Only the deliberate PostgreSQL-outage experiment reconnects the observer
+and rebuilds its unseen-ID list, while recording the SQL gap. It does not infer
+commit times during the gap. Fault times record control requests/completions;
+starting a container is not proof that processing has recovered. Recovery cases
+are separate from capacity measurements.
+
+## Find the files behind a result
 
 | Artifact | Contents |
 | --- | --- |
-| `index.json`, `summary.csv` | Every configuration, status, summaries, attempts, raw references and checksums |
-| `manifest-N.json` | Immutable source SHA/fingerprint, host/VM, runtime settings, exact image IDs/digests |
-| `raw/<case>-attempt-N.json.gz` | Every repetition/method, raw samples/backlog and ID-population evidence |
-| `resources-N.json.gz` | Coarse owned-container snapshots; not proof of a bottleneck |
-| `journal.json` | Atomic progress, compatibility identity and retained interrupted history |
+| `index.json`, `summary.csv` | All configurations, statuses, summaries, attempts and raw-file checksums |
+| `manifest-N.json` | Source commit/fingerprint, host/VM, runtime settings and exact image IDs/digests |
+| `raw/<case>-attempt-N.json.gz` | All methods/runs, raw timing, queue observations and ID sets |
+| `resources-N.json.gz` | Coarse snapshots of this run's containers; these do not establish a bottleneck |
+| `journal.json` | Progress, compatibility identity and the history of interrupted attempts |
 
-Gzip timestamps are zero; references include SHA256 and raw/compressed sizes.
-Per-capture limits are 128 MiB raw/64 MiB compressed. Pipeline populations use compact
-submission indices plus namespace/seed/count; outbox UUIDs are explicit. Credentials,
-CA files and private Docker/error evidence remain in ignored owned run directories.
+Each file reference includes SHA256 and raw/compressed sizes. Gzip timestamps
+are zero. A capture is limited to 128 MiB raw and 64 MiB compressed. HTTP ID sets
+use compact submission indices with namespace/seed/count; outbox UUIDs are stored
+explicitly. Private credentials, CA files and Docker/error logs remain in the
+ignored run directory.
 
-A partial case reruns all three repetitions on a fresh owned stack, retaining
-history and completed artifact bytes. Resume rejects changed source/files, seed,
-registry controls, runtime/host controls or image content/configuration. Exact image
-IDs remain in manifests; compatibility excludes only Compose's per-project image
-label, proven to alter config IDs without changing filesystem/execution. Other
-config and layers remain fingerprinted. Source/config changes need a new study.
+## Resume the same experiment
 
-Interrupt with Ctrl-C/SIGTERM for bounded owned cleanup. A hard host/process kill
-can leave resources: inspect that run's private evidence and clean only that
-project. Never use global prune or measure over an abandoned owned stack.
+Resume keeps completed captures unchanged. A partially completed case runs all
+three repetitions again on a fresh isolated stack and keeps its interrupted
+history. It rejects a changed source/file set, seed, case controls, host/runtime
+controls or image content/configuration. Exact image IDs remain in the manifests.
+Compatibility ignores only Compose's project-specific image label, which changed
+config IDs without changing filesystem or execution; other configuration/layers
+remain part of the fingerprint. Source or configuration changes need a new study.
 
-## Other entry points
+Ctrl-C/SIGTERM allows bounded cleanup of that run's resources. An uncatchable
+process or host kill can leave them behind. Inspect the private evidence and
+remove only that project; do not use global prune or benchmark over an abandoned
+stack.
 
-`make bench-db` and `make bench-pipeline` retain configurable single-run experiments
-on development HTTP. Their `BENCH_FLAGS` include count/batch/payload/duplicates or
-rate/duration/concurrency/pattern as appropriate; inspect `go run ./cmd/bench -h`.
-They are not the registered HTTPS deployment comparison. All single-run measurements
-still require committed source and own their stacks. Registered study mode rejects
-ad-hoc workload flags rather than silently changing the comparison.
+## Other commands and figures
 
-See [figure sources](../docs/figures/README.md) for charts generated from the audited
-index. [Historical local captures](results/local-2026-11-03/README.md) retain their
-fsync-bypass erratum: topic write caching was disabled while development mode
-still bypassed process-level fsync. They do not establish corrected deployment
-throughput. The new studies inspect and reject that bypass; old raw bytes remain
-unchanged. None of these local captures establishes maximum capacity, cloud cost,
-production adoption or tolerance of the only disk/host failing.
+`make bench-db` and `make bench-pipeline` run configurable single experiments
+on development HTTP. `BENCH_FLAGS` controls count/batch/payload/duplicates or
+rate/duration/concurrency/pattern; see `go run ./cmd/bench -h`. They still need
+committed source and create their own stacks. They are separate from the registered
+HTTPS study, which rejects ad-hoc workload flags.
+
+The [figure guide](../docs/figures/README.md) explains the questions behind each
+plot and how to regenerate it from the audited index. [Historical captures](results/local-2026-11-03/README.md)
+retain a correction: topic write caching was off, but development mode still
+bypassed process-level fsync. Their old raw bytes remain unchanged. The corrected
+studies inspect and reject that bypass. No local capture here establishes maximum
+capacity, cloud cost, production adoption or recovery from losing the only host/disk.
