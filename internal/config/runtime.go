@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"net/url"
 	"strconv"
@@ -35,7 +34,9 @@ func brokers(get func(string) string) []string {
 }
 func LoadAPIEnv(get func(string) string) (APIEnv, error) {
 	c := APIEnv{ListenAddress: value(get, "HTTP_ADDR", ":8080"), Brokers: brokers(get), EventTopic: value(get, "EVENT_TOPIC", "ingestkit.events"), RateLimitRPS: 1000, PublishTimeout: 5 * time.Second}
-	if json.Unmarshal([]byte(get("API_KEYS")), &c.APIKeys) != nil || len(c.APIKeys) == 0 {
+	var err error
+	c.APIKeys, err = ParseAPIKeys(get("API_KEYS"))
+	if err != nil || len(c.APIKeys) == 0 {
 		return c, errors.New("API_KEYS must be a nonempty JSON key-to-tenant map")
 	}
 	for key, tenant := range c.APIKeys {

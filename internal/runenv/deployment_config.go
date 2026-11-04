@@ -2,11 +2,10 @@ package runenv
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/feat7/ingestkit/internal/config"
 	"github.com/feat7/ingestkit/internal/event"
-	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -80,7 +79,7 @@ func ReadDeploymentConfig(path string) (DeploymentConfig, error) {
 			return DeploymentConfig{}, fmt.Errorf("invalid or missing %s; use a generated 64-hex secret", key)
 		}
 	}
-	cfg.APIKeys, err = parseDeploymentKeys(values["API_KEYS"])
+	cfg.APIKeys, err = config.ParseAPIKeys(values["API_KEYS"])
 	if err != nil || len(cfg.APIKeys) == 0 {
 		return DeploymentConfig{}, errors.New("invalid or missing API_KEYS mapping")
 	}
@@ -90,39 +89,4 @@ func ReadDeploymentConfig(path string) (DeploymentConfig, error) {
 		}
 	}
 	return cfg, nil
-}
-
-func parseDeploymentKeys(raw string) (map[string]string, error) {
-	fail := errors.New("invalid or duplicate API_KEYS mapping")
-	d := json.NewDecoder(strings.NewReader(raw))
-	token, err := d.Token()
-	if err != nil || token != json.Delim('{') {
-		return nil, fail
-	}
-	keys := map[string]string{}
-	for d.More() {
-		token, err = d.Token()
-		if err != nil {
-			return nil, fail
-		}
-		key, ok := token.(string)
-		if !ok {
-			return nil, fail
-		}
-		if _, exists := keys[key]; exists {
-			return nil, fail
-		}
-		var tenant string
-		if d.Decode(&tenant) != nil {
-			return nil, fail
-		}
-		keys[key] = tenant
-	}
-	if token, err = d.Token(); err != nil || token != json.Delim('}') {
-		return nil, fail
-	}
-	if d.Decode(new(any)) != io.EOF {
-		return nil, fail
-	}
-	return keys, nil
 }
