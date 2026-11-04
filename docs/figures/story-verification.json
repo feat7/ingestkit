@@ -24,11 +24,13 @@
     "broken_images": 0,
     "phone_guide_clipped_labels": 0,
     "local_links_checked": 153,
-    "original_command_blocks_preserved": "all; one duplicate configure block omitted because its exact command remains in the complete setup block",
+    "original_command_blocks_preserved": "Original commands retained; four first-run examples now reload the generated key, and one duplicate configuration block is omitted.",
     "measured_result_tables_unchanged": true,
     "previous_figure_and_study_index_hashes_unchanged": true,
     "both_study_audits": "99 database / 33 pipeline / 9 recovery runs, 9 limited cases each; passed",
-    "auditor_unit_tests": 6
+    "auditor_unit_tests": 6,
+    "reader_review": "One fresh read-only editor/fact review; key handoff and two pending-count meanings corrected.",
+    "first_run_key_setup": "All four example environment blocks failed after the deployment unset, then passed after explicit key loading, using generated private configuration and the actual Python client constructor."
   },
   "source_spec_sha256": {
     "docs/figures/event-journey.architecture.json": "ef9bfa1b5b6cb3bbf748c43d783e7d799a0535362a3a4fa794ea14f980bcb806",

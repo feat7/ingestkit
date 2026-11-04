@@ -18,6 +18,31 @@ chooses the event and its identity. The key selects the tenant; leave tenant ID
 out of the event body. During [key rotation](operations.md), both keys can point
 to that same tenant.
 
+## Try the included events
+
+From the collector checkout with its initial generated key mapping, run the
+following commands. They load the key again after the deployment demo clears it.
+Use your collector hostname in API_URL.
+For another backend host or a rotated key, supply `API_URL` and
+`INGESTKIT_API_KEY` through that application's private settings.
+
+~~~sh
+export API_URL=https://events.example.com
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
+export INGESTKIT_API_KEY
+python3 examples/checkout/send.py
+SEND_MODE=single node examples/checkout/send.mjs
+~~~
+
+The two commands use the same three checkout UUIDs. Running either repeatedly
+still leaves three logical events for that tenant. `EVENTS_FILE` selects a JSON
+fixture with an `events` array; give new business events fresh UUIDs. The commands
+exit nonzero if the response is missing or its IDs do not match.
+
+HTTP 202 means Redpanda accepted those IDs. It does not tell you whether the
+worker has finished the PostgreSQL write. Check SQL when your workflow needs
+that confirmation, and keep IDs/content after an uncertain response.
+
 ## Python
 
 This import works from the repository. If you copy the helper into your project,
@@ -84,26 +109,6 @@ Use `client.sendBatch(events)` for a list. Both helpers serialize once per call,
 keep the original object unchanged, and resend identical bytes during their
 bounded retries. The application's saved event must also survive process exit;
 the client cannot recover an object that existed only in memory.
-
-## Try the included events
-
-Load `INGESTKIT_API_KEY` as shown in the deployment guide, then run:
-
-~~~sh
-export API_URL=https://events.example.com
-export INGESTKIT_API_KEY
-python3 examples/checkout/send.py
-SEND_MODE=single node examples/checkout/send.mjs
-~~~
-
-The two commands use the same three checkout UUIDs. Running either repeatedly
-still leaves three logical events for that tenant. `EVENTS_FILE` selects a JSON
-fixture with an `events` array; give new business events fresh UUIDs. The commands
-exit nonzero if the response is missing or its IDs do not match.
-
-HTTP 202 means Redpanda accepted those IDs. It does not tell you whether the
-worker has finished the PostgreSQL write. Check SQL when your workflow needs
-that confirmation, and keep IDs/content after an uncertain response.
 
 ## HTTPS trust and recovery
 

@@ -64,11 +64,14 @@ and sends them to the collector.
 
 The [SQLite order example](../examples/outbox/README.md) stores the UUID and exact
 serialized event with the order. Creating the same order again with the same
-amount returns the original event ID; a different amount is rejected. You can
-run it after loading the backend key as shown in the deployment guide:
+amount returns the original event ID; a different amount is rejected. Run these commands from the configured checkout
+with its initial generated key mapping. Use your hostname in API_URL.
+On another backend host, supply the URL
+and key through private application settings:
 
 ~~~sh
 export API_URL=https://events.example.com
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
 export INGESTKIT_API_KEY
 python3 -m examples.outbox create-order --database private/orders.db \
   --order-id order-123 --amount-cents 2500

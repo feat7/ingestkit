@@ -48,8 +48,10 @@ committed rows and includes polling/query delay. Neither establishes maximum cap
 
 Blank sections are SQL observation gaps. Fault lines mark Docker control completion,
 not the exact moment a service became usable. Outbox points are saved snapshots,
-with no fabricated line between them. The pending count means acknowledged events
-the observer has not seen; it is not an instantaneous database or Kafka backlog.
+with no fabricated line between them. In the database and worker panels, pending counts queue-acknowledged events the
+SQL observer has not yet seen. That observation count is not an instantaneous
+database or Kafka backlog. In the outbox panel, pending counts application rows
+not yet marked acknowledged locally; their delivery outcome can be uncertain.
 Read [all outcomes and controls](../../benchmarks/results/selfhost-2026-11-04/README.md)
 with the plots.
 

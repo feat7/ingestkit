@@ -3,10 +3,15 @@
 The fixture has a product view, checkout start and completed order. Each has a
 fixed UUID, so you can resend it and see PostgreSQL keep one row per event.
 
-Follow the [server setup](../../deploy/README.md), load the backend key and run:
+Follow the [server setup](../../deploy/README.md), then run from that checkout
+with its initial generated key mapping. The commands reload the key after the
+deployment demo clears it. On another backend host or after rotating the key,
+supply API_URL and INGESTKIT_API_KEY through private application settings.
+Use your collector hostname in API_URL.
 
 ~~~sh
 export API_URL=https://events.example.com
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
 export INGESTKIT_API_KEY
 python3 examples/checkout/send.py
 SEND_MODE=single node examples/checkout/send.mjs

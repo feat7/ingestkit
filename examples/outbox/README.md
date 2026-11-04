@@ -5,12 +5,15 @@ a pending event containing its UUID and exact JSON body. A separate dispatch
 command sends pending events to IngestKit. If either process stops, the saved
 event is still available for a later attempt.
 
-Run from the repository root after deploying the HTTPS collector and loading
-its backend key as shown in the [deployment guide](../../deploy/README.md):
+Follow the [deployment guide](../../deploy/README.md), then run from that checkout
+with its initial generated key mapping. These commands reload the key. On another
+backend host or after key rotation, supply API_URL and INGESTKIT_API_KEY through
+private application settings. Use your collector hostname in API_URL:
 
 ~~~sh
 umask 077
 export API_URL=https://events.example.com
+INGESTKIT_API_KEY=$(sed -n 's/^API_KEYS={"\([0-9a-f]*\)":"default"}/\1/p' deploy/.env)
 export INGESTKIT_API_KEY
 python3 -m examples.outbox create-order --database private/orders.db \
   --order-id order-123 --amount-cents 2500
