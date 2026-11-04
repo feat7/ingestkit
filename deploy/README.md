@@ -10,7 +10,9 @@ The script requires a POSIX shell, standard system utilities and OpenSSL. It
 creates deploy/.env with mode 0600, three independent secrets and an initial API
 key mapped to tenant default. It does not install software or contact a server.
 Existing configuration is preserved; re-running against the same path fails.
-Keep the file private and out of source control.
+Keep the file private and out of source control. API_KEYS is a JSON object;
+duplicate decoded key names are rejected, including escaped spellings of the
+same key. Use distinct keys for overlap rotation.
 
 An optional second argument selects a configuration directory. localhost is
 accepted for local TLS verification. Public deployment will require a hostname
@@ -18,9 +20,12 @@ pointing to the host and reachable gateway ports 80/443.
 
 ## Start on a server
 
+Replace `events.example.com` with your own DNS hostname in every command.
+
 Use a Linux host with Git, Docker Engine and Docker Compose v2.24.4 or newer,
 OpenSSL, and curl. Allow room for the broker's 1 GiB allocation plus PostgreSQL,
-the Go services and Docker; start with at least 4 GiB RAM and two CPUs available.
+the Go services and Docker. The [measured environment](../benchmarks/results/selfhost-2026-11-04/manifest-1.json)
+used a Docker VM exposing 10 CPUs and about 16 GiB RAM; it does not establish a minimum host size.
 Disk requirements depend on traffic and retention. This is a single-host setup:
 losing its disk can lose both queued and stored events.
 

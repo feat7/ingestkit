@@ -292,3 +292,15 @@ containers had networking disabled, no host ports or volumes, and were removed.
 The corrective runtime regression failed with true and passed with false; the
 full corrected integration/recovery suite passed in114.569s. This immediate
 contract correction is separate from approval of the expanded design.
+
+## Implementation evidence
+
+Native execution produced the canonical deployment, operator procedures, clients
+and outbox, and the registered studies. The [final writer capture](../../../benchmarks/results/selfhost-2026-11-04/README.md)
+pins clean runtime revision213e4cc; the complete earlier COPY-writer study remains
+separate. The measured comparison led to atomic batch INSERT with no TEMP
+privilege; its original COPY transaction remains an explicit benchmark reference.
+[Figure sources and verification](../../figures/README.md) retain provenance and
+responsive layouts. Final regression and whole-branch review are the remaining
+completion gate, recorded separately when performed. No public deployment or
+publication is part of this implementation.

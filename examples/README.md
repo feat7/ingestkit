@@ -8,5 +8,8 @@
   from application code.
 - [HTTP contract](../docs/api.md): limits, responses, retries and persistence checks.
 
+Start with the [self-hosted deployment](../deploy/README.md); the application
+examples do not require Go or a package registry SDK.
+
 A 202 acknowledges the broker. Verify storage separately when your workflow
 requires it. Keep API keys in your backend and retain event IDs across restarts.

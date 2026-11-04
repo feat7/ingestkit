@@ -3,37 +3,33 @@
 Three ordinary envelopes describe a product view, checkout start and completed
 order. The fixed UUIDs make retry/deduplication easy to observe.
 
-~~~sh
-make demo
-make demo-recovery
-~~~
-
-Each command starts an isolated stack, prints acknowledgements and stored IDs,
-reconciles them, saves evidence, and stops with volumes preserved.
-Use DEMO_FLAGS=-cleanup to remove only the run's resources after collecting evidence.
-
-With make up running, use either caller without installing dependencies:
+For a deployed collector, follow the [server setup](../../deploy/README.md), load
+its backend key and set the URL:
 
 ~~~sh
+export API_URL=https://events.example.com
+export INGESTKIT_API_KEY
 python3 examples/checkout/send.py
-node examples/checkout/send.mjs
-~~~
-
-Both read events.json and retain its IDs on retry. Running both against the same
-stack still stores three logical events. Supply API_URL and INGESTKIT_API_KEY
-to use the same contract from another application. The included key is local only.
-
-Both callers default to the batch endpoint. Use `SEND_MODE=single` to send the
-same fixture as individual requests, or `EVENTS_FILE=/path/to/events.json` for
-your own `{ "events": [...] }` fixture with stable explicit IDs. For example:
-
-~~~sh
-SEND_MODE=single python3 examples/checkout/send.py
 SEND_MODE=single node examples/checkout/send.mjs
 ~~~
 
-Each event or batch keeps identical serialized bytes across its bounded retries.
-A 202 acknowledges broker delivery; verify storage separately.
+These read `events.json` and retain its IDs on retry. Running both repeatedly
+still stores three logical events for that tenant. Use fresh explicit UUIDs for
+new business events. Both default to the batch endpoint; `SEND_MODE=single` sends
+individual requests and `EVENTS_FILE=/path/to/events.json` selects your own
+`{ "events": [...] }` fixture. A 202 acknowledges the broker, not PostgreSQL.
+
+For an isolated local walkthrough with Docker and Go:
+
+~~~sh
+make demo DEMO_FLAGS=-cleanup
+make demo-recovery DEMO_FLAGS=-cleanup
+~~~
+
+Each owns its services and checks accepted/stored IDs. Omitting `-cleanup` stops
+its services and preserves volumes; the command prints its exact cleanup recipe.
+The root `make up` development stack also supports the callers' local defaults,
+including `local-demo-key`; those defaults are not deployed credentials.
 
 ## Copy the client into an application
 

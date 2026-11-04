@@ -1,211 +1,268 @@
-# Building an event pipeline in Go—and testing what survives a crash
+# Building an event collector around the failure boundaries
 
-> **Draft correction:** the historical pipeline figures below used a Redpanda
-> development-mode process with fsync bypass enabled. Disabling topic write
-> caching did not disable this separate process flag. The configuration has
-> been corrected; new pipeline measurements are required before publication.
-> The PostgreSQL-only comparison retains its recorded database durability.
+An HTTP 202 can reach an application while PostgreSQL is unavailable. A failed
+HTTP request can also have put some records into a broker. Both are ordinary
+outcomes in an asynchronous collector. The useful question is what the caller
+should retain, what the consumer can replay, and how to check what survived.
 
+IngestKit is a small Go collector built to make those boundaries inspectable:
+HTTPS → Go API → Redpanda → Go consumer → PostgreSQL. It now includes a
+self-contained Docker Compose deployment, copyable Python/Node callers and a
+working application outbox. The experiments changed the implementation too:
+batch INSERT beat the temporary-table COPY/merge strategy in every tested
+configuration by median, so the deployed writer became simpler.
 
-An HTTP 202 response is easy to produce. Explaining what it means after a
-process dies is harder.
+This is a publication draft backed by [complete captures and methodology](../benchmarks/results/selfhost-2026-11-04/README.md)
+from clean revision [213e4cc](../benchmarks/results/selfhost-2026-11-04/manifest-1.json).
+It describes performed local experiments, not production adoption or a maximum
+throughput result. The complete earlier COPY-writer study is retained separately.
 
-I wanted IngestKit to make that boundary visible. The useful artifact is a small
-collector, a reproducible workload and failure tests that reconcile event IDs.
-The implementation sends JSON events through a Go API to Redpanda, then a Go
-consumer writes them into PostgreSQL. It also produced an inconvenient benchmark
-result: at the tested small batch size, ordinary batch INSERT beat the COPY path.
+## Make it something another application can use
 
-These are newly performed local experiments, not a production success story or
-a historical sequence of optimizations. The measured code is
-[deefc8162504fa482c19c63edda05c1c1a4c2ae7](https://github.com/feat7/ingestkit/tree/deefc8162504fa482c19c63edda05c1c1a4c2ae7).
-[Raw results and environment manifests](../benchmarks/results/local-2026-11-03/README.md)
-are part of the repository. Later validation and lifecycle fixes are covered by
-regression tests; these captures remain evidence for the exact recorded revision,
-rather than a new measurement of every subsequent change.
+The deployment contains the gateway, API, broker, consumer and database. Only
+Caddy publishes ports 80/443; database, Kafka, administration and metrics stay
+private. The consumer has a restricted writer login, while migrations use a
+separate admin login. Named volumes retain database, broker and certificate state.
 
-## Start with the promise
+<a href="assets/deployment.svg"><picture><source media="(max-width:600px)" srcset="assets/deployment-mobile.svg"><img src="assets/deployment.svg" alt="One self-hosted Compose server: public Caddy and private API, Redpanda, consumer and PostgreSQL."></picture></a>
 
-A caller supplies an event UUID, event type, occurrence timestamp and JSON object.
-The API key determines the tenant; the caller cannot choose another tenant in
-the envelope. The API supplies a receipt timestamp and validates the complete
-request before publishing it. Payload validation includes PostgreSQL JSONB
-representation limits and a conservative nesting bound; syntactically valid JSON
-is not always a value PostgreSQL can store.
+A host needs Docker/Compose, Git, OpenSSL and curl. Go builds inside Docker.
+With your own DNS hostname pointing to the server and ports 80/443 reachable:
 
-~~~json
-{"event_id":"00000000-0000-4000-8000-000000000003","event_type":"order_completed","occurred_at":"2026-11-03T00:00:00Z","payload":{"order_id":"order-1","amount":25}}
+~~~sh
+deploy/configure.sh events.example.com
+docker compose --env-file deploy/.env -f deploy/compose.yml up -d --build --wait
 ~~~
 
-The API returns 202 only after the configured broker acknowledges every event
-covered by the response. It does not wait for PostgreSQL. That distinction lets
-the service accept events during a database outage, within the broker's finite
-retention and durability assumptions.
+The configuration script creates fresh secrets in an ignored file with mode 0600 and
+refuses to overwrite an existing configuration. The [deployment walkthrough](../deploy/README.md)
+starts at cloning the repository, sends fixed checkout UUIDs and verifies those
+same IDs in SQL. Ordinary shutdown preserves volumes. Local tests verify HTTPS
+against an explicit private CA; they do not claim to have exercised public DNS
+or ACME certificate issuance.
 
-There is an awkward case: the request times out after some records reach the
-broker. Returning an error does not undo those records. Clients therefore keep
-the same IDs when retrying uncertain requests. A batch is validated together;
-it is not an atomic broker transaction. The publisher has a five-second deadline
-and bounded buffering, so a failing dependency cannot create an unlimited queue
-inside the API process.
+The HTTP contract is deliberately small: UUID, event type, occurrence timestamp
+and JSON-object payload. A backend key determines the tenant; the caller cannot
+supply a different tenant in its envelope. The API supplies receipt time. Unknown
+fields and JSON values that PostgreSQL cannot represent are rejected before
+publication. Business-payload validation remains in the application.
 
-## Put the crash window in the design
+The [copyable clients](integration.md) have no package dependencies. They validate
+acknowledgement IDs, retry bounded transient/uncertain failures with the same
+serialized bytes, and return safe status/request-ID metadata. They keep keys on
+a trusted backend. They do not make an in-memory event survive a process crash.
 
-The consumer follows a short sequence:
+## Start stable IDs in the application transaction
 
-1. Read a bounded batch from a partition.
-2. COPY valid events into a temporary staging table.
-3. Merge into the destination with `ON CONFLICT DO NOTHING`, then commit PostgreSQL.
-4. Commit the successfully handled broker offsets.
+A successful order write followed by an HTTP send has a gap: the process can die
+between them. Retrying a request helps only if the application retained the event.
+The [transactional outbox pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html)
+addresses that creation gap by recording business state and pending delivery in
+one database transaction, with idempotent handling of repeated dispatch.
 
-The primary key is `(tenant_id,event_id)`. If the consumer dies between steps
-three and four, the database contains the event while the broker still considers
-it pending. Restarting replays it; the unique key ignores the extra insertion.
+The included [SQLite application](../examples/outbox/README.md) makes that concrete.
+An order and its serialized event/UUID commit together. Creating the same order
+with the same amount returns the original event ID; conflicting business input
+fails. A separate one-shot dispatcher reads pending work, releases the SQLite
+connection, sends HTTP, and marks matching acknowledgements in another transaction.
+It holds no business write lock while waiting on the network.
 
-This is repeatable delivery with an idempotent storage effect. It is not a
-transaction spanning Kafka and PostgreSQL. First stored content wins, so reusing
-an ID for different content is a caller error. The implementation does not
-compare payloads on a conflict.
+After loading the backend key as shown in the deployment guide:
 
-~~~mermaid
-sequenceDiagram
-  participant C as Consumer
-  participant P as PostgreSQL
-  participant B as Broker
-  C->>P: Stage + merge
-  P-->>C: Transaction committed
-  Note over C: Kill here: row exists, offset pending
-  C->>B: Commit source offset
-  Note over C,B: Restart can replay, unique key prevents another row
+~~~sh
+export API_URL=https://events.example.com
+export INGESTKIT_API_KEY
+python3 -m examples.outbox create-order --database private/orders.db \
+  --order-id order-123 --amount-cents 2500
+python3 -m examples.outbox dispatch --database private/orders.db
+python3 -m examples.outbox status --database private/orders.db
 ~~~
 
-Malformed broker envelopes take another path: preserve their raw bytes, key,
-headers and source coordinates in a quarantine topic. The source offset advances
-only after that write is acknowledged. If quarantine fails, progress stops at
-that record. A database outage is retried; it is not grounds for discarding a
-valid event. Processing remains sequential so that a later offset cannot skip
-unfinished work in the same partition.
+The states are precise. `pending` still needs broker acknowledgement;
+`acknowledged` means matching HTTP 202 IDs, with PostgreSQL potentially catching
+up; `rejected` keeps a permanent 400/413 visible for repair. Authentication or
+network failures do not silently discard business events.
 
-## Test the boundary instead of hoping to hit it
+There is another crash gap after the broker ACK but before the dispatcher marks
+its local row. A deterministic integration test pauses a test-only wrapper after
+an actual HTTP ACK, kills that child and dispatches again. The new process uses
+the saved UUID/body, and PostgreSQL still has one row. This example supports one
+dispatcher; multiple dispatchers need a claim/lease protocol in the application's
+own database. SQLite is the runnable example, not a requirement to add a second
+database to an application that already has transactions.
 
-The recovery suite uses real isolated PostgreSQL and Redpanda containers. The
-crash test wraps the real store and pauses immediately after the database commit,
-before the consumer can commit its offset. The parent kills only that helper
-process, verifies the source offset is still pending, and starts a replacement
-consumer in the same group. The replacement observes a duplicate and advances
-the offset; the database still contains one row.
+## Put SQL before source progress
 
-Other tests stop PostgreSQL while events are acknowledged, restore it and
-reconcile the accepted IDs. They also stop the broker, fail quarantine writes,
-introduce a second consumer to cause a rebalance, and exercise graceful and forced
-shutdown. One deliberate negative control temporarily committed offsets before
-storage; the ordering regression test failed, then passed after restoring the
-safe order. This is not exhaustive mutation testing, but it proves the ordering
-check can detect the mistake it is meant to prevent.
+The API waits for every broker acknowledgement covered by its response. The
+publish deadline is five seconds and buffering is bounded. HTTP batches are
+validated together, but are not broker transactions: an error can follow partial
+publication. A retry therefore reuses IDs rather than inventing replacements.
 
-Each run owns distinct ports, volumes and a Compose project. Cleanup verifies
-ownership. A failed experiment saves evidence rather than silently resetting a
-shared database. A live outage walkthrough is available as `make demo-recovery`.
+The consumer's normal valid-record path is short:
 
-## COPY was not the winner here
+1. Read a bounded segment from a source partition.
+2. Execute one multi-row INSERT with `ON CONFLICT DO NOTHING`; commit PostgreSQL.
+3. Commit the handled source offsets.
 
-The database experiment compares single INSERT, batch INSERT, and the actual
-COPY/staging/merge store. All target the same indexed table with the same conflict
-policy and durability settings. Workload generation, warm-up, dataset reset and
-exact ID/payload verification happen outside the timer. Method order rotates
-across three measured repetitions.
+The unique key is `(tenant_id,event_id)`. A crash after step 2 and before step 3
+leaves stored rows with pending offsets. A replacement consumer replays them;
+conflicts preserve the first stored content. Reusing a UUID for different content
+is a caller error, not an update operation.
 
-For 10,000 unique submissions with 256-byte JSON payloads and batches of 100:
+<a href="assets/delivery.svg"><picture><source media="(max-width:600px)" srcset="assets/delivery-mobile.svg"><img src="assets/delivery.svg" alt="Broker acknowledgement, SQL commit and source-offset commit are distinct boundaries; the alternative crash path replays stable IDs."></picture></a>
 
-| Method | Median elapsed | Submitted events/s |
+[Open the full sequence](assets/delivery.svg). HTTP response timing and consumer
+processing can overlap after broker acceptance. The diagram's alternative segment
+does not imply that already committed offsets replay.
+
+This is an idempotent storage effect, not a transaction spanning Kafka and
+PostgreSQL. [Kafka's delivery-semantics discussion](https://kafka.apache.org/41/design/design/)
+is useful context: Kafka-to-Kafka transactions do not automatically make an
+external database write atomic with an offset update.
+
+Malformed broker envelopes take a separate acknowledged quarantine path. Source
+progress cannot skip a record whose quarantine write failed. A database outage
+is retried, not treated as malformed data. The [delivery contract](delivery.md)
+spells out these conditions and the finite retention/disk assumptions.
+
+## Test the crash window deliberately
+
+Randomly restarting a consumer is useful, but does not prove it died in the
+SQL-commit/offset-commit gap. The deterministic regression wraps the real store,
+pauses just after database commit, kills only that helper process, checks that
+the source offset is still pending and starts a replacement in the same group.
+Replay encounters the duplicate and advances progress; SQL still contains one row.
+
+Other real-service checks deny INSERT while database Ping still succeeds,
+restore the grant and verify processing readiness; rotate overlapping API keys;
+and restore a custom-format backup into a separate empty owned deployment while
+preserving the source. Safe consumer diagnostics report operation, error class,
+SQLSTATE and source coordinates, with repeated errors throttled. They exclude
+raw errors, credentials and payloads. Connectivity is not sufficient evidence of
+successful processing.
+
+## Measure the write path you actually deploy
+
+[PostgreSQL's bulk-loading guidance](https://www.postgresql.org/docs/18/populate.html)
+explains why per-row commits are expensive and why COPY is useful for large
+loads. This collector's original strategy did more work than plain COPY into
+an empty table: create a temporary table, COPY into it, merge into an indexed
+target with conflict handling, then commit. The comparison measures complete
+strategies; it does not isolate the cost of each extra operation.
+
+The corrected study compares single INSERT, batch INSERT and that explicit
+COPY/staging/merge reference. Each method gets 5,000 submissions, the same schema,
+indexes, conflict policy and enabled database durability. Generation, reset,
+warm-up and exact verification are outside elapsed time; order rotates across
+three repetitions. Single INSERT commits every row, the others every batch.
+
+For 256-byte payloads, no duplicates and batch 100, the final study recorded
+these median and min–max seconds across all three repetitions:
+
+| Method | Median (s) | Range (s) |
 | --- | ---: | ---: |
-| Single INSERT | 16.909s | 591 |
-| Batch INSERT | 0.492s | 20,333 |
-| COPY/staging/merge | 1.011s | 9,889 |
+| Single INSERT | 6.510 | 4.710–8.375 |
+| Batch INSERT | 0.155 | 0.121–0.247 |
+| COPY/staging/merge | 0.486 | 0.212–0.523 |
 
-Single INSERT commits every row; the other methods commit every batch. That
-commit amortization is part of this practical comparison, not an isolated test
-of SQL parser cost. The COPY path additionally creates a temporary table and
-merges into an indexed target. Measuring plain COPY into an empty unindexed table
-would answer a different question from this service's replay-safe writes.
+The broader sweep covers batch sizes 1–1000, payloads up to 16 KiB and 10/50/90%
+duplicate submissions. Batch INSERT had the lower median than COPY/merge in all 11
+configurations in both studies. Some individual repetitions overlap or reverse
+that ordering. Duplicate cases insert fewer unique rows, so their submitted/s
+is not a clean percentage estimate of deduplication overhead.
 
-With 10% duplicate submissions, each method inserted exactly 9,000 distinct IDs.
-Median elapsed times were 13.054s, 0.256s and 0.706s respectively. Those runs did
-less insertion work and used a separate local stack. They demonstrate correct
-duplicate handling and its total workload timing, not a clean percentage cost
-for deduplication. The raw repetitions show substantial timing variation.
+<a href="assets/database-batching.svg"><picture><source media="(max-width:600px)" srcset="assets/database-batching-mobile.svg"><img src="assets/database-batching.svg" alt="All database methods and repetitions across batch size, payload size and duplicate-ID sweeps."></picture></a>
 
-The result gives me no evidence to promote COPY/staging as the fastest small-batch
-writer. The reference keeps it visible as an experiment with replay semantics;
-ordinary batched SQL is the stronger candidate for this measured workload.
-A practical deployment should benchmark its expected batch sizes and payloads
-before choosing. A generic JSONB envelope also avoids generated per-event tables,
-but I have not measured its storage or query overhead against typed schemas.
+That evidence changed the default to one atomic batched INSERT. Existing rollback,
+deduplication and deterministic replay tests still pass; the deployed role no
+longer needs temporary-table privilege. COPY remains a distinct reference in the
+benchmark, rather than a label that silently follows the current default. A new
+complete study was run from the resulting committed code.
 
-## Measure the whole path separately
+This result does not identify a universal COPY crossover. It does not compare
+UNNEST or typed tables. [Tiger Data's batch-ingest exploration](https://www.tigerdata.com/blog/benchmarking-postgresql-batch-ingest)
+compares different bulk-loading methods and sizes; its numbers should not be
+transferred to this indexed, conflict-handling JSONB workload.
 
-Database throughput is not collector throughput. The end-to-end driver offers
-10,000 unique events per ten-second window, in HTTP batches of 100 with eight
-workers. After a two-second warm-up, it runs three repetitions of each pattern:
-steady at 1,000 events/s, and a burst of 4,000 events/s for the first 2.5 seconds
-followed by idle time.
+## An offered rate is not a capacity result
 
-All six windows accepted and stored every ID, with no generator queue misses,
-late schedules, rejected requests or ambiguous deliveries. Steady HTTP ACK p95
-was 27.4–31.0ms. Receipt-to-visible-storage p95 was 72.7–85.2ms.
+The HTTPS suite has 11 load configurations with three measured windows each.
+The baseline offers 1,000 events/s for ten seconds, in batches of 100 with 32
+clients and 256-byte payloads. Warm-up is two seconds; target SQL polling is 50 ms.
+Larger payloads use batch 10 to stay below the existing request cap.
 
-Burst results were more variable: ACK p95 was 137.9ms in the first repetition,
-then 18.1ms and 17.0ms. Storage visibility p95 was 261.5ms, 68.7ms and 68.8ms.
-The coarse observed backlog peaked at 881 events in the first burst. Its cause
-is not established. Reporting only the best repetition would conceal a useful
-limitation of this evidence.
+All three baseline windows attempted, acknowledged and independently verified
+10,000 events each, without reported limits. HTTP ACK p95 was 40.19–42.92 ms;
+receipt-to-observed-storage p95 was 101.61–103.08 ms. Those are different populations:
+one sample per successful request versus one per observed event.
 
-![All database and pipeline repetitions](assets/experiments.svg)
+The rest of the report is less tidy, and should stay that way. Smaller batches
+show generator misses or boundary tails. At 10,000 offered/s, repetition 2 retained
+1,000 ambiguous IDs absent at its final deadline; the 16 KiB case's second repetition
+retained 160. They remain unknown, not proved never delivered, and are not counted
+as acknowledged success. A caller should retain and retry their original IDs.
 
-Storage visibility is deliberately labelled an upper bound: it runs from API
-receipt to the end of the first SQL query that sees the committed row. It includes
-50ms polling and query delay. The database's `persisted_at` default is an insertion
-timestamp, not a physical commit clock. HTTP latency is per successful request;
-storage latency is per observed event. Those sample populations are different.
+<a href="assets/pipeline-load.svg"><picture><source media="(max-width:600px)" srcset="assets/pipeline-load-mobile.svg"><img src="assets/pipeline-load.svg" alt="All 33 HTTPS windows retain offered versus attempted and acknowledged load, latency populations and reported limits."></picture></a>
 
-Complete-window stored throughput was approximately 995–996 unique events/s,
-including final confirmation. The burst's idle time is included. This verifies
-a load point; it does not establish maximum capacity, active-burst processing
-capacity or long-term latency guarantees.
+A late acknowledgement at the edge of a finite window does not itself prove
+saturation. Neither do missed generator schedules identify the collector's
+capacity. In-window ACK rate excludes late ACKs. Stored rate includes the whole
+window, request tail, observation drain and final verification. Selecting the
+best repetition or dividing later rows by an earlier denominator would tell a
+different, misleading story.
 
-## What the experiment does not establish
+The SQL metric is an upper bound: API receipt through the first completed query
+that sees a committed row, including polling/query overhead. `persisted_at` alone
+is not a commit clock. The observer uses a connection-owned pending-ID relation,
+so a transaction committing late cannot fall behind a timestamp cursor. Final
+ID/content verification is independent; rows discovered only then receive no
+invented latency sample. Receipt and SQL observation share the deployment clock,
+while the host schedules load with monotonic timing.
 
-Everything ran on a shared Apple M1 Max with OrbStack. The host generator and SQL
-observer compete with the services. PostgreSQL had fsync, synchronous commit and
-full-page writes enabled. The single Redpanda broker had three event partitions,
-one replica, seven-day retention and write caching explicitly disabled. Its
-development-mode process nevertheless bypassed fsync, so these historical
-pipeline timings are not evidence for the corrected broker configuration. Image
-digests, runtime settings and coarse resource snapshots are saved with the data.
+## Recover, then reconcile
 
-A single broker does not survive loss of its only disk. An outage beyond retention
-can expire pending events. These tests do not demonstrate host-loss recovery,
-maximum throughput, cloud cost, deployment security or production adoption. API
-key scoping is also not database row-level isolation.
+The three availability experiments each run three repetitions:
 
-For small workloads, direct batched PostgreSQL writes may be the better design.
-The broker buys outage buffering and replay, while adding another service to run.
-Generated SDKs and a schema compiler are not necessary to exercise this contract:
-the Python and Node examples are plain HTTP clients. Business payload validation
-belongs to the sending application.
+- PostgreSQL stop requested at 3s and start at 8s during a 15-second workload.
+- Consumer KILL requested at 3s and restart at 5s during the same offered 500/s load.
+- Broker stopped for eight seconds after stop completion, while 100 durable outbox
+  events survive a failed attempt lasting more than the five-second publish deadline.
 
-## Reproduce and inspect
+Every acknowledged ID/content reconciled after the database and consumer cases.
+In the outbox case, a new dispatcher replayed the saved events to 100 accepted and
+stored unique IDs per repetition. Container start completion is not the same as
+catching up source progress. Actual control timestamps and all repetitions are
+retained; SQL-observer outages appear as gaps.
 
-With Go and Docker installed, run `make demo`, `make demo-recovery` and
-`make test-integration`. The [benchmark instructions](../benchmarks/README.md)
-include the exact measurement commands. Every acknowledged ID is reconciled
-before a run succeeds; each experiment prints its evidence location.
+<a href="assets/recovery.svg"><picture><source media="(max-width:600px)" srcset="assets/recovery-mobile.svg"><img src="assets/recovery.svg" alt="Actual recovery controls, observed pending acknowledgements, SQL gaps and application outbox snapshots across all repetitions."></picture></a>
 
-Useful related reading: Tiger Data's [PostgreSQL batch ingest comparison](https://www.tigerdata.com/blog/benchmarking-postgresql-batch-ingest)
-examines how method and batch size affect results. Segment's
-[deduplication write-up](https://www.twilio.com/en-us/blog/insights/exactly-once-delivery)
-explores stable message IDs at a much larger scale. PostHog's
-[ingestion documentation](https://posthog.com/docs/how-posthog-works/ingestion-pipeline)
-shows a capture boundary feeding downstream processing through Kafka. These are
-references for reasoning about the problem, not evidence that this project
-operates at their scale.
+These are availability experiments, not throughput headlines or exhaustive
+failure proofs. They complement the exact crash-window regression. The
+[operator guide](operations.md) covers readiness, lag, disk growth, key rotation
+and backup/restore. Restoring an older database does not rewind committed broker
+offsets: replay must be deliberate and can recover only data still retained.
+
+## Keep the limits with the result
+
+The environment was an M1 Max physical host with an OrbStack Linux Docker VM,
+with generator and SQL observer sharing that machine alongside existing workloads.
+The broker had one core and 1 GiB; the VM exposed 10 CPUs and about 16 GiB. Coarse Docker
+snapshots do not establish a sole bottleneck or a cloud-cost estimate.
+
+The new manifests inspect the actual broker process's fsync-bypass flag, topic
+write caching, database durability, image IDs/digests and trusted HTTPS protocol.
+An earlier development-mode capture had process-level fsync bypass enabled even
+though topic write caching was false. It remains [historical with an erratum](../benchmarks/results/local-2026-11-03/README.md);
+these corrected studies do not reuse it as deployment-performance evidence.
+
+The project has one broker replica and finite log retention on one host. It does
+not protect against losing that host or its disks. Applications own business
+schemas and IDs; operators own disk monitoring, backups and any SQL retention
+policy. Direct PostgreSQL writes may be a better choice when a broker adds no
+useful buffering or recovery boundary.
+
+Related reading includes [PostHog's capture/processing separation](https://posthog.com/docs/how-posthog-works/ingestion-pipeline)
+and [Segment's client-ID deduplication discussion](https://www.twilio.com/en-us/blog/insights/exactly-once-delivery).
+Their systems have different storage, scale and guarantees. Here, the reusable
+parts are the deployable HTTP boundary, durable application outbox, explicit
+commit ordering and experiments that keep their unknowns visible.

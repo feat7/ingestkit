@@ -139,3 +139,13 @@ format changes. Review those before planning a rollback.
 
 Use `dc down` for shutdown. Named database, broker and certificate volumes remain.
 Do not use `down -v`, global prune, or volume removal for routine operations.
+
+## What the recovery evidence covers
+
+The [corrected availability captures](../benchmarks/results/selfhost-2026-11-04/README.md)
+retain three repetitions each for a database outage, consumer kill/restart and
+application-outbox replay while the broker is unavailable. They reconcile accepted
+IDs/content and record actual control times. A start command returning is not a
+claim that the group has caught up; check readiness, lag and the stored UUIDs.
+SQL-unavailable intervals remain observation gaps. These local tests do not
+establish tolerance of host/disk loss or an outage beyond retained data.

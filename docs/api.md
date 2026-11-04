@@ -2,7 +2,10 @@
 
 Use the HTTPS URL from [deployment](../deploy/README.md). Authenticate every
 write with `Authorization: Bearer <key>` and send `Content-Type: application/json`.
-The server maps the key to a tenant; callers do not supply tenant identity.
+The server maps the key to a tenant; callers do not supply tenant identity. The
+deployment default token bucket refills at 10,000 **requests**/s per tenant,
+with a 10,000-request burst allowance. These are configuration limits, not
+measured capacity; batched events consume one request.
 
 `POST /v1/events` accepts one envelope:
 
@@ -21,7 +24,7 @@ reuse the same UUID and serialized content for an uncertain retry. The first
 stored event for `(tenant_id,event_id)` wins; a later payload does not update it.
 Unknown envelope fields, malformed JSON and values incompatible with PostgreSQL
 JSONB are rejected. Payloads must be objects. Event types are 1–128 bytes.
-Timestamps must parse as RFC3339. See [delivery details](delivery.md) for edge cases.
+Timestamps must parse as RFC 3339. See [delivery details](delivery.md) for edge cases.
 
 | Limit | Value |
 | --- | --- |

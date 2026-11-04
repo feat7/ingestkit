@@ -60,15 +60,16 @@ def deployment_guide():
         '<rect x="20" y="190" width="320" height="580" rx="12" class="card"/>',
         '<text x="34" y="213" class="step">ONE HOST</text>',
         '<rect x="30" y="326" width="300" height="432" rx="10" fill="none" stroke="var(--blue)" stroke-dasharray="5 4"/>',
-        '<text x="40" y="346" class="small">Private · no ports</text>',
+        '<text x="40" y="346" class="small">Private services</text>',
+        '<text x="40" y="363" class="small">No host ports</text>',
     ]
     cards = [
         (65, "Your backend", "Stable event UUIDs"),
         (230, "Caddy", "Public ports 80 / 443"),
-        (365, "Go API", "Bearer key supplies tenant"),
-        (465, "Redpanda", "Events + quarantine topics"),
-        (565, "Go consumer", "Retry; commit SQL before offsets"),
-        (665, "PostgreSQL", "One row per tenant + UUID"),
+        (385, "Go API", "Bearer key supplies tenant"),
+        (485, "Redpanda", "Events + quarantine topics"),
+        (585, "Go consumer", "Retry; commit SQL before offsets"),
+        (685, "PostgreSQL", "One row per tenant + UUID"),
     ]
     for y, title, sub in cards:
         parts += [
@@ -78,10 +79,10 @@ def deployment_guide():
         ]
     for a, b, label in [
         (129, 230, "HTTPS"),
-        (294, 365, "HTTP"),
-        (429, 465, "publish"),
-        (529, 565, "consume"),
-        (629, 665, "batch INSERT"),
+        (294, 385, "HTTP"),
+        (449, 485, "publish"),
+        (549, 585, "consume"),
+        (649, 685, "batch INSERT"),
     ]:
         # Public entry passes through the host frame; other arrows stay in their boundary.
         label_y = 313 if label == "HTTP" else (a + b) // 2 + 5

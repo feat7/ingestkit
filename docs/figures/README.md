@@ -59,30 +59,30 @@ for contrast on either page background; the diagram exports adapt to host theme.
 
 ## Inspect the results
 
-<picture><source media="(max-width:600px)" srcset="../assets/deployment-mobile.svg"><img src="../assets/deployment.svg" alt="Only Caddy publishes ports; the collector dependencies stay private on one host."></picture>
+<a href="../assets/deployment.svg"><picture><source media="(max-width:600px)" srcset="../assets/deployment-mobile.svg"><img src="../assets/deployment.svg" alt="Only Caddy publishes ports; the collector dependencies stay private on one host."></picture></a>
 
 [Full deployment diagram](../assets/deployment.svg). Persistent volumes and the
 single-host failure domain matter as much as the arrows; see the
 [deployment guide](../../deploy/README.md).
 
-<picture><source media="(max-width:600px)" srcset="../assets/delivery-mobile.svg"><img src="../assets/delivery.svg" alt="202 acknowledges the broker; SQL commit precedes source-offset commit; a crash in between replays the same UUID."></picture>
+<a href="../assets/delivery.svg"><picture><source media="(max-width:600px)" srcset="../assets/delivery-mobile.svg"><img src="../assets/delivery.svg" alt="202 acknowledges the broker; SQL commit precedes source-offset commit; a crash in between replays the same UUID."></picture></a>
 
 [Full sequence](../assets/delivery.svg). The second segment is an alternative
 crash path, not a claim that an already committed offset replays. HTTP response
 and consumer processing are concurrent after broker acceptance.
 
-<picture><source media="(max-width:600px)" srcset="../assets/database-batching-mobile.svg"><img src="../assets/database-batching.svg" alt="All 99 database method/repetition measurements, with batch-size, payload-size and duplicate-ID controls."></picture>
+<a href="../assets/database-batching.svg"><picture><source media="(max-width:600px)" srcset="../assets/database-batching-mobile.svg"><img src="../assets/database-batching.svg" alt="All 99 database method/repetition measurements, with batch-size, payload-size and duplicate-ID controls."></picture></a>
 
 Submitted/s differs from inserted unique/s for duplicate workloads. Dots retain
 all three repetitions; min–max/median marks are descriptive, not confidence intervals.
 
-<picture><source media="(max-width:600px)" srcset="../assets/pipeline-load-mobile.svg"><img src="../assets/pipeline-load.svg" alt="All 33 HTTPS windows: target versus generated/acknowledged load and p95 ACK versus observed storage latency."></picture>
+<a href="../assets/pipeline-load.svg"><picture><source media="(max-width:600px)" srcset="../assets/pipeline-load-mobile.svg"><img src="../assets/pipeline-load.svg" alt="All 33 HTTPS windows: target versus generated/acknowledged load and p95 ACK versus observed storage latency."></picture></a>
 
 Hollow markers retain limits, including ordinary finite-window tails. ACK samples
 are successful requests; SQL samples are first-observed committed events. The
 latter include polling/query delay. Neither panel establishes maximum capacity.
 
-<picture><source media="(max-width:600px)" srcset="../assets/recovery-mobile.svg"><img src="../assets/recovery.svg" alt="All three repetitions of database outage, consumer restart and outbox replay with actual control timestamps."></picture>
+<a href="../assets/recovery.svg"><picture><source media="(max-width:600px)" srcset="../assets/recovery-mobile.svg"><img src="../assets/recovery.svg" alt="All three repetitions of database outage, consumer restart and outbox replay with actual control timestamps."></picture></a>
 
 SQL-observer gaps remain blank. Fault lines mark Docker control completion, not
 an exact service-availability transition. Outbox points are state snapshots;

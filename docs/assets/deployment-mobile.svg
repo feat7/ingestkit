@@ -10,39 +10,40 @@ text{font-family:Arial,sans-serif;fill:var(--ink)}.small{font-size:14px;fill:var
 <rect x="20" y="190" width="320" height="580" rx="12" class="card"/>
 <text x="34" y="213" class="step">ONE HOST</text>
 <rect x="30" y="326" width="300" height="432" rx="10" fill="none" stroke="var(--blue)" stroke-dasharray="5 4"/>
-<text x="40" y="346" class="small">Private · no ports</text>
+<text x="40" y="346" class="small">Private services</text>
+<text x="40" y="363" class="small">No host ports</text>
 <rect x="40" y="65" width="280" height="64" rx="10" class="card"/>
 <text x="54" y="91" class="heading">Your backend</text>
 <text x="54" y="114" class="small">Stable event UUIDs</text>
 <rect x="40" y="230" width="280" height="64" rx="10" class="card"/>
 <text x="54" y="256" class="heading">Caddy</text>
 <text x="54" y="279" class="small">Public ports 80 / 443</text>
-<rect x="40" y="365" width="280" height="64" rx="10" class="card"/>
-<text x="54" y="391" class="heading">Go API</text>
-<text x="54" y="414" class="small">Bearer key supplies tenant</text>
-<rect x="40" y="465" width="280" height="64" rx="10" class="card"/>
-<text x="54" y="491" class="heading">Redpanda</text>
-<text x="54" y="514" class="small">Events + quarantine topics</text>
-<rect x="40" y="565" width="280" height="64" rx="10" class="card"/>
-<text x="54" y="591" class="heading">Go consumer</text>
-<text x="54" y="614" class="small">Retry; commit SQL before offsets</text>
-<rect x="40" y="665" width="280" height="64" rx="10" class="card"/>
-<text x="54" y="691" class="heading">PostgreSQL</text>
-<text x="54" y="714" class="small">One row per tenant + UUID</text>
+<rect x="40" y="385" width="280" height="64" rx="10" class="card"/>
+<text x="54" y="411" class="heading">Go API</text>
+<text x="54" y="434" class="small">Bearer key supplies tenant</text>
+<rect x="40" y="485" width="280" height="64" rx="10" class="card"/>
+<text x="54" y="511" class="heading">Redpanda</text>
+<text x="54" y="534" class="small">Events + quarantine topics</text>
+<rect x="40" y="585" width="280" height="64" rx="10" class="card"/>
+<text x="54" y="611" class="heading">Go consumer</text>
+<text x="54" y="634" class="small">Retry; commit SQL before offsets</text>
+<rect x="40" y="685" width="280" height="64" rx="10" class="card"/>
+<text x="54" y="711" class="heading">PostgreSQL</text>
+<text x="54" y="734" class="small">One row per tenant + UUID</text>
 <path d="M180 132V225" class="arrow"/>
 <path d="M175 219L180 225L185 219" class="arrow"/>
 <text x="195" y="184" class="small">HTTPS</text>
-<path d="M180 297V360" class="arrow"/>
-<path d="M175 354L180 360L185 354" class="arrow"/>
+<path d="M180 297V380" class="arrow"/>
+<path d="M175 374L180 380L185 374" class="arrow"/>
 <text x="195" y="313" class="small">HTTP</text>
-<path d="M180 432V460" class="arrow"/>
-<path d="M175 454L180 460L185 454" class="arrow"/>
-<text x="195" y="452" class="small">publish</text>
-<path d="M180 532V560" class="arrow"/>
-<path d="M175 554L180 560L185 554" class="arrow"/>
-<text x="195" y="552" class="small">consume</text>
-<path d="M180 632V660" class="arrow"/>
-<path d="M175 654L180 660L185 654" class="arrow"/>
-<text x="195" y="652" class="small">batch INSERT</text>
+<path d="M180 452V480" class="arrow"/>
+<path d="M175 474L180 480L185 474" class="arrow"/>
+<text x="195" y="472" class="small">publish</text>
+<path d="M180 552V580" class="arrow"/>
+<path d="M175 574L180 580L185 574" class="arrow"/>
+<text x="195" y="572" class="small">consume</text>
+<path d="M180 652V680" class="arrow"/>
+<path d="M175 674L180 680L185 674" class="arrow"/>
+<text x="195" y="672" class="small">batch INSERT</text>
 <text x="20" y="797" class="small">One host does not protect against disk loss.</text>
 <text x="20" y="824" class="small">Source 213e4cc · full deployment diagram linked</text></svg>

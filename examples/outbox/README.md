@@ -88,3 +88,9 @@ python3 -m unittest discover -s examples/outbox -p 'test_*.py'
 # Real outage and after-ACK process-kill checks over HTTPS:
 scripts/test-integration.sh -run TestOutbox -v
 ~~~
+
+The [recorded recovery study](../../benchmarks/results/selfhost-2026-11-04/README.md)
+uses 100 saved events per repetition and a broker outage longer than the publish
+deadline. It retains pending state and replays from a new dispatcher. This is
+separate from the deterministic after-ACK kill check described above; neither
+replaces your own application database's transaction/worker design.

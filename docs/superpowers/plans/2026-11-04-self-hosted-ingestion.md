@@ -10,7 +10,7 @@
 
 **Spec:** docs/superpowers/specs/2026-11-03-self-hosted-ingestion-design.md (approved 4 November 2026; native execution already selected).
 
-**Status:** Ready for native execution in the existing feat/self-hosted-ingestion worktree. The fsync correction and historical-results erratum are already committed in 3ca1a41, followed by reviewed design 641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
+**Status:** Native execution has completed Tasks1–9 in the existing feat/self-hosted-ingestion worktree; Task10 reader documentation and final regression/review are in progress. The fsync correction and historical-results erratum are already committed in 3ca1a41, followed by reviewed design 641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
 
 ## Global Constraints
 

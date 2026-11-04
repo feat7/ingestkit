@@ -105,3 +105,16 @@ creation gap by saving the business row and serialized event in one local
 transaction, then dispatching it with stable IDs. The collector's deduplication
 handles dispatch retries; it does not make your application transaction and HTTP
 request atomic.
+
+## Choose a delivery boundary
+
+Use the direct clients when the application already retains work durably and can
+retry it, or when occasional loss before sending is acceptable for that event.
+Use an application outbox when creating the business state must also create
+pending delivery atomically. In both cases, keep UUIDs/content across uncertain
+responses; a matching 202 is broker acknowledgement, not a database query result.
+
+The [recovery captures](../benchmarks/results/selfhost-2026-11-04/README.md) include
+three broker-outage/outbox repetitions with 100 saved events each. The separate
+after-ACK child-kill regression checks the local marking gap exactly. The
+[delivery guide](delivery.md) explains the independent consumer SQL/offset gap.

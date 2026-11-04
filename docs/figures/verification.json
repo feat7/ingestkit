@@ -35,7 +35,7 @@
   "scope": "Manual visual review supplements automated gates. Narrow typographic guides are companions to the full native diagrams. Charts retain all repetitions and limits; this file records verification, not a capacity or signature claim.",
   "assets_sha256": {
     "deployment.svg": "dc7a28badb795d3c1d9e920d4e0cf06c82f2142163c1501dfe9fdd47cec391a2",
-    "deployment-mobile.svg": "5efde287373cfd54cf18c90879ad54240468a45373087534a6fc52a1f7e9c730",
+    "deployment-mobile.svg": "fb45ed953b36166d44d96c9847366cc967a7a922aeac4c9ddb8df7436ac77add",
     "delivery.svg": "c1875b93d4318b47c4f3976f59843cd28bd0687c0d1ebdf0422de2d6bfc6b5a3",
     "delivery-mobile.svg": "e38e589350e5da8dfaa616c09b24111c7b2aedc5ef8a1d274d5262bfad5f41f7",
     "database-batching.svg": "32cddf86d6d06efa4d412fc9c92e8569808c07ceae91c830f2fd504588425099",
