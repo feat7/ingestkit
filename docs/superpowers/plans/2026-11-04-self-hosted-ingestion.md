@@ -10,7 +10,7 @@
 
 **Spec:** docs/superpowers/specs/2026-11-03-self-hosted-ingestion-design.md (approved 4 November 2026; native execution already selected).
 
-**Status:** Native implementation Tasks1–10 and the fresh whole-branch review/fix pass are complete in the existing feat/self-hosted-ingestion worktree. Full post-fix integration passed all 31 checks in 570.789s. Branch integration awaits the user's choice; see the [verification and review record](../reviews/2026-11-04-self-hosted-ingestion.md). The fsync correction and historical-results erratum are already committed in 3ca1a41, followed by reviewed design 641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
+**Status:** Native implementation Tasks1–10 and the fresh whole-branch review/fix pass are complete in the existing feat/self-hosted-ingestion worktree. Full post-fix integration passed all 31 checks in 570.789s. The user subsequently selected push, pull request and merge after checks; integration is tracked by the pull request and Git history. See the [verification and review record](../reviews/2026-11-04-self-hosted-ingestion.md). The fsync correction and historical-results erratum are already committed in 3ca1a41, followed by reviewed design 641fbe2. User's go-ahead authorizes this implementation without another approval cycle for a transcription of the same scope.
 
 ## Global Constraints
 

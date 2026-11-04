@@ -66,4 +66,4 @@ The two measured studies remain byte-identical at their cited source revisions. 
 
 The final whole-branch whitespace check reports 83 native-export whitespace lines in `docs/assets/deployment.svg` and `docs/assets/delivery.svg`; ordinary working-tree whitespace checks pass. This is the sole deferred Minor.
 
-Implementation is committed on `feat/self-hosted-ingestion`. This iteration has not been pushed, merged, publicly deployed or published. The existing worktree and private owned-run evidence are preserved; only this plan's temporary Superpowers workspace is removed after committing this record. Branch integration is the user's next choice.
+Implementation was verified and committed on `feat/self-hosted-ingestion` before any push or merge. The user subsequently authorized pushing the branch, opening a pull request and merging after checks. Integration is tracked by the pull request and Git history. Public deployment and article publication remain separate. The existing worktree and private owned-run evidence were preserved; only this plan's completed temporary Superpowers workspace was removed after retaining this record.
